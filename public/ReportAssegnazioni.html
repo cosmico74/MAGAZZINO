@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Report Assegnazioni</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let assegnazioni = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaReport();
+    };
+
+    function caricaReport() {
+      callServer('getTutteAssegnazioni', {}, function(data) {
+        assegnazioni = data;
+        popolaTabella();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaReport');
+      tbody.innerHTML = '';
+      assegnazioni.forEach(a => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = a.tipo;
+        row.insertCell(1).innerText = a.ID;
+        row.insertCell(2).innerText = a.descrizione || '';
+        row.insertCell(3).innerText = a.codice || '';
+        row.insertCell(4).innerText = a.quantita;
+        row.insertCell(5).innerText = a.destinazioneTipo;
+        row.insertCell(6).innerText = a.destinazioneId;
+        row.insertCell(7).innerHTML = `<button class="btn" onclick="dettaglio(${a.ID}, '${a.tipo}')">📋 Dettaglio</button>`;
+      });
+    }
+
+    function dettaglio(id, tipo) {
+      // Mostra dettaglio dell'oggetto (articolo o kit)
+      if (tipo === 'ARTICOLO') {
+        callServer('getArticoloById', { id: id }, function(art) {
+          alert(JSON.stringify(art, null, 2));
+        });
+      } else {
+        callServer('getKitById', { id: id }, function(kit) {
+          alert(JSON.stringify(kit, null, 2));
+        });
+      }
+    }
+  </script>
+</head>
+<body>
+  <h2>📊 Report Assegnazioni</h2>
+  <button class="btn" onclick="caricaReport()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaReport">
+      <thead><tr><th>Tipo</th><th>ID</th><th>Descrizione</th><th>Codice</th><th>Quantità</th><th>Destinatario Tipo</th><th>Destinatario ID</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</body>
+</html>

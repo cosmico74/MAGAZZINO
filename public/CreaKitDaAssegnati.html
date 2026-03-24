@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crea Kit da Assegnati</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let soggetti = [], articoliAssegnati = { sci: [], attacchi: [], skistopper: [] };
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaSoggetti();
+    };
+
+    function caricaSoggetti() {
+      callServer('getAllSoggetti', {}, function(data) {
+        soggetti = data;
+        const select = document.getElementById('soggetto');
+        select.innerHTML = '<option value="">Seleziona soggetto</option>';
+        soggetti.forEach(s => select.innerHTML += `<option value="${s.TIPO}_${s.ID}">${s.NOME} (${s.TIPO})</option>`);
+        select.addEventListener('change', caricaArticoliAssegnati);
+      });
+    }
+
+    function caricaArticoliAssegnati() {
+      const val = document.getElementById('soggetto').value;
+      if (!val) return;
+      const [tipo, id] = val.split('_');
+      callServer('getArticoliAssegnatiPerKit', { tipo: tipo, id: id }, function(data) {
+        articoliAssegnati = data;
+        popolaSelect('sciId', articoliAssegnati.sci);
+        popolaSelect('attacchiId', articoliAssegnati.attacchi);
+        popolaSelect('skistopperId', articoliAssegnati.skistopper);
+      });
+    }
+
+    function popolaSelect(id, lista) {
+      const select = document.getElementById(id);
+      select.innerHTML = '<option value="">Seleziona</option>';
+      lista.forEach(a => select.innerHTML += `<option value="${a.ID}">${a.CODICE} - ${a.DESCRIZIONE} (disp. ${a.GIACENZA})</option>`);
+    }
+
+    function creaKit() {
+      const val = document.getElementById('soggetto').value;
+      if (!val) return;
+      const [destinazioneTipo, destinazioneId] = val.split('_');
+      const sciId = document.getElementById('sciId').value;
+      const attacchiId = document.getElementById('attacchiId').value;
+      const skistopperId = document.getElementById('skistopperId').value;
+      const quantita = parseInt(document.getElementById('quantita').value);
+      const note = document.getElementById('note').value;
+      if (!sciId || !attacchiId || quantita < 1) {
+        showMessage('Seleziona sci, attacchi e quantità valida', 'error');
+        return;
+      }
+      // Verifica disponibilità
+      const sci = articoliAssegnati.sci.find(a => a.ID == sciId);
+      const att = articoliAssegnati.attacchi.find(a => a.ID == attacchiId);
+      if (!sci || sci.GIACENZA < quantita) return showMessage('Sci insufficiente', 'error');
+      if (!att || att.GIACENZA < quantita) return showMessage('Attacchi insufficienti', 'error');
+      if (skistopperId) {
+        const sk = articoliAssegnati.skistopper.find(a => a.ID == skistopperId);
+        if (!sk || sk.GIACENZA < quantita) return showMessage('Skistopper insufficiente', 'error');
+      }
+      callServer('creaKitDaAssegnati', {
+        destinazioneTipo, destinazioneId,
+        sciId, attacchiId, skistopperId: skistopperId || null,
+        quantita, note
+      }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          // reset form
+          document.getElementById('sciId').value = '';
+          document.getElementById('attacchiId').value = '';
+          document.getElementById('skistopperId').value = '';
+          document.getElementById('quantita').value = 1;
+          document.getElementById('note').value = '';
+          caricaArticoliAssegnati(); // ricarica
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <h2>🔧 Crea Kit da Assegnati</h2>
+  <div class="form-group">
+    <label>Soggetto (promoter/negozio/cliente)</label>
+    <select id="soggetto"></select>
+  </div>
+  <div class="form-group">
+    <label>Sci</label>
+    <select id="sciId"></select>
+  </div>
+  <div class="form-group">
+    <label>Attacchi</label>
+    <select id="attacchiId"></select>
+  </div>
+  <div class="form-group">
+    <label>Skistopper (opzionale)</label>
+    <select id="skistopperId"></select>
+  </div>
+  <div class="form-group">
+    <label>Quantità kit</label>
+    <input type="number" id="quantita" value="1" min="1">
+  </div>
+  <div class="form-group">
+    <label>Note</label>
+    <textarea id="note" rows="2"></textarea>
+  </div>
+  <button class="btn" onclick="creaKit()">🔧 Crea Kit</button>
+</body>
+</html>

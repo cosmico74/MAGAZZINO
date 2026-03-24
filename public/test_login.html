@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Login</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        input, button { margin: 5px; padding: 8px; }
+        .result { margin-top: 20px; background: #f0f0f0; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Test Login API</h2>
+    <div>
+        <input type="text" id="username" placeholder="Username" value="admin"><br>
+        <input type="password" id="password" placeholder="Password" value="fanculo"><br>
+        <button onclick="doLogin()">Accedi</button>
+    </div>
+    <div class="result" id="result"></div>
+
+    <script>
+        const API_BASE = ''; // stessa origine
+
+        async function doLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Login in corso...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    resultDiv.innerHTML = `<strong style="color:green">Login OK!</strong><br>
+                                          Utente: ${data.user.username}<br>
+                                          Ruolo: ${data.user.ruolo}<br>
+                                          Token: ${data.token.substring(0, 30)}...`;
+                } else {
+                    resultDiv.innerHTML = `<strong style="color:red">Errore:</strong> ${data.message}`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<strong style="color:red">Errore di rete:</strong> ${err.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

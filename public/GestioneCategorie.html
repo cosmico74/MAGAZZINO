@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Categorie</title>
+  <style>
+    /* stili come sopra */
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let categorie = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaCategorie();
+    };
+
+    function caricaCategorie() {
+      callServer('getCategorie', {}, function(data) {
+        categorie = data;
+        popolaTabella();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaCategorie');
+      tbody.innerHTML = '';
+      categorie.forEach(c => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = c.ID;
+        row.insertCell(1).innerText = c.NOME;
+        row.insertCell(2).innerText = c.MOSTRA_LUNGHEZZA === 'SI' ? 'Sì' : 'No';
+        row.insertCell(3).innerText = c.MOSTRA_DUREZZA === 'SI' ? 'Sì' : 'No';
+        row.insertCell(4).innerText = c.ATTIVO || 'SI';
+        const actions = row.insertCell(5);
+        actions.innerHTML = `<button class="btn" onclick="modificaCategoria(${c.ID})">✏️</button>
+                             <button class="btn" onclick="eliminaCategoria(${c.ID})">🗑️</button>`;
+      });
+    }
+
+    function apriModaleNuovo() {
+      document.getElementById('modalTitolo').innerText = 'Nuova Categoria';
+      document.getElementById('categoriaId').value = '';
+      document.getElementById('nome').value = '';
+      document.getElementById('mostraLunghezza').value = 'SI';
+      document.getElementById('mostraDurezza').value = 'SI';
+      document.getElementById('attivo').value = 'SI';
+      document.getElementById('modalCategoria').style.display = 'flex';
+    }
+
+    function modificaCategoria(id) {
+      const c = categorie.find(c => c.ID == id);
+      if (!c) return;
+      document.getElementById('modalTitolo').innerText = 'Modifica Categoria';
+      document.getElementById('categoriaId').value = c.ID;
+      document.getElementById('nome').value = c.NOME;
+      document.getElementById('mostraLunghezza').value = c.MOSTRA_LUNGHEZZA || 'SI';
+      document.getElementById('mostraDurezza').value = c.MOSTRA_DUREZZA || 'SI';
+      document.getElementById('attivo').value = c.ATTIVO || 'SI';
+      document.getElementById('modalCategoria').style.display = 'flex';
+    }
+
+    function salvaCategoria() {
+      const dati = {
+        id: document.getElementById('categoriaId').value,
+        nome: document.getElementById('nome').value,
+        mostraLunghezza: document.getElementById('mostraLunghezza').value,
+        mostraDurezza: document.getElementById('mostraDurezza').value,
+        attivo: document.getElementById('attivo').value
+      };
+      const func = dati.id ? 'updateCategoria' : 'saveCategoria';
+      callServer(func, dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          chiudiModale();
+          caricaCategorie();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaCategoria(id) {
+      if (!confirm('Eliminare questa categoria?')) return;
+      callServer('deleteCategoria', { id: id }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaCategorie();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function chiudiModale() {
+      document.getElementById('modalCategoria').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+  <h2>🗂️ Gestione Categorie</h2>
+  <button class="btn" onclick="apriModaleNuovo()">➕ Nuova Categoria</button>
+  <button class="btn" onclick="caricaCategorie()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaCategorie">
+      <thead><tr><th>ID</th><th>Nome</th><th>Mostra Lunghezza</th><th>Mostra Durezza</th><th>Attivo</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="modalCategoria" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:8px; width:500px;">
+      <h3 id="modalTitolo">Nuova Categoria</h3>
+      <input type="hidden" id="categoriaId">
+      <div class="form-group"><label>Nome *</label><input type="text" id="nome" required></div>
+      <div class="form-group"><label>Mostra Lunghezza</label><select id="mostraLunghezza"><option value="SI">Sì</option><option value="NO">No</option></select></div>
+      <div class="form-group"><label>Mostra Durezza</label><select id="mostraDurezza"><option value="SI">Sì</option><option value="NO">No</option></select></div>
+      <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+      <button class="btn" onclick="salvaCategoria()">💾 Salva</button>
+      <button class="btn" onclick="chiudiModale()">Annulla</button>
+    </div>
+  </div>
+</body>
+</html>

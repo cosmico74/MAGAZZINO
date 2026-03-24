@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <title>Gestione Promoter e Negozi</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 8px 10px;
+            background-color: #f5f5f5;
+            margin: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 12px 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #1a73e8;
+            text-align: center;
+            margin: 0 0 15px 0;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #1a73e8;
+            font-size: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+            background: #f1f3f4;
+            font-weight: bold;
+        }
+        .tab.active {
+            background: white;
+            border-color: #ddd;
+            border-bottom-color: white;
+            color: #1a73e8;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .btn-primary { background-color: #1a73e8; color: white; }
+        .btn-success { background-color: #34a853; color: white; }
+        .btn-danger { background-color: #ea4335; color: white; }
+        .btn-secondary { background-color: #f1f3f4; color: #5f6368; border: 1px solid #ddd; }
+        .btn-small { padding: 4px 8px; font-size: 11px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f1f3f4;
+            padding: 8px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #ddd;
+        }
+        td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover { background-color: #f9f9f9; }
+
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: bold; font-size: 11px; margin-bottom: 2px; }
+        input, select, textarea {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .message {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .success { background: #e6f4ea; color: #137333; border: 1px solid #34a853; }
+        .error { background: #fce8e6; color: #c5221f; border: 1px solid #ea4335; }
+        .info { background: #e8f0fe; color: #1a73e8; border: 1px solid #1a73e8; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a73e8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>👤 Gestione Promoter e Negozi</h2>
+        <div id="message" class="message"></div>
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" data-tab="promoter">Promoter</div>
+            <div class="tab" data-tab="negozi">Negozi</div>
+        </div>
+
+        <!-- Tab Promoter -->
+        <div id="tab-promoter" class="tab-content active">
+            <div style="margin-bottom:10px;">
+                <button class="btn btn-success" onclick="openModal('promoter')">➕ Nuovo Promoter</button>
+            </div>
+            <table id="promoterTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Cognome</th>
+                        <th>Email</th>
+                        <th>Telefono</th>
+                        <th>Regione</th>
+                        <th>Attivo</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="promoterBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Tab Negozi -->
+        <div id="tab-negozi" class="tab-content">
+            <div style="margin-bottom:10px;">
+                <button class="btn btn-success" onclick="openModal('negozio')">➕ Nuovo Negozio</button>
+            </div>
+            <table id="negoziTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Indirizzo</th>
+                        <th>Città</th>
+                        <th>CAP</th>
+                        <th>Telefono</th>
+                        <th>Email</th>
+                        <th>Referente</th>
+                        <th>Attivo</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="negoziBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal per inserimento/modifica -->
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="modalForm">
+                    <input type="hidden" id="editId">
+                    <!-- I campi verranno generati dinamicamente in base al tipo -->
+                    <div id="modalFields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="save()">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'promoter';
+        let promoterList = [];
+        let negoziList = [];
+
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            setupTabs();
+            loadData('promoter');
+            loadData('negozi');
+        });
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    const tabName = this.dataset.tab;
+                    document.getElementById('tab-' + tabName).classList.add('active');
+                    currentTab = tabName;
+                });
+            });
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = 'message ' + type;
+            msg.innerText = text;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        // Carica i dati per un tipo (promoter o negozi)
+        function loadData(tipo) {
+            showLoading(true);
+            const functionName = tipo === 'promoter' ? 'getPromoter' : 'getNegozi';
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    if (tipo === 'promoter') {
+                        promoterList = data || [];
+                        renderPromoter();
+                    } else {
+                        negoziList = data || [];
+                        renderNegozi();
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showLoading(false);
+                    showMessage('Errore caricamento ' + tipo + ': ' + error.message, 'error');
+                })
+                [functionName]();
+        }
+
+        function renderPromoter() {
+            const tbody = document.getElementById('promoterBody');
+            if (!promoterList.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Nessun promoter trovato</td></tr>';
+                return;
+            }
+            let html = '';
+            promoterList.forEach(p => {
+                html += `<tr>
+                    <td>${p.ID}</td>
+                    <td>${p.NOME || ''}</td>
+                    <td>${p.COGNOME || ''}</td>
+                    <td>${p.EMAIL || ''}</td>
+                    <td>${p.TELEFONO || ''}</td>
+                    <td>${p.REGIONE || ''}</td>
+                    <td>${p.ATTIVO === 'SI' ? '✅' : '❌'}</td>
+                    <td>
+                        <button class="btn btn-small btn-primary" onclick="editItem('promoter', ${p.ID})">Modifica</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteItem('promoter', ${p.ID})">Elimina</button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderNegozi() {
+            const tbody = document.getElementById('negoziBody');
+            if (!negoziList.length) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Nessun negozio trovato</td></tr>';
+                return;
+            }
+            let html = '';
+            negoziList.forEach(n => {
+                html += `<tr>
+                    <td>${n.ID}</td>
+                    <td>${n.NOME || ''}</td>
+                    <td>${n.INDIRIZZO || ''}</td>
+                    <td>${n.CITTA || ''}</td>
+                    <td>${n.CAP || ''}</td>
+                    <td>${n.TELEFONO || ''}</td>
+                    <td>${n.EMAIL || ''}</td>
+                    <td>${n.REFERENTE || ''}</td>
+                    <td>${n.ATTIVO === 'SI' ? '✅' : '❌'}</td>
+                    <td>
+                        <button class="btn btn-small btn-primary" onclick="editItem('negozio', ${n.ID})">Modifica</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteItem('negozio', ${n.ID})">Elimina</button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Apertura modal per nuovo elemento
+        function openModal(tipo) {
+            currentEditTipo = tipo;
+            currentEditId = null;
+            document.getElementById('modalTitle').innerText = tipo === 'promoter' ? 'Nuovo Promoter' : 'Nuovo Negozio';
+            generateFormFields(tipo, null);
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        // Modifica elemento esistente
+        function editItem(tipo, id) {
+            const lista = tipo === 'promoter' ? promoterList : negoziList;
+            const item = lista.find(i => i.ID == id);
+            if (!item) return;
+
+            currentEditTipo = tipo;
+            currentEditId = id;
+            document.getElementById('modalTitle').innerText = tipo === 'promoter' ? 'Modifica Promoter' : 'Modifica Negozio';
+            generateFormFields(tipo, item);
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        // Genera i campi del form in base al tipo
+        function generateFormFields(tipo, item) {
+            const container = document.getElementById('modalFields');
+            let html = '';
+
+            if (tipo === 'promoter') {
+                html = `
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" id="campo_nome" value="${item ? item.NOME || '' : ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Cognome *</label>
+                        <input type="text" id="campo_cognome" value="${item ? item.COGNOME || '' : ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="campo_email" value="${item ? item.EMAIL || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefono</label>
+                        <input type="text" id="campo_telefono" value="${item ? item.TELEFONO || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Regione</label>
+                        <input type="text" id="campo_regione" value="${item ? item.REGIONE || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Attivo</label>
+                        <select id="campo_attivo">
+                            <option value="SI" ${item && item.ATTIVO === 'SI' ? 'selected' : ''}>SI</option>
+                            <option value="NO" ${item && item.ATTIVO === 'NO' ? 'selected' : ''}>NO</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Note</label>
+                        <textarea id="campo_note">${item ? item.NOTE || '' : ''}</textarea>
+                    </div>
+                `;
+            } else { // negozio
+                html = `
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" id="campo_nome" value="${item ? item.NOME || '' : ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Indirizzo</label>
+                        <input type="text" id="campo_indirizzo" value="${item ? item.INDIRIZZO || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Città</label>
+                        <input type="text" id="campo_citta" value="${item ? item.CITTA || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>CAP</label>
+                        <input type="text" id="campo_cap" value="${item ? item.CAP || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefono</label>
+                        <input type="text" id="campo_telefono" value="${item ? item.TELEFONO || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="campo_email" value="${item ? item.EMAIL || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Referente</label>
+                        <input type="text" id="campo_referente" value="${item ? item.REFERENTE || '' : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Attivo</label>
+                        <select id="campo_attivo">
+                            <option value="SI" ${item && item.ATTIVO === 'SI' ? 'selected' : ''}>SI</option>
+                            <option value="NO" ${item && item.ATTIVO === 'NO' ? 'selected' : ''}>NO</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Note</label>
+                        <textarea id="campo_note">${item ? item.NOTE || '' : ''}</textarea>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('modalFields').innerHTML = '';
+        }
+
+        // Salva (crea o aggiorna)
+        function save() {
+            const tipo = currentEditTipo;
+            const isUpdate = currentEditId !== null;
+            const dati = {};
+
+            if (tipo === 'promoter') {
+                dati.nome = document.getElementById('campo_nome').value;
+                dati.cognome = document.getElementById('campo_cognome').value;
+                dati.email = document.getElementById('campo_email').value;
+                dati.telefono = document.getElementById('campo_telefono').value;
+                dati.regione = document.getElementById('campo_regione').value;
+                dati.attivo = document.getElementById('campo_attivo').value;
+                dati.note = document.getElementById('campo_note').value;
+                if (!dati.nome || !dati.cognome) {
+                    showMessage('Nome e cognome sono obbligatori', 'error');
+                    return;
+                }
+            } else { // negozio
+                dati.nome = document.getElementById('campo_nome').value;
+                dati.indirizzo = document.getElementById('campo_indirizzo').value;
+                dati.citta = document.getElementById('campo_citta').value;
+                dati.cap = document.getElementById('campo_cap').value;
+                dati.telefono = document.getElementById('campo_telefono').value;
+                dati.email = document.getElementById('campo_email').value;
+                dati.referente = document.getElementById('campo_referente').value;
+                dati.attivo = document.getElementById('campo_attivo').value;
+                dati.note = document.getElementById('campo_note').value;
+                if (!dati.nome) {
+                    showMessage('Il nome è obbligatorio', 'error');
+                    return;
+                }
+            }
+
+            if (isUpdate) dati.id = currentEditId;
+
+            showLoading(true);
+            const action = isUpdate ? (tipo === 'promoter' ? 'updatePromoter' : 'updateNegozio') : (tipo === 'promoter' ? 'savePromoter' : 'saveNegozio');
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    showLoading(false);
+                    if (response.success) {
+                        showMessage(response.message, 'success');
+                        closeModal();
+                        loadData(tipo); // ricarica la lista
+                    } else {
+                        showMessage('Errore: ' + response.message, 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showLoading(false);
+                    showMessage('Errore di comunicazione: ' + error.message, 'error');
+                })
+                [action](dati);
+        }
+
+        // Elimina elemento
+        function deleteItem(tipo, id) {
+            if (!confirm(`Sei sicuro di voler eliminare questo ${tipo === 'promoter' ? 'promoter' : 'negozio'}?`)) return;
+            showLoading(true);
+            const action = tipo === 'promoter' ? 'deletePromoter' : 'deleteNegozio';
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    showLoading(false);
+                    if (response.success) {
+                        showMessage(response.message, 'success');
+                        loadData(tipo);
+                    } else {
+                        showMessage('Errore: ' + response.message, 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showLoading(false);
+                    showMessage('Errore di comunicazione: ' + error.message, 'error');
+                })
+                [action](id);
+        }
+
+        // Variabili per tracciare l'elemento in modifica
+        let currentEditTipo = null;
+        let currentEditId = null;
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0.5cm; /* Margini minimi */
+            color: #333;
+            font-size: 10px; /* Font piccolissimo */
+        }
+        .header {
+            text-align: center;
+            border-bottom: 1px solid #1a73e8;
+            padding-bottom: 2px;
+            margin-bottom: 3px;
+        }
+        .header h1 {
+            color: #1a73e8;
+            margin: 0;
+            font-size: 14px;
+        }
+        .date-info {
+            text-align: right;
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 8px;
+        }
+        .stat-box {
+            border: 1px solid #1a73e8;
+            border-radius: 3px;
+            padding: 2px;
+            text-align: center;
+            width: 23%;
+        }
+        .stat-label {
+            font-size: 7px;
+            color: #666;
+        }
+        .stat-value {
+            font-size: 10px;
+            font-weight: bold;
+            color: #1a73e8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2px;
+            font-size: 8px;
+        }
+        th {
+            background-color: #1a73e8;
+            color: white;
+            padding: 2px 1px; /* Padding minimo */
+            text-align: left;
+            font-size: 8px;
+        }
+        td {
+            padding: 1px; /* Padding minimo */
+            border-bottom: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .critical-stock {
+            background-color: #ffebee;
+            font-weight: bold;
+        }
+        .low-stock {
+            background-color: #fff8e1;
+        }
+        .footer {
+            margin-top: 5px;
+            text-align: center;
+            font-size: 6px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>INVENTARIO</h1>
+        <div style="font-size:7px;">West & Race</div>
+    </div>
+
+    <div class="date-info">
+        <?= DATA_GENERAZIONE ?>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box"><span class="stat-label">Art.</span><br><span class="stat-value"><?= TOT_ARTICOLI ?></span></div>
+        <div class="stat-box"><span class="stat-label">Qtà</span><br><span class="stat-value"><?= TOT_QUANTITA ?></span></div>
+        <div class="stat-box"><span class="stat-label">Disp</span><br><span class="stat-value"><?= DISPONIBILI ?></span></div>
+        <div class="stat-box"><span class="stat-label">Kit</span><br><span class="stat-value"><?= IN_KIT ?></span></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Cod</th>
+                <th>Descrizione</th>
+                <th>Mag</th>
+                <th>Cat</th>
+                <th>Marca</th>
+                <th>L/D</th>
+                <th>Qtà</th>
+                <th>Giac</th>
+                <th>St</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?!= TABELLA_ARTICOLI ?>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <?= DATA_GENERAZIONE ?>
+    </div>
+</body>
+</html>

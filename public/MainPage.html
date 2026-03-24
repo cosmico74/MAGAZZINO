@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      /* I tuoi stili */
+      .menu-button { display: block; width: 200px; margin: 10px; padding: 15px; }
+    </style>
+  </head>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Gestionale Magazzino</title>
+    <!-- Il resto dei tuoi stili e script -->
+</head>
+  <body>
+    <h1>📦 Gestionale Magazzino</h1>
+    <button class="menu-button" onclick="apriMaschera('InsertForm')">📦 Inserisci Articolo</button>
+    <button class="menu-button" onclick="apriMaschera('KitForm')">🔧 Gestisci Kit</button>
+    <button class="menu-button" onclick="apriMaschera('GestioneAssegnazioni')">📤 Assegnazioni</button>
+    <!-- Aggiungi qui tutti gli altri bottoni -->
+
+    <script>
+      function apriMaschera(nomeFile) {
+        // Questa funzione chiamerà il server per mostrare la maschera corretta
+        // (Vedi spiegazione sotto)
+      }
+    </script>
+  </body>
+</html>
+<script>
+  function apriMaschera(nomeFile) {
+    google.script.run
+      .withSuccessHandler(function(htmlContent) {
+        // Sostituisce il contenuto della pagina con il nuovo HTML
+        document.getElementById('contenuto').innerHTML = htmlContent;
+      })
+      .getHtmlFromFile(nomeFile); // Una nuova funzione server che restituisce l'HTML
+  }
+</script>
+
+<div id="contenuto">
+  <!-- Qui verrà caricato il contenuto delle varie maschere -->
+</div>

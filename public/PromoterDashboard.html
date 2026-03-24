@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I Miei Articoli - Promoter</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #333;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      background: #e0e0e0;
+      color: #000;
+    }
+    .btn-primary { background: #1a73e8; color: #fff; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-warning { background: #f39c12; color: #fff; }
+    .btn-secondary { background: #34495e; color: #fff; }
+    .btn-info { background: #3498db; color: #fff; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .stats-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+    .filters {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-group {
+      flex: 1 1 200px;
+    }
+    .filter-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 3px;
+    }
+    .filter-group select,
+    .filter-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .table-container {
+      background: #fff;
+      border-radius: 8px;
+      overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+    }
+    th {
+      background: #f5f5f5;
+      padding: 12px 8px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: bold;
+      color: #555;
+      border-bottom: 2px solid #ddd;
+    }
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #aaa;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .loading {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      font-size: 18px;
+    }
+    .message {
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    .message.success { background: #d4edda; color: #155724; }
+    .message.error { background: #f8d7da; color: #721c24; }
+    .message.warning { background: #fff3cd; color: #856404; }
+    .clienti-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    .cliente-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .cliente-azioni {
+      display: flex;
+      gap: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">Caricamento in corso...</div>
+  <div class="container">
+    <h1>📋 I Miei Articoli</h1>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="caricaDati()">🔄 Aggiorna</button>
+      <button class="btn btn-success" onclick="apriModaleRientro()">📦 Rientro</button>
+      <button class="btn btn-warning" onclick="apriModaleTrasferimento()">🔄 Trasferisci</button>
+      <button class="btn btn-secondary" onclick="apriModaleArticoliUsciti()">📤 Usciti</button>
+      <button class="btn btn-info" onclick="apriModaleClienti()">👥 Clienti</button>
+    </div>
+
+    <div class="stats-container">
+      <div class="stat-card"><div class="stat-label">Totale oggetti gestiti</div><div class="stat-value" id="totaleOggetti">0</div></div>
+      <div class="stat-card"><div class="stat-label">Quantità totale pezzi</div><div class="stat-value" id="totalePezzi">0</div></div>
+      <div class="stat-card"><div class="stat-label">Articoli distinti</div><div class="stat-value" id="articoliDistinti">0</div></div>
+      <div class="stat-card"><div class="stat-label">Kit distinti</div><div class="stat-value" id="kitDistinti">0</div></div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Tipo</label>
+        <select id="filtroTipo" onchange="applicaFiltri()">
+          <option value="">Tutti</option>
+          <option value="ARTICOLO">Articoli</option>
+          <option value="KIT">Kit</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Destinatario</label>
+        <select id="filtroDestinatario" onchange="applicaFiltri()">
+          <option value="">Tutti</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Ricerca</label>
+        <input type="text" id="filtroTesto" placeholder="Cerca..." onkeyup="applicaFiltri()">
+      </div>
+      <div class="filter-group">
+        <button class="btn btn-secondary" onclick="resetFiltri()">Reset</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Codice</th>
+            <th>Descrizione</th>
+            <th>Dettagli</th>
+            <th>Qtà</th>
+            <th>Destinatario</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="corpoTabella">
+          <tr><td colspan="7" style="text-align:center; padding:30px;">Nessun oggetto</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modale Rientro -->
+  <div class="modal" id="modalRientro">
+    <div class="modal-content">
+      <div class="modal-header"><h3>📦 Rientro in magazzino</h3><button class="close-btn" onclick="chiudiModale('modalRientro')">&times;</button></div>
+      <div class="form-group">
+        <label>Oggetto</label>
+        <select id="rientroOggettoId"></select>
+      </div>
+      <div class="form-group">
+        <label>Quantità</label>
+        <input type="number" id="rientroQuantita" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Magazzino</label>
+        <select id="rientroMagazzinoId"></select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <input type="text" id="rientroNote" placeholder="Opzionale">
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="chiudiModale('modalRientro')">Annulla</button>
+        <button class="btn btn-success" onclick="confermaRientro()">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Trasferimento -->
+  <div class="modal" id="modalTrasferimento">
+    <div class="modal-content">
+      <div class="modal-header"><h3>🔄 Trasferisci oggetto</h3><button class="close-btn" onclick="chiudiModale('modalTrasferimento')">&times;</button></div>
+      <div class="form-group">
+        <label>Oggetto</label>
+        <select id="trasferimentoOggettoId"></select>
+      </div>
+      <div class="form-group">
+        <label>Quantità</label>
+        <input type="number" id="trasferimentoQuantita" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Tipo destinatario</label>
+        <select id="trasferimentoTipoDest" onchange="caricaDestinatariTrasferimento()">
+          <option value="">Seleziona tipo</option>
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Destinatario</label>
+        <select id="trasferimentoDestinatarioId"></select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <input type="text" id="trasferimentoNote" placeholder="Opzionale">
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="chiudiModale('modalTrasferimento')">Annulla</button>
+        <button class="btn btn-warning" onclick="confermaTrasferimento()">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Articoli Usciti -->
+  <div class="modal" id="modalArticoliUsciti">
+    <div class="modal-content">
+      <div class="modal-header"><h3>📤 Articoli usciti</h3><button class="close-btn" onclick="chiudiModale('modalArticoliUsciti')">&times;</button></div>
+      <div class="filters" style="margin-bottom:10px;">
+        <div class="filter-group"><label>Tipo</label><select id="filtroUscitiTipo" onchange="filtraUsciti()"><option value="">Tutti</option><option value="ARTICOLO">Articoli</option><option value="KIT">Kit</option></select></div>
+        <div class="filter-group"><label>Destinatario</label><select id="filtroUscitiDestinatario" onchange="filtraUsciti()"></select></div>
+        <div class="filter-group"><label>Ricerca</label><input type="text" id="filtroUscitiTesto" placeholder="Cerca..." onkeyup="filtraUsciti()"></div>
+      </div>
+      <div class="table-container" style="max-height:400px; overflow-y:auto;">
+        <table><thead><tr><th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Destinatario</th><th>Qtà</th><th>Azioni</th></tr></thead><tbody id="corpoUsciti"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Clienti -->
+  <div class="modal" id="modalClienti">
+    <div class="modal-content">
+      <div class="modal-header"><h3>👥 I miei clienti</h3><button class="close-btn" onclick="chiudiModale('modalClienti')">&times;</button></div>
+      <div style="margin-bottom:15px; padding:10px; background:#f5f5f5; border-radius:4px;">
+        <h4 id="titoloFormCliente">➕ Nuovo cliente</h4>
+        <input type="hidden" id="clienteId">
+        <div class="form-group"><label>Nome cliente</label><input type="text" id="clienteNome" placeholder="Nome"></div>
+        <div style="display:flex; gap:10px;"><button class="btn btn-success" onclick="salvaCliente()">Salva</button><button class="btn btn-secondary" onclick="annullaModificaCliente()">Annulla</button></div>
+      </div>
+      <div class="clienti-list" id="listaClienti"></div>
+    </div>
+  </div>
+
+  <script>
+    // Variabili globali
+    let promoterId = null;
+    let oggettiInCarico = [];
+    let oggettiUsciti = [];
+    let oggettiCompleti = [];
+    let clienti = [];
+    let promoterList = [];
+    let negoziList = [];
+    let magazzini = [];
+    let mapPromoter = {}, mapNegozi = {}, mapClienti = {};
+
+    // All'avvio carica i dati
+    window.onload = function() {
+      caricaDati();
+    };
+
+    // Funzione universale per chiamare il server
+    function callServerFunction(funcName, params, callback) {
+      console.log('➡️ Chiamo server:', funcName, params);
+      document.getElementById('loading').style.display = 'flex';
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ Risposta da', funcName, ':', result);
+          document.getElementById('loading').style.display = 'none';
+          callback(result);
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ Errore in', funcName, ':', error);
+          document.getElementById('loading').style.display = 'none';
+          mostraMessaggio('Errore di comunicazione: ' + error.message, 'error');
+        })[funcName](params);
+    }
+
+    function mostraMessaggio(msg, tipo) {
+      const div = document.createElement('div');
+      div.className = `message ${tipo}`;
+      div.textContent = msg;
+      document.querySelector('.container').prepend(div);
+      setTimeout(() => div.remove(), 5000);
+    }
+
+    // Carica tutti i dati dal server (unica chiamata)
+    function caricaDati() {
+      callServerFunction('getDashboardData', null, function(data) {
+        console.log('Dashboard data ricevuto:', data);
+        if (!data || !data.success) {
+          mostraMessaggio(data?.message || 'Errore nel caricamento dati', 'error');
+          return;
+        }
+        promoterId = data.promoterId;
+
+        // 🔒 PROTEZIONE: converti in array se non lo sono
+        oggettiInCarico = Array.isArray(data.oggettiInCarico) ? data.oggettiInCarico : [];
+        oggettiUsciti = Array.isArray(data.oggettiUsciti) ? data.oggettiUsciti : [];
+        clienti = Array.isArray(data.clienti) ? data.clienti : [];
+        promoterList = Array.isArray(data.promoterList) ? data.promoterList : [];
+        negoziList = Array.isArray(data.negoziList) ? data.negoziList : [];
+        magazzini = Array.isArray(data.magazzini) ? data.magazzini : [];
+
+        // Costruisci mappe per lookup nomi
+        mapPromoter = {};
+        promoterList.forEach(p => mapPromoter[p.ID] = (p.NOME + ' ' + p.COGNOME).trim() || 'Promoter');
+        mapNegozi = {};
+        negoziList.forEach(n => mapNegozi[n.ID] = n.NOME || 'Negozio');
+        mapClienti = {};
+        clienti.forEach(c => mapClienti[c.ID] = c.NOME || 'Cliente');
+
+        // Unisci le liste con campo destinatarioNome (sempre array)
+        const inCaricoConNome = oggettiInCarico.map(o => ({
+          ...o,
+          destinatarioNome: 'Me stesso',
+          tipoAssegnazione: 'me'
+        }));
+        const uscitiConNome = oggettiUsciti.map(o => {
+          let nome = '';
+          if (o.destinazioneTipo === 'PROMOTER') nome = mapPromoter[o.destinazioneId] || `Promoter ${o.destinazioneId}`;
+          else if (o.destinazioneTipo === 'NEGOZIO') nome = mapNegozi[o.destinazioneId] || `Negozio ${o.destinazioneId}`;
+          else if (o.destinazioneTipo === 'CLIENTE') nome = mapClienti[o.destinazioneId] || `Cliente ${o.destinazioneId}`;
+          else nome = o.destinatario || 'Sconosciuto';
+          return { ...o, destinatarioNome: nome, tipoAssegnazione: 'altri' };
+        });
+
+        oggettiCompleti = [...inCaricoConNome, ...uscitiConNome];
+
+        aggiornaStatistiche();
+        popolaFiltroDestinatario();
+        renderTabella(oggettiCompleti);
+        popolaSelectRientro();
+        popolaSelectTrasferimento();
+        popolaMagazzini();
+        renderListaClienti();
+      });
+    }
+
+    function aggiornaStatistiche() {
+      let totPezzi = 0, artDist = 0, kitDist = 0;
+      oggettiCompleti.forEach(o => {
+        totPezzi += o.quantita || 0;
+        if (o.tipo === 'ARTICOLO') artDist++; else kitDist++;
+      });
+      document.getElementById('totaleOggetti').innerText = oggettiCompleti.length;
+      document.getElementById('totalePezzi').innerText = totPezzi;
+      document.getElementById('articoliDistinti').innerText = artDist;
+      document.getElementById('kitDistinti').innerText = kitDist;
+    }
+
+    function popolaFiltroDestinatario() {
+      const destinatari = [...new Set(oggettiCompleti.map(o => o.destinatarioNome))];
+      const select = document.getElementById('filtroDestinatario');
+      select.innerHTML = '<option value="">Tutti</option>';
+      destinatari.forEach(d => select.innerHTML += `<option value="${d}">${d}</option>`);
+    }
+
+    function renderTabella(oggetti) {
+      const tbody = document.getElementById('corpoTabella');
+      if (!oggetti || oggetti.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">Nessun oggetto</td></tr>';
+        return;
+      }
+      let html = '';
+      oggetti.forEach(o => {
+        const badge = o.tipo === 'ARTICOLO' ? 'badge-success' : 'badge-warning';
+        const dettagli = o.tipo === 'ARTICOLO' 
+          ? `L:${o.LUNGHEZZA || ''} D:${o.DUREZZA || ''}`
+          : `Sci: ${o.SCI_DESCRIZIONE || ''}`;
+        let azioni = '';
+        if (o.tipoAssegnazione === 'me') {
+          azioni = `<button class="btn btn-small btn-success" onclick="preparaRientro('${o.ID}','${o.tipo}',${o.quantita})">📦 Rientro</button>
+                    <button class="btn btn-small btn-warning" onclick="preparaTrasferimento('${o.ID}','${o.tipo}',${o.quantita})">🔄 Trasferisci</button>`;
+        } else {
+          azioni = `<button class="btn btn-small btn-danger" onclick="richiamaOggetto('${o.ID}','${o.tipo}',${o.quantita})">Richiama</button>`;
+        }
+        html += `<tr>
+          <td><span class="badge ${badge}">${o.tipo}</span></td>
+          <td>${o.codice || ''}</td>
+          <td>${o.descrizione || ''}</td>
+          <td>${dettagli}</td>
+          <td>${o.quantita}</td>
+          <td>${o.destinatarioNome}</td>
+          <td class="action-buttons">${azioni}</td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function applicaFiltri() {
+      const tipo = document.getElementById('filtroTipo').value;
+      const dest = document.getElementById('filtroDestinatario').value;
+      const testo = document.getElementById('filtroTesto').value.toLowerCase();
+      let filtrati = oggettiCompleti;
+      if (tipo) filtrati = filtrati.filter(o => o.tipo === tipo);
+      if (dest) filtrati = filtrati.filter(o => o.destinatarioNome === dest);
+      if (testo) {
+        filtrati = filtrati.filter(o => 
+          (o.codice && o.codice.toLowerCase().includes(testo)) ||
+          (o.descrizione && o.descrizione.toLowerCase().includes(testo))
+        );
+      }
+      renderTabella(filtrati);
+    }
+
+    function resetFiltri() {
+      document.getElementById('filtroTipo').value = '';
+      document.getElementById('filtroDestinatario').value = '';
+      document.getElementById('filtroTesto').value = '';
+      renderTabella(oggettiCompleti);
+    }
+
+    // ---------- Rientro ----------
+    function apriModaleRientro() {
+      popolaSelectRientro();
+      document.getElementById('modalRientro').style.display = 'flex';
+    }
+
+    function popolaSelectRientro() {
+      const select = document.getElementById('rientroOggettoId');
+      select.innerHTML = '<option value="">Seleziona oggetto</option>';
+      oggettiInCarico.forEach(o => {
+        select.innerHTML += `<option value="${o.ID}_${o.tipo}">${o.codice} - ${o.descrizione} (${o.quantita})</option>`;
+      });
+    }
+
+    function popolaMagazzini() {
+      const select = document.getElementById('rientroMagazzinoId');
+      select.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => {
+        select.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`;
+      });
+    }
+
+    function preparaRientro(id, tipo, maxQta) {
+      document.getElementById('rientroOggettoId').value = id + '_' + tipo;
+      document.getElementById('rientroQuantita').max = maxQta;
+      document.getElementById('rientroQuantita').value = 1;
+      apriModaleRientro();
+    }
+
+    function confermaRientro() {
+      const sel = document.getElementById('rientroOggettoId').value;
+      if (!sel) return mostraMessaggio('Seleziona un oggetto', 'warning');
+      const [id, tipo] = sel.split('_');
+      const qta = parseInt(document.getElementById('rientroQuantita').value);
+      const mag = document.getElementById('rientroMagazzinoId').value;
+      const note = document.getElementById('rientroNote').value;
+      if (!qta || qta <= 0) return mostraMessaggio('Quantità non valida', 'warning');
+      if (!mag) return mostraMessaggio('Seleziona un magazzino', 'warning');
+      callServerFunction('registraMioRientro', {
+        oggettoId: id,
+        tipoOggetto: tipo,
+        quantita: qta,
+        magazzinoId: mag,
+        note: note
+      }, function(res) {
+        if (res.success) {
+          mostraMessaggio(res.message, 'success');
+          chiudiModale('modalRientro');
+          caricaDati();
+        } else {
+          mostraMessaggio(res.message, 'error');
+        }
+      });
+    }
+
+    // ---------- Trasferimento ----------
+    function apriModaleTrasferimento() {
+      popolaSelectTrasferimento();
+      document.getElementById('modalTrasferimento').style.display = 'flex';
+    }
+
+    function popolaSelectTrasferimento() {
+      const select = document.getElementById('trasferimentoOggettoId');
+      select.innerHTML = '<option value="">Seleziona oggetto</option>';
+      oggettiInCarico.forEach(o => {
+        select.innerHTML += `<option value="${o.ID}_${o.tipo}">${o.codice} - ${o.descrizione} (${o.quantita})</option>`;
+      });
+    }
+
+    function preparaTrasferimento(id, tipo, maxQta) {
+      document.getElementById('trasferimentoOggettoId').value = id + '_' + tipo;
+      document.getElementById('trasferimentoQuantita').max = maxQta;
+      document.getElementById('trasferimentoQuantita').value = 1;
+      apriModaleTrasferimento();
+    }
+
+    function caricaDestinatariTrasferimento() {
+      const tipo = document.getElementById('trasferimentoTipoDest').value;
+      const select = document.getElementById('trasferimentoDestinatarioId');
+      select.innerHTML = '<option value="">Caricamento...</option>';
+      let options = '<option value="">Seleziona destinatario</option>';
+      if (tipo === 'PROMOTER') {
+        promoterList.forEach(p => {
+          if (p.ID != promoterId) options += `<option value="${p.ID}">${p.NOME} ${p.COGNOME}</option>`;
+        });
+      } else if (tipo === 'NEGOZIO') {
+        negoziList.forEach(n => options += `<option value="${n.ID}">${n.NOME}</option>`);
+      } else if (tipo === 'CLIENTE') {
+        clienti.forEach(c => options += `<option value="${c.ID}">${c.NOME}</option>`);
+      } else {
+        options = '<option value="">Prima seleziona tipo</option>';
+      }
+      select.innerHTML = options;
+    }
+
+    function confermaTrasferimento() {
+      const sel = document.getElementById('trasferimentoOggettoId').value;
+      if (!sel) return mostraMessaggio('Seleziona un oggetto', 'warning');
+      const [id, tipo] = sel.split('_');
+      const qta = parseInt(document.getElementById('trasferimentoQuantita').value);
+      const tipoDest = document.getElementById('trasferimentoTipoDest').value;
+      const destId = document.getElementById('trasferimentoDestinatarioId').value;
+      const note = document.getElementById('trasferimentoNote').value;
+      if (!qta || qta <= 0) return mostraMessaggio('Quantità non valida', 'warning');
+      if (!tipoDest || !destId) return mostraMessaggio('Seleziona un destinatario', 'warning');
+      callServerFunction('trasferisciMioOggetto', {
+        oggettoId: id,
+        tipoOggetto: tipo,
+        quantita: qta,
+        destinazioneTipo: tipoDest,
+        destinazioneId: destId,
+        note: note
+      }, function(res) {
+        if (res.success) {
+          mostraMessaggio(res.message, 'success');
+          chiudiModale('modalTrasferimento');
+          caricaDati();
+        } else {
+          mostraMessaggio(res.message, 'error');
+        }
+      });
+    }
+
+    // ---------- Articoli Usciti ----------
+    let oggettiUscitiFiltrati = [];
+
+    function apriModaleArticoliUsciti() {
+      if (!promoterId) {
+        mostraMessaggio('ID promoter non disponibile', 'error');
+        return;
+      }
+      document.getElementById('loading').style.display = 'flex';
+      google.script.run
+        .withSuccessHandler(function(risultato) {
+          document.getElementById('loading').style.display = 'none';
+          oggettiUsciti = Array.isArray(risultato) ? risultato : [];
+          oggettiUsciti = oggettiUsciti.map(o => {
+            let nome = '';
+            if (o.destinazioneTipo === 'PROMOTER') nome = mapPromoter[o.destinazioneId] || `Promoter ${o.destinazioneId}`;
+            else if (o.destinazioneTipo === 'NEGOZIO') nome = mapNegozi[o.destinazioneId] || `Negozio ${o.destinazioneId}`;
+            else if (o.destinazioneTipo === 'CLIENTE') nome = mapClienti[o.destinazioneId] || `Cliente ${o.destinazioneId}`;
+            else nome = o.destinatario || 'Sconosciuto';
+            return { ...o, destinatarioNome: nome };
+          });
+          popolaFiltroDestinatarioUsciti(oggettiUsciti);
+          oggettiUscitiFiltrati = oggettiUsciti.slice();
+          renderUsciti(oggettiUscitiFiltrati);
+          document.getElementById('modalArticoliUsciti').style.display = 'flex';
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('loading').style.display = 'none';
+          mostraMessaggio('Errore: ' + error.message, 'error');
+        })
+        .getOggettiUscitiDaPromoter(promoterId);
+    }
+
+    function popolaFiltroDestinatarioUsciti(lista) {
+      const destinatari = [...new Set(lista.map(o => o.destinatarioNome))];
+      const select = document.getElementById('filtroUscitiDestinatario');
+      select.innerHTML = '<option value="">Tutti</option>';
+      destinatari.forEach(d => select.innerHTML += `<option value="${d}">${d}</option>`);
+    }
+
+    function filtraUsciti() {
+      const tipo = document.getElementById('filtroUscitiTipo').value;
+      const dest = document.getElementById('filtroUscitiDestinatario').value;
+      const testo = document.getElementById('filtroUscitiTesto').value.toLowerCase();
+      let filtrati = oggettiUsciti;
+      if (tipo) filtrati = filtrati.filter(o => o.tipo === tipo);
+      if (dest) filtrati = filtrati.filter(o => o.destinatarioNome === dest);
+      if (testo) {
+        filtrati = filtrati.filter(o => 
+          (o.codice && o.codice.toLowerCase().includes(testo)) ||
+          (o.descrizione && o.descrizione.toLowerCase().includes(testo))
+        );
+      }
+      oggettiUscitiFiltrati = filtrati;
+      renderUsciti(filtrati);
+    }
+
+    function renderUsciti(lista) {
+      const tbody = document.getElementById('corpoUsciti');
+      if (!lista || lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nessun articolo uscito</td></tr>';
+        return;
+      }
+      let html = '';
+      lista.forEach(o => {
+        const badge = o.tipo === 'ARTICOLO' ? 'badge-success' : 'badge-warning';
+        html += `<tr>
+          <td><span class="badge ${badge}">${o.tipo}</span></td>
+          <td>${o.codice || ''}</td>
+          <td>${o.descrizione || ''}</td>
+          <td>${o.destinatarioNome}</td>
+          <td>${o.quantita}</td>
+          <td><button class="btn btn-small btn-danger" onclick="richiamaOggetto('${o.ID}','${o.tipo}',${o.quantita})">Richiama</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // ---------- Richiamo Oggetto ----------
+    function richiamaOggetto(id, tipo, maxQta) {
+      const qta = prompt(`Quanti pezzi vuoi richiamare? (max ${maxQta})`, '1');
+      if (!qta) return;
+      const qtaInt = parseInt(qta);
+      if (isNaN(qtaInt) || qtaInt <= 0 || qtaInt > maxQta) {
+        return mostraMessaggio('Quantità non valida', 'warning');
+      }
+      callServerFunction('richiamaOggetto', {
+        oggettoId: id,
+        tipoOggetto: tipo,
+        quantita: qtaInt
+      }, function(res) {
+        if (res.success) {
+          mostraMessaggio(res.message, 'success');
+          caricaDati();
+          if (document.getElementById('modalArticoliUsciti').style.display === 'flex') {
+            // Aggiorna la modale usciti
+            google.script.run
+              .withSuccessHandler(function(risultato) {
+                oggettiUsciti = Array.isArray(risultato) ? risultato : [];
+                oggettiUsciti = oggettiUsciti.map(o => {
+                  let nome = '';
+                  if (o.destinazioneTipo === 'PROMOTER') nome = mapPromoter[o.destinazioneId] || `Promoter ${o.destinazioneId}`;
+                  else if (o.destinazioneTipo === 'NEGOZIO') nome = mapNegozi[o.destinazioneId] || `Negozio ${o.destinazioneId}`;
+                  else if (o.destinazioneTipo === 'CLIENTE') nome = mapClienti[o.destinazioneId] || `Cliente ${o.destinazioneId}`;
+                  else nome = o.destinatario || 'Sconosciuto';
+                  return { ...o, destinatarioNome: nome };
+                });
+                popolaFiltroDestinatarioUsciti(oggettiUsciti);
+                filtraUsciti();
+              })
+              .getOggettiUscitiDaPromoter(promoterId);
+          }
+        } else {
+          mostraMessaggio(res.message, 'error');
+        }
+      });
+    }
+
+    // ---------- Gestione Clienti ----------
+    function apriModaleClienti() {
+      renderListaClienti();
+      document.getElementById('modalClienti').style.display = 'flex';
+    }
+
+    function renderListaClienti() {
+      const container = document.getElementById('listaClienti');
+      if (!clienti || clienti.length === 0) {
+        container.innerHTML = '<p style="padding:10px; text-align:center;">Nessun cliente. Aggiungine uno.</p>';
+        return;
+      }
+      let html = '';
+      clienti.forEach(c => {
+        html += `<div class="cliente-item">
+          <span>${c.NOME}</span>
+          <div class="cliente-azioni">
+            <button class="btn btn-small btn-warning" onclick="modificaCliente('${c.ID}', '${c.NOME}')">Modifica</button>
+            <button class="btn btn-small btn-danger" onclick="eliminaCliente('${c.ID}')">Elimina</button>
+          </div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function modificaCliente(id, nome) {
+      document.getElementById('clienteId').value = id;
+      document.getElementById('clienteNome').value = nome;
+      document.getElementById('titoloFormCliente').innerText = '✏️ Modifica cliente';
+    }
+
+    function annullaModificaCliente() {
+      document.getElementById('clienteId').value = '';
+      document.getElementById('clienteNome').value = '';
+      document.getElementById('titoloFormCliente').innerText = '➕ Nuovo cliente';
+    }
+
+    function salvaCliente() {
+      const id = document.getElementById('clienteId').value;
+      const nome = document.getElementById('clienteNome').value.trim();
+      if (!nome) return mostraMessaggio('Inserisci un nome', 'warning');
+      const params = id ? { id: id, nome: nome, promoterId: promoterId } : { nome: nome, promoterId: promoterId };
+      const func = id ? 'updateCliente' : 'saveCliente';
+      callServerFunction(func, params, function(res) {
+        if (res.success) {
+          mostraMessaggio(res.message, 'success');
+          annullaModificaCliente();
+          // Ricarica clienti
+          google.script.run
+            .withSuccessHandler(function(lista) {
+              clienti = Array.isArray(lista) ? lista : [];
+              mapClienti = {};
+              clienti.forEach(c => mapClienti[c.ID] = c.NOME);
+              renderListaClienti();
+              caricaDati(); // aggiorna tabella principale
+            })
+            .getClientiPromoter(promoterId);
+        } else {
+          mostraMessaggio(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaCliente(id) {
+      if (!confirm('Eliminare questo cliente?')) return;
+      callServerFunction('deleteCliente', id, function(res) {
+        if (res.success) {
+          mostraMessaggio(res.message, 'success');
+          google.script.run
+            .withSuccessHandler(function(lista) {
+              clienti = Array.isArray(lista) ? lista : [];
+              mapClienti = {};
+              clienti.forEach(c => mapClienti[c.ID] = c.NOME);
+              renderListaClienti();
+              caricaDati();
+            })
+            .getClientiPromoter(promoterId);
+        } else {
+          mostraMessaggio(res.message, 'error');
+        }
+      });
+    }
+
+    // ---------- Utility ----------
+    function chiudiModale(id) {
+      document.getElementById(id).style.display = 'none';
+      if (id === 'modalClienti') annullaModificaCliente();
+    }
+  </script>
+</body>
+</html>

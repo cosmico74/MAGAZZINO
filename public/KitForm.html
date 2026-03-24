@@ -1,0 +1,172 @@
+<!DOCTYPE html>//ok
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inserimento Articolo</title>
+  <style>
+    /* stili esistenti (invariati) */
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .message { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() {
+      // ... inserisci qui il codice di common.js ...
+    })();
+
+    let magazzini = [], settori = [], categorie = [], marche = [];
+    let defaultValues = {};
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaDatiIniziali();
+    };
+
+    function caricaDatiIniziali() {
+      callServer('getInitialData', {}, function(data) {
+        if (data.success) {
+          magazzini = data.magazzini;
+          settori = data.settori;
+          categorie = data.categorie;
+          marche = data.marche;
+          popolaSelect();
+        } else {
+          showMessage(data.message, 'error');
+        }
+      });
+      callServer('getDefaultValuesForArticleForm', {}, function(data) {
+        defaultValues = data;
+        // applica default ai campi se presenti
+        if (defaultValues.defaultMarcaId) document.getElementById('marca').value = defaultValues.defaultMarcaId;
+        if (defaultValues.defaultSettoreId) document.getElementById('settore').value = defaultValues.defaultSettoreId;
+        if (defaultValues.defaultCategoriaId) document.getElementById('categoria').value = defaultValues.defaultCategoriaId;
+        toggleLunghezzaDurezza();
+      });
+    }
+
+    function popolaSelect() {
+      const magazzinoSelect = document.getElementById('magazzino');
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => magazzinoSelect.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
+
+      const settoreSelect = document.getElementById('settore');
+      settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
+      settori.forEach(s => settoreSelect.innerHTML += `<option value="${s.ID}">${s.NOME}</option>`);
+
+      const categoriaSelect = document.getElementById('categoria');
+      categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
+      categorie.forEach(c => categoriaSelect.innerHTML += `<option value="${c.ID}">${c.NOME}</option>`);
+      categoriaSelect.addEventListener('change', toggleLunghezzaDurezza);
+
+      const marcaSelect = document.getElementById('marca');
+      marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
+      marche.forEach(m => marcaSelect.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
+    }
+
+    function toggleLunghezzaDurezza() {
+      const catId = document.getElementById('categoria').value;
+      const categoria = categorie.find(c => c.ID == catId);
+      const mostraLunghezza = categoria ? categoria.MOSTRA_LUNGHEZZA === 'SI' : false;
+      const mostraDurezza = categoria ? categoria.MOSTRA_DUREZZA === 'SI' : false;
+      document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
+      document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
+    }
+
+    function salvaArticolo() {
+      const dati = {
+        descrizione: document.getElementById('descrizione').value,
+        magazzino: document.getElementById('magazzino').value,
+        settore: document.getElementById('settore').value,
+        categoria: document.getElementById('categoria').value,
+        marca: document.getElementById('marca').value,
+        lunghezza: document.getElementById('lunghezza').value,
+        durezza: document.getElementById('durezza').value,
+        quantita: parseInt(document.getElementById('quantita').value),
+        versione: document.getElementById('versione').value,
+        note: document.getElementById('note').value,
+        sigla: document.getElementById('sigla').value,
+        codiceModello: document.getElementById('codiceModello').value
+      };
+      if (!dati.descrizione || !dati.magazzino || !dati.settore || !dati.categoria || !dati.marca || !dati.quantita) {
+        showMessage('Compila tutti i campi obbligatori', 'error');
+        return;
+      }
+      callServer('saveArticle', dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          // reset form (opzionale)
+          document.getElementById('descrizione').value = '';
+          document.getElementById('quantita').value = 1;
+          document.getElementById('note').value = '';
+          document.getElementById('sigla').value = '';
+          document.getElementById('codiceModello').value = '';
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <h2>📦 Inserimento Articolo</h2>
+  <div class="form-group">
+    <label>Descrizione *</label>
+    <input type="text" id="descrizione" required>
+  </div>
+  <div class="form-group">
+    <label>Magazzino *</label>
+    <select id="magazzino"></select>
+  </div>
+  <div class="form-group">
+    <label>Settore *</label>
+    <select id="settore"></select>
+  </div>
+  <div class="form-group">
+    <label>Categoria *</label>
+    <select id="categoria"></select>
+  </div>
+  <div class="form-group">
+    <label>Marca *</label>
+    <select id="marca"></select>
+  </div>
+  <div id="gruppoLunghezza" class="form-group">
+    <label>Lunghezza (cm)</label>
+    <input type="text" id="lunghezza">
+  </div>
+  <div id="gruppoDurezza" class="form-group">
+    <label>Durezza</label>
+    <input type="text" id="durezza">
+  </div>
+  <div class="form-group">
+    <label>Quantità *</label>
+    <input type="number" id="quantita" value="1" min="1">
+  </div>
+  <div class="form-group">
+    <label>Versione</label>
+    <input type="text" id="versione" value="1.0">
+  </div>
+  <div class="form-group">
+    <label>Sigla</label>
+    <input type="text" id="sigla">
+  </div>
+  <div class="form-group">
+    <label>Codice Modello</label>
+    <input type="text" id="codiceModello">
+  </div>
+  <div class="form-group">
+    <label>Note</label>
+    <textarea id="note" rows="3"></textarea>
+  </div>
+  <button class="btn" onclick="salvaArticolo()">💾 Salva Articolo</button>
+</body>
+</html>

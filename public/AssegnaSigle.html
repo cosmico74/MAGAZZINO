@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Assegna Sigle</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let magazzini = [], articoli = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaMagazzini();
+    };
+
+    function caricaMagazzini() {
+      callServer('getMagazzini', {}, function(data) {
+        magazzini = data;
+        const select = document.getElementById('filtroMagazzino');
+        select.innerHTML = '<option value="">Tutti</option>';
+        magazzini.forEach(m => select.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
+        caricaArticoli();
+      });
+    }
+
+    function caricaArticoli() {
+      const magId = document.getElementById('filtroMagazzino').value;
+      callServer('getArticoliLista', { magazzino: magId }, function(res) {
+        articoli = res.articoli;
+        popolaTabella();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaArticoli');
+      tbody.innerHTML = '';
+      articoli.forEach(a => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = a.ID;
+        row.insertCell(1).innerText = a.CODICE;
+        row.insertCell(2).innerText = a.DESCRIZIONE;
+        row.insertCell(3).innerHTML = `<input type="text" id="sigla_${a.ID}" value="${a.SIGLA || ''}" style="width:100px;">`;
+        row.insertCell(4).innerHTML = `<button class="btn" onclick="salvaSigla(${a.ID})">💾 Salva</button>`;
+      });
+    }
+
+    function salvaSigla(id) {
+      const sigla = document.getElementById(`sigla_${id}`).value;
+      callServer('updateArticolo', { id: id, sigla: sigla }, function(res) {
+        if (res.success) {
+          showMessage('Sigla aggiornata', 'success');
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <h2>🔖 Assegna Sigle a Sci</h2>
+  <div class="form-group">
+    <label>Filtra per magazzino</label>
+    <select id="filtroMagazzino" onchange="caricaArticoli()"></select>
+  </div>
+  <div style="overflow-x:auto;">
+    <table id="tabellaArticoli">
+      <thead><tr><th>ID</th><th>Codice</th><th>Descrizione</th><th>Sigla</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</body>
+</html>

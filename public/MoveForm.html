@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <title>Movimentazioni</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #1a73e8;
+            border-bottom: 2px solid #1a73e8;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .object-selector {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .object-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .object-card:hover {
+            background: #e9ecef;
+        }
+        .object-card.selected {
+            background: #e8f0fe;
+            border-color: #1a73e8;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+        }
+        .btn-secondary {
+            background: #f1f3f4;
+            color: #5f6368;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a73e8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .info-box {
+            background: #e8f0fe;
+            border: 1px solid #d2e3fc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚚 Movimentazioni Materiale</h2>
+        
+        <div class="info-box">
+            <strong>📌 Istruzioni:</strong> Seleziona il tipo di movimentazione, gli articoli da spostare e completa l'operazione.
+        </div>
+        
+        <form id="moveForm">
+            <div class="form-group">
+                <label for="moveType">Tipo Movimentazione *</label>
+                <select id="moveType" required onchange="onMoveTypeChange()">
+                    <option value="">Seleziona tipo...</option>
+                    <option value="SPOSTAMENTO">🔄 Spostamento tra magazzini</option>
+                    <option value="INVIO_PROMOTER">📤 Invio a Promoter</option>
+                    <option value="RICEZIONE_PROMOTER">📥 Ricezione da Promoter</option>
+                    <option value="INVIO_NEGOZIO">🏪 Invio a Negozio</option>
+                    <option value="RICEZIONE_NEGOZIO">🛍️ Ricezione da Negozio</option>
+                    <option value="VENDITA">💰 Vendita</option>
+                    <option value="SCARTO">🗑️ Scarto/Non utilizzabile</option>
+                </select>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group" id="fromGroup">
+                    <label for="fromLocation">Da *</label>
+                    <select id="fromLocation" required>
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="toGroup">
+                    <label for="toLocation">A *</label>
+                    <select id="toLocation" required>
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="objectType">Tipo Oggetto *</label>
+                <select id="objectType" required onchange="onObjectTypeChange()">
+                    <option value="">Seleziona...</option>
+                    <option value="ARTICOLO">📦 Articolo Singolo</option>
+                    <option value="KIT">🔧 Kit</option>
+                </select>
+            </div>
+            
+            <div class="object-selector" id="objectSelector" style="display: none;">
+                <label>Seleziona Oggetto *</label>
+                <div id="objectsList" style="max-height: 200px; overflow-y: auto;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="quantity">Quantità *</label>
+                <input type="number" id="quantity" min="1" value="1" required>
+                <div id="availableQuantity" style="font-size: 12px; color: #666; margin-top: 5px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="moveNote">Note</label>
+                <textarea id="moveNote" rows="3" placeholder="Note sulla movimentazione..."></textarea>
+            </div>
+            
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p>Elaborazione in corso...</p>
+            </div>
+            
+            <div id="message" style="margin: 15px 0;"></div>
+            
+            <div class="button-group">
+                <button type="button" class="btn-primary" onclick="executeMove()">🚀 Esegui Movimentazione</button>
+                <button type="button" class="btn-secondary" onclick="closeDialog()">✖️ Annulla</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Variabili globali
+        let selectedObject = null;
+        let fromLocations = [];
+        let toLocations = [];
+        
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInitialData();
+        });
+        
+        // Carica dati iniziali
+        function loadInitialData() {
+            showLoader();
+            
+            // Carica magazzini
+            google.script.run
+                .withSuccessHandler(function(magazzini) {
+                    fromLocations = magazzini;
+                    toLocations = magazzini;
+                    
+                    updateLocationDropdowns();
+                    hideLoader();
+                })
+                .withFailureHandler(handleError)
+                .getMagazzini();
+        }
+        
+        // Cambio tipo movimentazione
+        function onMoveTypeChange() {
+            const moveType = document.getElementById('moveType').value;
+            updateLocationOptions(moveType);
+        }
+        
+        // Aggiorna opzioni location in base al tipo
+        function updateLocationOptions(moveType) {
+            let fromOptions = [];
+            let toOptions = [];
+            
+            switch(moveType) {
+                case 'SPOSTAMENTO':
+                    fromOptions = fromLocations;
+                    toOptions = toLocations;
+                    break;
+                case 'INVIO_PROMOTER':
+                case 'INVIO_NEGOZIO':
+                    fromOptions = fromLocations;
+                    toOptions = []; // Caricato dinamicamente
+                    loadDestinations(moveType);
+                    break;
+                case 'RICEZIONE_PROMOTER':
+                case 'RICEZIONE_NEGOZIO':
+                    fromOptions = []; // Caricato dinamicamente
+                    toOptions = toLocations;
+                    loadSources(moveType);
+                    break;
+                case 'VENDITA':
+                case 'SCARTO':
+                    fromOptions = fromLocations;
+                    toOptions = [{ID: 'VENDITA', NOME: 'Vendita'}, {ID: 'SCARTO', NOME: 'Scarto'}];
+                    break;
+            }
+            
+            updateLocationDropdowns(fromOptions, toOptions);
+        }
+        
+        // Carica destinazioni (promoter/negozi)
+        function loadDestinations(type) {
+            const endpoint = type === 'INVIO_PROMOTER' ? 'getPromoter' : 'getNegozi';
+            
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    toLocations = data.map(item => ({
+                        ID: item.ID,
+                        NOME: item.NOME + ' ' + (item.COGNOME || '')
+                    }));
+                    updateLocationDropdowns(fromLocations, toLocations);
+                })
+                .withFailureHandler(handleError)
+                [endpoint]();
+        }
+        
+        // Carica sorgenti (promoter/negozi)
+        function loadSources(type) {
+            const endpoint = type === 'RICEZIONE_PROMOTER' ? 'getPromoter' : 'getNegozi';
+            
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    fromLocations = data.map(item => ({
+                        ID: item.ID,
+                        NOME: item.NOME + ' ' + (item.COGNOME || '')
+                    }));
+                    updateLocationDropdowns(fromLocations, toLocations);
+                })
+                .withFailureHandler(handleError)
+                [endpoint]();
+        }
+        
+        // Aggiorna dropdown locations
+        function updateLocationDropdowns(fromOpts = fromLocations, toOpts = toLocations) {
+            const fromSelect = document.getElementById('fromLocation');
+            const toSelect = document.getElementById('toLocation');
+            
+            fromSelect.innerHTML = '<option value="">Seleziona...</option>';
+            toSelect.innerHTML = '<option value="">Seleziona...</option>';
+            
+            fromOpts.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc.ID;
+                option.textContent = loc.NOME;
+                fromSelect.appendChild(option);
+            });
+            
+            toOpts.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc.ID;
+                option.textContent = loc.NOME;
+                toSelect.appendChild(option);
+            });
+        }
+        
+        // Cambio tipo oggetto
+        function onObjectTypeChange() {
+            const objectType = document.getElementById('objectType').value;
+            const fromLocation = document.getElementById('fromLocation').value;
+            
+            if (objectType && fromLocation) {
+                loadObjects(objectType, fromLocation);
+            } else {
+                document.getElementById('objectSelector').style.display = 'none';
+                selectedObject = null;
+            }
+        }
+        
+        // Carica oggetti disponibili (con sigla)
+        function loadObjects(objectType, locationId) {
+            showLoader();
+            
+            google.script.run
+                .withSuccessHandler(function(objects) {
+                    const container = document.getElementById('objectsList');
+                    container.innerHTML = '';
+                    
+                    if (objects.length === 0) {
+                        container.innerHTML = '<p style="color: #666; text-align: center;">Nessun oggetto disponibile</p>';
+                        document.getElementById('objectSelector').style.display = 'block';
+                        hideLoader();
+                        return;
+                    }
+                    
+                    objects.forEach(obj => {
+                        const card = document.createElement('div');
+                        card.className = 'object-card';
+                        card.dataset.id = obj.ID;
+                        
+                        let details = '';
+                        if (obj.LUNGHEZZA) details += `L${obj.LUNGHEZZA} `;
+                        if (obj.DUREZZA) details += `D${obj.DUREZZA} `;
+                        details += ` | Disponibile: ${obj.GIACENZA_REALE || obj.QUANTITA}`;
+                        
+                        const sigla = obj.SIGLA ? ` [${obj.SIGLA}]` : '';
+                        
+                        card.innerHTML = `
+                            <strong>${obj.CODICE || obj.CODICE_KIT}${sigla}</strong>
+                            <div style="font-size: 12px; color: #666;">${obj.DESCRIZIONE || obj.DESCRIZIONE_KIT}</div>
+                            <div style="font-size: 11px; color: #888;">${details}</div>
+                        `;
+                        
+                        card.onclick = function() {
+                            selectObject(obj, card);
+                        };
+                        
+                        container.appendChild(card);
+                    });
+                    
+                    document.getElementById('objectSelector').style.display = 'block';
+                    hideLoader();
+                })
+                .withFailureHandler(handleError)
+                .getAvailableObjects(objectType, locationId);
+        }
+        
+        // Seleziona oggetto
+        function selectObject(obj, card) {
+            // Deseleziona precedente
+            document.querySelectorAll('.object-card.selected').forEach(c => {
+                c.classList.remove('selected');
+            });
+            
+            // Seleziona nuovo
+            card.classList.add('selected');
+            selectedObject = obj;
+            
+            // Aggiorna quantità disponibile
+            const availableDiv = document.getElementById('availableQuantity');
+            const available = obj.GIACENZA_REALE || obj.QUANTITA || 0;
+            availableDiv.textContent = `Disponibile: ${available}`;
+            
+            // Imposta quantità massima
+            document.getElementById('quantity').max = available;
+        }
+        
+        // Esegui movimentazione
+        function executeMove() {
+            if (!validateMove()) {
+                return;
+            }
+            
+            const moveData = {
+                type: document.getElementById('moveType').value,
+                from: document.getElementById('fromLocation').value,
+                to: document.getElementById('toLocation').value,
+                objectType: document.getElementById('objectType').value,
+                objectId: selectedObject.ID,
+                quantity: parseInt(document.getElementById('quantity').value),
+                note: document.getElementById('moveNote').value
+            };
+            
+            showLoader();
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    hideLoader();
+                    if (result.success) {
+                        showMessage('✅ Movimentazione completata con successo! ID: ' + result.id, 'success');
+                        clearForm();
+                        setTimeout(() => {
+                            google.script.host.close();
+                            google.script.run.refreshMenu();
+                        }, 2000);
+                    } else {
+                        showMessage('❌ ' + result.message, 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    hideLoader();
+                    showMessage('❌ Errore: ' + error.message, 'error');
+                })
+                .executeMovement(moveData);
+        }
+        
+        // Valida movimentazione
+        function validateMove() {
+            if (!document.getElementById('moveType').value) {
+                showMessage('⚠️ Seleziona il tipo di movimentazione', 'warning');
+                return false;
+            }
+            if (!document.getElementById('fromLocation').value) {
+                showMessage('⚠️ Seleziona la sorgente', 'warning');
+                return false;
+            }
+            if (!document.getElementById('toLocation').value) {
+                showMessage('⚠️ Seleziona la destinazione', 'warning');
+                return false;
+            }
+            if (!document.getElementById('objectType').value) {
+                showMessage('⚠️ Seleziona il tipo di oggetto', 'warning');
+                return false;
+            }
+            if (!selectedObject) {
+                showMessage('⚠️ Seleziona un oggetto', 'warning');
+                return false;
+            }
+            if (!document.getElementById('quantity').value || 
+                document.getElementById('quantity').value < 1 ||
+                parseInt(document.getElementById('quantity').value) > (selectedObject.GIACENZA_REALE || selectedObject.QUANTITA || 0)) {
+                showMessage('⚠️ Inserisci una quantità valida', 'warning');
+                return false;
+            }
+            return true;
+        }
+        
+        // Utility functions
+        function showLoader() {
+            document.getElementById('loader').style.display = 'block';
+        }
+        
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            const color = type === 'success' ? 'green' : type === 'error' ? 'red' : 'orange';
+            messageDiv.innerHTML = `<div style="color: ${color}; padding: 10px; background: ${color}10; border-radius: 5px;">${text}</div>`;
+            messageDiv.style.display = 'block';
+        }
+        
+        function handleError(error) {
+            hideLoader();
+            showMessage('❌ Errore: ' + error.message, 'error');
+        }
+        
+        function clearForm() {
+            document.getElementById('moveForm').reset();
+            selectedObject = null;
+            document.getElementById('objectSelector').style.display = 'none';
+            document.getElementById('objectsList').innerHTML = '';
+            document.getElementById('availableQuantity').textContent = '';
+        }
+        
+        function closeDialog() {
+            google.script.host.close();
+        }
+    </script>
+</body>
+</html>

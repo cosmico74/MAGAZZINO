@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Magazzini</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .message { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() {
+      window.currentUser = null;
+      window.authToken = null;
+
+      window.login = function(username, password, callback) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              window.currentUser = res.user;
+              window.authToken = res.token;
+              localStorage.setItem('magazzino_user', JSON.stringify({ user: res.user, token: res.token }));
+              callback && callback(true, res);
+            } else {
+              callback && callback(false, res);
+            }
+          })
+          .withFailureHandler(function(err) {
+            callback && callback(false, { message: err.message });
+          })
+          .verificaLogin({ username, password });
+      };
+
+      window.restoreSession = function() {
+        const saved = localStorage.getItem('magazzino_user');
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            window.currentUser = data.user;
+            window.authToken = data.token;
+            return true;
+          } catch(e) {}
+        }
+        return false;
+      };
+
+      window.logout = function() {
+        window.currentUser = null;
+        window.authToken = null;
+        localStorage.removeItem('magazzino_user');
+        window.location.reload();
+      };
+
+      window.callServer = function(funcName, params, callback) {
+        if (!window.currentUser && funcName !== 'verificaLogin') {
+          window.location.href = '?login=required';
+          return;
+        }
+        params = params || {};
+        if (window.currentUser) {
+          params.userId = window.currentUser.id;
+          params.token = window.authToken;
+        }
+        google.script.run
+          .withSuccessHandler(callback)
+          .withFailureHandler(function(err) {
+            console.error('Errore in ' + funcName + ':', err);
+            if (callback) callback({ success: false, message: err.message });
+          })[funcName](params);
+      };
+
+      window.showMessage = function(msg, tipo) {
+        const div = document.createElement('div');
+        div.className = `message ${tipo}`;
+        div.textContent = msg;
+        document.body.prepend(div);
+        setTimeout(() => div.remove(), 5000);
+      };
+    })();
+
+    let magazzini = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaMagazzini();
+    };
+
+    function caricaMagazzini() {
+      callServer('getMagazzini', {}, function(data) {
+        magazzini = data;
+        popolaTabella();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaMagazzini');
+      tbody.innerHTML = '';
+      magazzini.forEach(m => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = m.ID;
+        row.insertCell(1).innerText = m.NOME;
+        row.insertCell(2).innerText = m.INDIRIZZO || '';
+        row.insertCell(3).innerText = m.RESPONSABILE || '';
+        row.insertCell(4).innerText = m.TELEFONO || '';
+        row.insertCell(5).innerText = m.EMAIL || '';
+        row.insertCell(6).innerText = m.ATTIVO || 'SI';
+        const actions = row.insertCell(7);
+        actions.innerHTML = `<button class="btn" onclick="modificaMagazzino(${m.ID})">✏️</button>
+                             <button class="btn" onclick="eliminaMagazzino(${m.ID})">🗑️</button>`;
+      });
+    }
+
+    function apriModaleNuovo() {
+      document.getElementById('modalTitolo').innerText = 'Nuovo Magazzino';
+      document.getElementById('magazzinoId').value = '';
+      document.getElementById('nome').value = '';
+      document.getElementById('indirizzo').value = '';
+      document.getElementById('responsabile').value = '';
+      document.getElementById('telefono').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('attivo').value = 'SI';
+      document.getElementById('note').value = '';
+      document.getElementById('modalMagazzino').style.display = 'flex';
+    }
+
+    function modificaMagazzino(id) {
+      const mag = magazzini.find(m => m.ID == id);
+      if (!mag) return;
+      document.getElementById('modalTitolo').innerText = 'Modifica Magazzino';
+      document.getElementById('magazzinoId').value = mag.ID;
+      document.getElementById('nome').value = mag.NOME;
+      document.getElementById('indirizzo').value = mag.INDIRIZZO || '';
+      document.getElementById('responsabile').value = mag.RESPONSABILE || '';
+      document.getElementById('telefono').value = mag.TELEFONO || '';
+      document.getElementById('email').value = mag.EMAIL || '';
+      document.getElementById('attivo').value = mag.ATTIVO || 'SI';
+      document.getElementById('note').value = mag.NOTE || '';
+      document.getElementById('modalMagazzino').style.display = 'flex';
+    }
+
+    function salvaMagazzino() {
+      const dati = {
+        id: document.getElementById('magazzinoId').value,
+        nome: document.getElementById('nome').value,
+        indirizzo: document.getElementById('indirizzo').value,
+        responsabile: document.getElementById('responsabile').value,
+        telefono: document.getElementById('telefono').value,
+        email: document.getElementById('email').value,
+        attivo: document.getElementById('attivo').value,
+        note: document.getElementById('note').value
+      };
+      const func = dati.id ? 'updateMagazzino' : 'saveMagazzino';
+      callServer(func, dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          chiudiModale();
+          caricaMagazzini();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaMagazzino(id) {
+      if (!confirm('Eliminare questo magazzino?')) return;
+      callServer('deleteMagazzino', { id: id }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaMagazzini();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function chiudiModale() {
+      document.getElementById('modalMagazzino').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+  <h2>🏭 Gestione Magazzini</h2>
+  <button class="btn" onclick="apriModaleNuovo()">➕ Nuovo Magazzino</button>
+  <button class="btn" onclick="caricaMagazzini()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaMagazzini">
+      <thead><tr><th>ID</th><th>Nome</th><th>Indirizzo</th><th>Responsabile</th><th>Telefono</th><th>Email</th><th>Attivo</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="modalMagazzino" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:8px; width:500px;">
+      <h3 id="modalTitolo">Nuovo Magazzino</h3>
+      <input type="hidden" id="magazzinoId">
+      <div class="form-group"><label>Nome *</label><input type="text" id="nome" required></div>
+      <div class="form-group"><label>Indirizzo</label><input type="text" id="indirizzo"></div>
+      <div class="form-group"><label>Responsabile</label><input type="text" id="responsabile"></div>
+      <div class="form-group"><label>Telefono</label><input type="text" id="telefono"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="email"></div>
+      <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+      <div class="form-group"><label>Note</label><textarea id="note" rows="3"></textarea></div>
+      <button class="btn" onclick="salvaMagazzino()">💾 Salva</button>
+      <button class="btn" onclick="chiudiModale()">Annulla</button>
+    </div>
+  </div>
+</body>
+</html>

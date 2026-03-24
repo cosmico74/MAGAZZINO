@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Spacchetta Kit Assegnati</title>
+  <style>
+    /* stili simili */
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let soggetti = [], oggettiInCarico = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaSoggetti();
+    };
+
+    function caricaSoggetti() {
+      callServer('getAllSoggetti', {}, function(data) {
+        soggetti = data;
+        const select = document.getElementById('soggetto');
+        select.innerHTML = '<option value="">Seleziona soggetto</option>';
+        soggetti.forEach(s => select.innerHTML += `<option value="${s.TIPO}_${s.ID}">${s.NOME} (${s.TIPO})</option>`);
+        select.addEventListener('change', caricaKitAssegnati);
+      });
+    }
+
+    function caricaKitAssegnati() {
+      const val = document.getElementById('soggetto').value;
+      if (!val) return;
+      const [tipo, id] = val.split('_');
+      callServer('getOggettiInCarico', { destinazioneTipo: tipo, destinazioneId: id }, function(data) {
+        oggettiInCarico = data.filter(o => o.tipo === 'KIT');
+        const select = document.getElementById('kitId');
+        select.innerHTML = '<option value="">Seleziona kit</option>';
+        oggettiInCarico.forEach(k => select.innerHTML += `<option value="${k.ID}">${k.codice} - ${k.descrizione} (q. ${k.quantita})</option>`);
+      });
+    }
+
+    function spacchetta() {
+      const val = document.getElementById('soggetto').value;
+      if (!val) return;
+      const [destinazioneTipo, destinazioneId] = val.split('_');
+      const kitId = document.getElementById('kitId').value;
+      const quantita = parseInt(document.getElementById('quantita').value);
+      if (!kitId || quantita < 1) {
+        showMessage('Seleziona kit e quantità valida', 'error');
+        return;
+      }
+      const kit = oggettiInCarico.find(k => k.ID == kitId);
+      if (quantita > kit.quantita) {
+        showMessage(`Quantità disponibile: ${kit.quantita}`, 'error');
+        return;
+      }
+      callServer('spacchettaKitAssegnato', { destinazioneTipo, destinazioneId, kitId, quantita }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaKitAssegnati(); // ricarica
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <h2>🔓 Spacchetta Kit Assegnati</h2>
+  <div class="form-group">
+    <label>Soggetto a cui è assegnato il kit</label>
+    <select id="soggetto"></select>
+  </div>
+  <div class="form-group">
+    <label>Kit</label>
+    <select id="kitId"></select>
+  </div>
+  <div class="form-group">
+    <label>Quantità da spacchettare</label>
+    <input type="number" id="quantita" value="1" min="1">
+  </div>
+  <button class="btn" onclick="spacchetta()">🔓 Spacchetta</button>
+</body>
+</html>

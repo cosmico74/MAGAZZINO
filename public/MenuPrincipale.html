@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Magazzino</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    /* Login card */
+    .login-card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 400px;
+      margin: 0 auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .login-card h2 {
+      margin-bottom: 30px;
+      color: #2c3e50;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #2c3e50;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .btn-login:hover {
+      background: #1557b0;
+    }
+    .error-message {
+      color: #e74c3c;
+      margin-top: 15px;
+      text-align: center;
+    }
+    /* Header menu */
+    .header {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      color: #2c3e50;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .user-badge {
+      background: #e8f0fe;
+      padding: 6px 15px;
+      border-radius: 40px;
+      color: #1a73e8;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .style-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f0f2f5;
+      padding: 5px 12px;
+      border-radius: 40px;
+    }
+    .style-selector label {
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .style-selector select {
+      padding: 5px 8px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+    }
+    .logout-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    .logout-btn:hover {
+      background: #c0392b;
+    }
+    /* Menu grid (stili di base) */
+    .menu-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      transition: all 0.2s;
+    }
+    .menu-item {
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .menu-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    /* Stili per le varie modalità */
+    /* Modalità 1: Griglia compatta */
+    .mode-compact .menu-item {
+      width: 180px;
+      padding: 15px 10px;
+      text-align: center;
+    }
+    .mode-compact .menu-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    .mode-compact .menu-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .mode-compact .menu-desc {
+      font-size: 11px;
+      color: #666;
+      display: block;
+    }
+    /* Modalità 2: Griglia ampia */
+    .mode-large .menu-item {
+      width: 260px;
+      padding: 20px;
+      text-align: center;
+    }
+    .mode-large .menu-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .mode-large .menu-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .mode-large .menu-desc {
+      font-size: 13px;
+      color: #666;
+      display: block;
+    }
+    /* Modalità 3: Barra orizzontale */
+    .mode-horizontal .menu-item {
+      width: auto;
+      padding: 8px 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 40px;
+    }
+    .mode-horizontal .menu-icon {
+      font-size: 24px;
+      margin: 0;
+    }
+    .mode-horizontal .menu-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0;
+    }
+    .mode-horizontal .menu-desc {
+      display: none;
+    }
+    .mode-horizontal .menu-grid {
+      gap: 12px;
+      justify-content: center;
+    }
+    /* Modalità 4: Lista verticale */
+    .mode-list .menu-item {
+      width: 100%;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-radius: 12px;
+    }
+    .mode-list .menu-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .mode-list .menu-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+      flex: 1;
+    }
+    .mode-list .menu-desc {
+      font-size: 13px;
+      color: #666;
+      flex: 2;
+      text-align: right;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+    }
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+      }
+      .mode-compact .menu-item {
+        width: 150px;
+      }
+      .mode-large .menu-item {
+        width: 220px;
+      }
+      .mode-horizontal .menu-item {
+        padding: 6px 15px;
+      }
+      .mode-list .menu-desc {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+  // Helper per chiamate API
+  async function apiCall(endpoint, method, data) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(endpoint, {
+      method: method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: data ? JSON.stringify(data) : undefined
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Errore nella richiesta');
+    }
+    return response.json();
+  }
+
+  // Mostra form login
+  function showLoginForm() {
+    document.getElementById('app').innerHTML = `
+      <div class="login-card">
+        <h2>🔐 Accesso al gestionale</h2>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="loginUsername" placeholder="Inserisci username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Inserisci password">
+        </div>
+        <button class="btn-login" onclick="doLogin()">Accedi</button>
+        <div id="loginError" class="error-message"></div>
+      </div>
+    `;
+  }
+
+  // Esegui login
+  window.doLogin = async function() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    if (!username || !password) {
+      document.getElementById('loginError').innerText = 'Inserisci username e password';
+      return;
+    }
+    try {
+      const res = await apiCall('/api/auth/login', 'POST', { username, password });
+      if (res.success) {
+        localStorage.setItem('user', JSON.stringify(res.user));
+        localStorage.setItem('token', res.token);
+        await loadAndShowMenu();
+      } else {
+        document.getElementById('loginError').innerText = res.message || 'Credenziali errate';
+      }
+    } catch (err) {
+      document.getElementById('loginError').innerText = err.message;
+    }
+  };
+
+  // Carica menu dinamico dal server
+  async function loadAndShowMenu() {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      showLoginForm();
+      return;
+    }
+    const user = JSON.parse(userStr);
+    try {
+      const menuItems = await apiCall('/api/anagrafiche/menu', 'GET');
+      showMenu(user, menuItems);
+    } catch (err) {
+      console.error('Errore nel caricamento menu:', err);
+      document.getElementById('app').innerHTML = `<div style="background:white; border-radius:16px; padding:20px; text-align:center; margin:20px;">❌ Impossibile caricare il menu. Riprova più tardi.</div>`;
+    }
+  }
+
+  // Renderizza il menu con la modalità grafica corrente
+  function showMenu(user, menuItems) {
+    // Recupera modalità salvata o imposta default 'compact'
+    let currentMode = localStorage.getItem('menuStyle') || 'compact';
+    if (!['compact', 'large', 'horizontal', 'list'].includes(currentMode)) currentMode = 'compact';
+
+    let livelloText = '';
+    if (user.ruolo === 'promoter' && user.livello) livelloText = ` livello ${user.livello}`;
+    else if (user.ruolo === 'agente') livelloText = ' (Agente)';
+
+    let menuHtml = `
+      <div class="header">
+        <h1>🏭 Gestione Magazzino</h1>
+        <div class="user-info">
+          <span class="user-badge">👤 ${user.nome || user.username} (${user.ruolo}${livelloText})</span>
+          <div class="style-selector">
+            <label>🎨 Layout:</label>
+            <select id="styleSelect" onchange="changeStyle(this.value)">
+              <option value="compact" ${currentMode === 'compact' ? 'selected' : ''}>Griglia compatta</option>
+              <option value="large" ${currentMode === 'large' ? 'selected' : ''}>Griglia ampia</option>
+              <option value="horizontal" ${currentMode === 'horizontal' ? 'selected' : ''}>Barra orizzontale</option>
+              <option value="list" ${currentMode === 'list' ? 'selected' : ''}>Lista verticale</option>
+            </select>
+          </div>
+          <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+        </div>
+      </div>
+      <div class="menu-grid mode-${currentMode}" id="menuGrid">
+    `;
+
+    if (menuItems.length === 0) {
+      menuHtml += `<div style="text-align:center; padding:40px; background:white; border-radius:16px;">Nessuna funzionalità disponibile per il tuo ruolo/livello.</div>`;
+    } else {
+      menuItems.forEach(item => {
+        menuHtml += `
+          <div class="menu-item" onclick="window.location.href='${item.url}'">
+            <div class="menu-icon">${item.icona}</div>
+            <div class="menu-title">${item.titolo}</div>
+            <div class="menu-desc">${item.descrizione}</div>
+          </div>
+        `;
+      });
+    }
+
+    menuHtml += `</div><div class="footer"><p>Sistema di gestione magazzino | ${user.ruolo === 'admin' ? 'Amministratore' : (user.ruolo === 'agente' ? 'Agente' : `Promoter livello ${user.livello || '?'}`)}</p></div>`;
+    document.getElementById('app').innerHTML = menuHtml;
+  }
+
+  // Cambia modalità grafica
+  window.changeStyle = function(mode) {
+    localStorage.setItem('menuStyle', mode);
+    // Ricarica il menu con la nuova modalità (senza rifare chiamata API)
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      // Dobbiamo recuperare di nuovo i menu items? Li abbiamo già nel DOM, ma per semplicità ricarichiamo dal server
+      loadAndShowMenu();
+    }
+  };
+
+  // Logout
+  window.logout = function() {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    showLoginForm();
+  };
+
+  // Avvio
+  if (localStorage.getItem('user') && localStorage.getItem('token')) {
+    loadAndShowMenu();
+  } else {
+    showLoginForm();
+  }
+</script>
+</body>
+</html>

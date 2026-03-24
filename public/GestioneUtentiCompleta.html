@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Utenti</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .section {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #eee;
+    }
+    .form-row {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 15px;
+    }
+    .form-group {
+      flex: 1 1 200px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-primary { background: #1a73e8; color: #fff; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-warning { background: #f39c12; color: #fff; }
+    .btn-secondary { background: #34495e; color: #fff; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-small { padding: 4px 8px; font-size: 12px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th { background: #f5f5f5; }
+    .message {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+    .message.success { background: #d4edda; color: #155724; }
+    .message.error { background: #f8d7da; color: #721c24; }
+    .message.info { background: #d1ecf1; color: #0c5460; }
+    .login-info {
+      background: #e8f0fe;
+      padding: 8px 15px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      float: right;
+    }
+    .loading {
+      display: none;
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(255,255,255,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 8px;
+      width: 500px;
+      padding: 20px;
+    }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() {
+      window.currentUser = null;
+      window.authToken = null;
+
+      window.login = function(username, password, callback) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              window.currentUser = res.user;
+              window.authToken = res.token;
+              localStorage.setItem('magazzino_user', JSON.stringify({ user: res.user, token: res.token }));
+              callback && callback(true, res);
+            } else {
+              callback && callback(false, res);
+            }
+          })
+          .withFailureHandler(function(err) {
+            callback && callback(false, { message: err.message });
+          })
+          .verificaLogin({ username, password });
+      };
+
+      window.restoreSession = function() {
+        const saved = localStorage.getItem('magazzino_user');
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            window.currentUser = data.user;
+            window.authToken = data.token;
+            return true;
+          } catch(e) {}
+        }
+        return false;
+      };
+
+      window.logout = function() {
+        window.currentUser = null;
+        window.authToken = null;
+        localStorage.removeItem('magazzino_user');
+        google.script.host.close();
+      };
+
+      window.callServer = function(funcName, params, callback) {
+        if (!window.currentUser && funcName !== 'verificaLogin') {
+          apriModaleLogin();
+          return;
+        }
+        params = params || {};
+        if (window.currentUser) {
+          params.userId = window.currentUser.id;
+          params.token = window.authToken;
+        }
+        google.script.run
+          .withSuccessHandler(callback)
+          .withFailureHandler(function(err) {
+            console.error('Errore in ' + funcName + ':', err);
+            if (callback) callback({ success: false, message: err.message });
+          })[funcName](params);
+      };
+
+      window.showMessage = function(msg, tipo) {
+        const container = document.querySelector('.container');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = `message ${tipo}`;
+        div.textContent = msg;
+        container.prepend(div);
+        setTimeout(() => div.remove(), 5000);
+      };
+    })();
+
+    // ========== LOGICA DELLA PAGINA ==========
+    let utenti = [];
+    let soggetti = [];
+    let editId = null;
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        apriModaleLogin();
+        return;
+      }
+      if (window.currentUser.ruolo !== 'admin') {
+        document.getElementById('content').innerHTML = '<div class="message error">Accesso negato: solo amministratori.</div>';
+        return;
+      }
+      document.getElementById('loginInfo').innerHTML = `👤 ${window.currentUser.nome} (${window.currentUser.ruolo})`;
+      document.getElementById('loginInfo').style.display = 'inline-flex';
+      document.getElementById('loginBtn').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+
+      caricaDati();
+    };
+
+    function caricaDati() {
+      callServer('getUtenti', {}, function(res) {
+        if (res.success) {
+          utenti = res.data;
+          popolaTabella();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+      callServer('getAllSoggetti', {}, function(lista) {
+        soggetti = lista;
+        popolaSelectSoggetti();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaUtenti');
+      tbody.innerHTML = '';
+      utenti.forEach(u => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = u.ID;
+        row.insertCell(1).innerText = u.Username;
+        row.insertCell(2).innerText = u.Ruolo;
+        let soggettoNome = '';
+        if (u.RiferimentoID) {
+          const sog = soggetti.find(s => s.ID == u.RiferimentoID);
+          soggettoNome = sog ? (sog.NOME + (sog.COGNOME ? ' ' + sog.COGNOME : '')) : '';
+        }
+        row.insertCell(3).innerText = soggettoNome;
+        row.insertCell(4).innerText = u.NomeVisualizzato || '';
+        row.insertCell(5).innerText = u.Email || '';
+        const actions = row.insertCell(6);
+        actions.innerHTML = `<button class="btn btn-small btn-warning" onclick="modificaUtente(${u.ID})">✏️</button>
+                             <button class="btn btn-small btn-danger" onclick="eliminaUtente(${u.ID})">🗑️</button>`;
+      });
+    }
+
+    function popolaSelectSoggetti() {
+      const select = document.getElementById('riferimentoId');
+      const ruolo = document.getElementById('ruolo').value;
+      let lista = soggetti.filter(s => s.TIPO === ruolo.toUpperCase());
+      if (ruolo === 'admin') lista = [];
+      select.innerHTML = '<option value="">-- Nessuno --</option>';
+      lista.forEach(s => {
+        let nome = s.NOME;
+        if (s.COGNOME) nome += ' ' + s.COGNOME;
+        select.innerHTML += `<option value="${s.ID}">${nome} (${s.TIPO})</option>`;
+      });
+    }
+
+    function apriModaleNuovo() {
+      editId = null;
+      document.getElementById('modalTitolo').innerText = 'Nuovo Utente';
+      document.getElementById('utenteId').value = '';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('ruolo').value = 'promoter';
+      popolaSelectSoggetti();
+      document.getElementById('riferimentoId').value = '';
+      document.getElementById('nomeVisualizzato').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('modalUtente').style.display = 'flex';
+    }
+
+    function modificaUtente(id) {
+      const utente = utenti.find(u => u.ID == id);
+      if (!utente) return;
+      editId = id;
+      document.getElementById('modalTitolo').innerText = 'Modifica Utente';
+      document.getElementById('utenteId').value = utente.ID;
+      document.getElementById('username').value = utente.Username;
+      document.getElementById('password').value = '';
+      document.getElementById('ruolo').value = utente.Ruolo;
+      popolaSelectSoggetti();
+      document.getElementById('riferimentoId').value = utente.RiferimentoID || '';
+      document.getElementById('nomeVisualizzato').value = utente.NomeVisualizzato || '';
+      document.getElementById('email').value = utente.Email || '';
+      document.getElementById('modalUtente').style.display = 'flex';
+    }
+
+    function salvaUtente() {
+      const id = document.getElementById('utenteId').value;
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const ruolo = document.getElementById('ruolo').value;
+      const riferimentoId = document.getElementById('riferimentoId').value;
+      const nomeVisualizzato = document.getElementById('nomeVisualizzato').value.trim();
+      const email = document.getElementById('email').value.trim();
+
+      if (!username) {
+        showMessage('Username obbligatorio', 'error');
+        return;
+      }
+      const dati = {
+        id: id || null,
+        username: username,
+        ruolo: ruolo,
+        riferimentoId: riferimentoId || null,
+        nomeVisualizzato: nomeVisualizzato,
+        email: email
+      };
+      if (password) {
+        dati.password = password;
+      }
+      const func = id ? 'updateUtente' : 'saveUtente';
+      callServer(func, dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          chiudiModale('modalUtente');
+          caricaDati();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaUtente(id) {
+      if (!confirm('Eliminare questo utente?')) return;
+      callServer('deleteUtente', { id: id }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaDati();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    // ========== LOGIN UI ==========
+    function apriModaleLogin() {
+      document.getElementById('modalLogin').style.display = 'flex';
+    }
+    function effettuaLogin() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      if (!username || !password) return showMessage('Inserisci username e password', 'warning');
+      window.login(username, password, function(success, res) {
+        if (success) {
+          window.currentUser = res.user;
+          window.authToken = res.token;
+          chiudiModale('modalLogin');
+          window.location.reload();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+    function logout() {
+      window.logout();
+    }
+    function chiudiModale(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    // Event listener per il cambio ruolo
+    document.getElementById('ruolo').addEventListener('change', popolaSelectSoggetti);
+  </script>
+</head>
+<body>
+<div class="loading" id="loading">Caricamento...</div>
+<div class="container" id="content">
+  <div style="margin-bottom: 20px; text-align: right;">
+    <span id="loginInfo" class="login-info" style="display: none;"></span>
+    <button class="btn btn-primary" id="loginBtn" onclick="apriModaleLogin()">🔐 Login</button>
+    <button class="btn btn-secondary" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">👥 Gestione Utenti</div>
+    <button class="btn btn-success" onclick="apriModaleNuovo()">➕ Nuovo Utente</button>
+    <button class="btn btn-secondary" onclick="caricaDati()">🔄 Aggiorna</button>
+    <div style="overflow-x:auto;">
+      <table id="tabellaUtenti">
+        <thead>
+           <th>ID</th><th>Username</th><th>Ruolo</th><th>Soggetto</th><th>Nome Visualizzato</th><th>Email</th><th>Azioni</th>
+        </thead>
+        <tbody></tbody>
+       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modale Login -->
+<div class="modal" id="modalLogin">
+  <div class="modal-content">
+    <h3>🔐 Login</h3>
+    <div class="form-group"><label>Username</label><input type="text" id="loginUsername"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="loginPassword"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="chiudiModale('modalLogin')">Annulla</button>
+      <button class="btn btn-primary" onclick="effettuaLogin()">Accedi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale Gestione Utente -->
+<div class="modal" id="modalUtente">
+  <div class="modal-content">
+    <h3 id="modalTitolo">Nuovo Utente</h3>
+    <input type="hidden" id="utenteId">
+    <div class="form-group"><label>Username *</label><input type="text" id="username"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="password" placeholder="Lascia vuoto per mantenere invariata"></div>
+    <div class="form-group"><label>Ruolo</label><select id="ruolo"><option value="admin">Admin</option><option value="promoter">Promoter</option><option value="negozio">Negozio</option><option value="cliente">Cliente</option><option value="agente">Agente</option></select></div>
+    <div class="form-group"><label>Soggetto di riferimento</label><select id="riferimentoId"></select></div>
+    <div class="form-group"><label>Nome Visualizzato</label><input type="text" id="nomeVisualizzato"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="email"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="chiudiModale('modalUtente')">Annulla</button>
+      <button class="btn btn-success" onclick="salvaUtente()">💾 Salva</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

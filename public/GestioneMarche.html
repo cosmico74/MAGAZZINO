@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Marche</title>
+  <style>
+    /* stili simili */
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* common.js */ })();
+
+    let marche = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaMarche();
+    };
+
+    function caricaMarche() {
+      callServer('getMarche', {}, function(data) {
+        marche = data;
+        popolaTabella();
+      });
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaMarche');
+      tbody.innerHTML = '';
+      marche.forEach(m => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = m.ID;
+        row.insertCell(1).innerText = m.NOME;
+        row.insertCell(2).innerText = m.DESCRIZIONE || '';
+        row.insertCell(3).innerText = m.SITO_WEB || '';
+        row.insertCell(4).innerText = m.ATTIVO || 'SI';
+        const actions = row.insertCell(5);
+        actions.innerHTML = `<button class="btn" onclick="modificaMarca(${m.ID})">✏️</button>
+                             <button class="btn" onclick="eliminaMarca(${m.ID})">🗑️</button>`;
+      });
+    }
+
+    function apriModaleNuovo() {
+      document.getElementById('modalTitolo').innerText = 'Nuova Marca';
+      document.getElementById('marcaId').value = '';
+      document.getElementById('nome').value = '';
+      document.getElementById('descrizione').value = '';
+      document.getElementById('sitoWeb').value = '';
+      document.getElementById('attivo').value = 'SI';
+      document.getElementById('modalMarca').style.display = 'flex';
+    }
+
+    function modificaMarca(id) {
+      const m = marche.find(m => m.ID == id);
+      if (!m) return;
+      document.getElementById('modalTitolo').innerText = 'Modifica Marca';
+      document.getElementById('marcaId').value = m.ID;
+      document.getElementById('nome').value = m.NOME;
+      document.getElementById('descrizione').value = m.DESCRIZIONE || '';
+      document.getElementById('sitoWeb').value = m.SITO_WEB || '';
+      document.getElementById('attivo').value = m.ATTIVO || 'SI';
+      document.getElementById('modalMarca').style.display = 'flex';
+    }
+
+    function salvaMarca() {
+      const dati = {
+        id: document.getElementById('marcaId').value,
+        nome: document.getElementById('nome').value,
+        descrizione: document.getElementById('descrizione').value,
+        sitoWeb: document.getElementById('sitoWeb').value,
+        attivo: document.getElementById('attivo').value
+      };
+      const func = dati.id ? 'updateMarca' : 'saveMarca';
+      callServer(func, dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          chiudiModale();
+          caricaMarche();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaMarca(id) {
+      if (!confirm('Eliminare questa marca?')) return;
+      callServer('deleteMarca', { id: id }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaMarche();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function chiudiModale() {
+      document.getElementById('modalMarca').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+  <h2>🏷️ Gestione Marche</h2>
+  <button class="btn" onclick="apriModaleNuovo()">➕ Nuova Marca</button>
+  <button class="btn" onclick="caricaMarche()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaMarche">
+      <thead><tr><th>ID</th><th>Nome</th><th>Descrizione</th><th>Sito Web</th><th>Attivo</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="modalMarca" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:8px; width:500px;">
+      <h3 id="modalTitolo">Nuova Marca</h3>
+      <input type="hidden" id="marcaId">
+      <div class="form-group"><label>Nome *</label><input type="text" id="nome" required></div>
+      <div class="form-group"><label>Descrizione</label><textarea id="descrizione" rows="2"></textarea></div>
+      <div class="form-group"><label>Sito Web</label><input type="url" id="sitoWeb"></div>
+      <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+      <button class="btn" onclick="salvaMarca()">💾 Salva</button>
+      <button class="btn" onclick="chiudiModale()">Annulla</button>
+    </div>
+  </div>
+</body>
+</html>

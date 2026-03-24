@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Settori</title>
+  <style>
+    /* stili simili a GestioneMagazzini */
+    body { font-family: Arial; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .message { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+  </style>
+  <script>
+    // ========== LIBRERIA COMUNE ==========
+    (function() { /* stesso codice di common.js di sopra */ })();
+
+    let settori = [], magazzini = [];
+
+    window.onload = function() {
+      if (!window.restoreSession()) {
+        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
+        return;
+      }
+      caricaDati();
+    };
+
+    function caricaDati() {
+      callServer('getSettori', {}, function(data) {
+        settori = data;
+        popolaTabella();
+      });
+      callServer('getMagazzini', {}, function(data) {
+        magazzini = data;
+        popolaSelectMagazzini();
+      });
+    }
+
+    function popolaSelectMagazzini() {
+      const select = document.getElementById('magazzinoDefault');
+      select.innerHTML = '<option value="">-- Nessuno --</option>';
+      magazzini.forEach(m => select.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
+    }
+
+    function popolaTabella() {
+      const tbody = document.getElementById('tabellaSettori');
+      tbody.innerHTML = '';
+      settori.forEach(s => {
+        const mag = magazzini.find(m => m.ID == s.MAGAZZINO_DEFAULT)?.NOME || '';
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = s.ID;
+        row.insertCell(1).innerText = s.NOME;
+        row.insertCell(2).innerText = s.DESCRIZIONE || '';
+        row.insertCell(3).innerText = mag;
+        row.insertCell(4).innerText = s.ATTIVO || 'SI';
+        const actions = row.insertCell(5);
+        actions.innerHTML = `<button class="btn" onclick="modificaSettore(${s.ID})">✏️</button>
+                             <button class="btn" onclick="eliminaSettore(${s.ID})">🗑️</button>`;
+      });
+    }
+
+    function apriModaleNuovo() {
+      document.getElementById('modalTitolo').innerText = 'Nuovo Settore';
+      document.getElementById('settoreId').value = '';
+      document.getElementById('nome').value = '';
+      document.getElementById('descrizione').value = '';
+      document.getElementById('magazzinoDefault').value = '';
+      document.getElementById('attivo').value = 'SI';
+      document.getElementById('modalSettore').style.display = 'flex';
+    }
+
+    function modificaSettore(id) {
+      const s = settori.find(s => s.ID == id);
+      if (!s) return;
+      document.getElementById('modalTitolo').innerText = 'Modifica Settore';
+      document.getElementById('settoreId').value = s.ID;
+      document.getElementById('nome').value = s.NOME;
+      document.getElementById('descrizione').value = s.DESCRIZIONE || '';
+      document.getElementById('magazzinoDefault').value = s.MAGAZZINO_DEFAULT || '';
+      document.getElementById('attivo').value = s.ATTIVO || 'SI';
+      document.getElementById('modalSettore').style.display = 'flex';
+    }
+
+    function salvaSettore() {
+      const dati = {
+        id: document.getElementById('settoreId').value,
+        nome: document.getElementById('nome').value,
+        descrizione: document.getElementById('descrizione').value,
+        magazzinoDefault: document.getElementById('magazzinoDefault').value,
+        attivo: document.getElementById('attivo').value
+      };
+      const func = dati.id ? 'updateSettore' : 'saveSettore';
+      callServer(func, dati, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          chiudiModale();
+          caricaDati();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function eliminaSettore(id) {
+      if (!confirm('Eliminare questo settore?')) return;
+      callServer('deleteSettore', { id: id }, function(res) {
+        if (res.success) {
+          showMessage(res.message, 'success');
+          caricaDati();
+        } else {
+          showMessage(res.message, 'error');
+        }
+      });
+    }
+
+    function chiudiModale() {
+      document.getElementById('modalSettore').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+  <h2>📋 Gestione Settori</h2>
+  <button class="btn" onclick="apriModaleNuovo()">➕ Nuovo Settore</button>
+  <button class="btn" onclick="caricaDati()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaSettori">
+      <thead><tr><th>ID</th><th>Nome</th><th>Descrizione</th><th>Magazzino Default</th><th>Attivo</th><th>Azioni</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="modalSettore" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:8px; width:500px;">
+      <h3 id="modalTitolo">Nuovo Settore</h3>
+      <input type="hidden" id="settoreId">
+      <div class="form-group"><label>Nome *</label><input type="text" id="nome" required></div>
+      <div class="form-group"><label>Descrizione</label><textarea id="descrizione" rows="2"></textarea></div>
+      <div class="form-group"><label>Magazzino Default</label><select id="magazzinoDefault"></select></div>
+      <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+      <button class="btn" onclick="salvaSettore()">💾 Salva</button>
+      <button class="btn" onclick="chiudiModale()">Annulla</button>
+    </div>
+  </div>
+</body>
+</html>
