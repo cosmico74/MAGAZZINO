@@ -1,332 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestione Soggetti</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .btn-primary { background: #1a73e8; color: #fff; }
-    .btn-success { background: #27ae60; color: #fff; }
-    .btn-warning { background: #f39c12; color: #fff; }
-    .btn-secondary { background: #34495e; color: #fff; }
-    .btn-danger { background: #e74c3c; color: #fff; }
-    .btn-small { padding: 4px 8px; font-size: 12px; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    th, td {
-      padding: 12px 8px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-    th { background: #f5f5f5; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
-    input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    .modal {
-      display: none;
-      position: fixed;
-      top:0; left:0; width:100%; height:100%;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #fff;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 600px;
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
       padding: 20px;
     }
-    .message {
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 4px;
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 30px;
     }
-    .message.success { background: #d4edda; color: #155724; }
-    .message.error { background: #f8d7da; color: #721c24; }
-    .filters {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      align-items: flex-end;
-    }
+    h2 { margin-top: 0; border-left: 5px solid #1a73e8; padding-left: 15px; color: #1e2a3a; }
+    .filters { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
     .filter-group { flex: 1; }
+    label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.8rem; color: #2c3e50; }
+    select, input, textarea { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 0.9rem; }
+    .btn {
+      background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      font-size: 0.9rem; transition: background 0.2s;
+    }
+    .btn:hover { background: #0f5bb5; }
+    .btn-success { background: #27ae60; }
+    .btn-success:hover { background: #219653; }
+    .btn-danger { background: #dc3545; }
+    .btn-danger:hover { background: #bb2d3b; }
+    .btn-secondary { background: #6c757d; }
+    .btn-small { padding: 4px 8px; font-size: 0.8rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f8f9fa; }
+    .modal {
+      display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-content {
+      background: white; border-radius: 16px; width: 90%; max-width: 600px; padding: 25px;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .form-group { margin-bottom: 15px; }
+    .message { padding: 10px; margin-bottom: 15px; border-radius: 8px; }
+    .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
+    .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
     .login-info {
-      background: #e8f0fe;
-      padding: 8px 15px;
-      border-radius: 20px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      float: right;
+      background: #e8f0fe; padding: 5px 12px; border-radius: 20px; display: inline-flex;
+      align-items: center; gap: 10px; float: right;
+    }
+    .checkbox-group {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .checkbox-group label {
+      display: block;
+      font-weight: normal;
+      margin: 5px 0;
     }
   </style>
-  <script>
-    // ========== LIBRERIA COMUNE ==========
-    (function() {
-      window.currentUser = null;
-      window.authToken = null;
-
-      window.login = function(username, password, callback) {
-        google.script.run
-          .withSuccessHandler(function(res) {
-            if (res.success) {
-              window.currentUser = res.user;
-              window.authToken = res.token;
-              localStorage.setItem('magazzino_user', JSON.stringify({ user: res.user, token: res.token }));
-              callback && callback(true, res);
-            } else {
-              callback && callback(false, res);
-            }
-          })
-          .withFailureHandler(function(err) {
-            callback && callback(false, { message: err.message });
-          })
-          .verificaLogin({ username, password });
-      };
-
-      window.restoreSession = function() {
-        const saved = localStorage.getItem('magazzino_user');
-        if (saved) {
-          try {
-            const data = JSON.parse(saved);
-            window.currentUser = data.user;
-            window.authToken = data.token;
-            return true;
-          } catch(e) {}
-        }
-        return false;
-      };
-
-      window.logout = function() {
-        window.currentUser = null;
-        window.authToken = null;
-        localStorage.removeItem('magazzino_user');
-        window.location.reload();
-      };
-
-      window.callServer = function(funcName, params, callback) {
-        if (!window.currentUser && funcName !== 'verificaLogin') {
-          window.location.href = '?login=required';
-          return;
-        }
-        params = params || {};
-        if (window.currentUser) {
-          params.userId = window.currentUser.id;
-          params.token = window.authToken;
-        }
-        google.script.run
-          .withSuccessHandler(callback)
-          .withFailureHandler(function(err) {
-            console.error('Errore in ' + funcName + ':', err);
-            if (callback) callback({ success: false, message: err.message });
-          })[funcName](params);
-      };
-
-      window.showMessage = function(msg, tipo) {
-        const container = document.querySelector('.container');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = `message ${tipo}`;
-        div.textContent = msg;
-        container.prepend(div);
-        setTimeout(() => div.remove(), 5000);
-      };
-    })();
-
-    // ========== LOGICA DELLA PAGINA ==========
-    let soggetti = [];
-    let filtroTipo = '';
-    let filtroTesto = '';
-
-    window.onload = function() {
-      if (!window.restoreSession()) {
-        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
-        return;
-      }
-      // Solo admin può gestire i soggetti
-      if (window.currentUser.ruolo !== 'admin') {
-        document.getElementById('content').innerHTML = '<div class="message error">Accesso negato: solo amministratori.</div>';
-        return;
-      }
-      document.getElementById('loginInfo').innerHTML = `👤 ${window.currentUser.nome} (${window.currentUser.ruolo})`;
-      document.getElementById('loginInfo').style.display = 'inline-flex';
-      document.getElementById('loginBtn').style.display = 'none';
-      document.getElementById('logoutBtn').style.display = 'inline-block';
-      caricaSoggetti();
-    };
-
-    function caricaSoggetti() {
-      callServer('getAllSoggetti', {}, function(data) {
-        soggetti = data;
-        popolaTabella();
-      });
-    }
-
-    function popolaTabella() {
-      const tipoFiltro = document.getElementById('filtroTipo').value;
-      const testoFiltro = document.getElementById('filtroTesto').value.toLowerCase();
-      let filtrati = soggetti;
-      if (tipoFiltro) filtrati = filtrati.filter(s => s.TIPO === tipoFiltro);
-      if (testoFiltro) {
-        filtrati = filtrati.filter(s => (s.NOME && s.NOME.toLowerCase().includes(testoFiltro)) ||
-                                          (s.COGNOME && s.COGNOME.toLowerCase().includes(testoFiltro)) ||
-                                          (s.EMAIL && s.EMAIL.toLowerCase().includes(testoFiltro)));
-      }
-      const tbody = document.getElementById('tabellaSoggetti');
-      tbody.innerHTML = '';
-      filtrati.forEach(s => {
-        const row = tbody.insertRow();
-        row.insertCell(0).innerText = s.ID;
-        row.insertCell(1).innerText = s.TIPO;
-        row.insertCell(2).innerText = s.NOME;
-        row.insertCell(3).innerText = s.COGNOME;
-        row.insertCell(4).innerText = s.EMAIL;
-        row.insertCell(5).innerText = s.TELEFONO;
-        row.insertCell(6).innerText = s.ATTIVO;
-        row.insertCell(7).innerText = s.LIVELLO || '';   // livello
-        const actions = row.insertCell(8);
-        actions.innerHTML = `<button class="btn btn-small btn-warning" onclick="modificaSoggetto(${s.ID})">✏️</button>
-                             <button class="btn btn-small btn-danger" onclick="eliminaSoggetto(${s.ID})">🗑️</button>`;
-      });
-    }
-
-    function apriModaleNuovo() {
-      document.getElementById('modalTitolo').innerText = 'Nuovo Soggetto';
-      document.getElementById('soggettoId').value = '';
-      document.getElementById('tipo').value = 'PROMOTER';
-      document.getElementById('nome').value = '';
-      document.getElementById('cognome').value = '';
-      document.getElementById('email').value = '';
-      document.getElementById('telefono').value = '';
-      document.getElementById('indirizzo').value = '';
-      document.getElementById('citta').value = '';
-      document.getElementById('cap').value = '';
-      document.getElementById('regione').value = '';
-      document.getElementById('referente').value = '';
-      document.getElementById('attivo').value = 'SI';
-      document.getElementById('note').value = '';
-      document.getElementById('livello').value = '1';
-      // Mostra/nasconde il campo livello in base al tipo
-      toggleLivello();
-      document.getElementById('modalSoggetto').style.display = 'flex';
-    }
-
-    function modificaSoggetto(id) {
-      const soggetto = soggetti.find(s => s.ID == id);
-      if (!soggetto) return;
-      document.getElementById('modalTitolo').innerText = 'Modifica Soggetto';
-      document.getElementById('soggettoId').value = soggetto.ID;
-      document.getElementById('tipo').value = soggetto.TIPO;
-      document.getElementById('nome').value = soggetto.NOME;
-      document.getElementById('cognome').value = soggetto.COGNOME;
-      document.getElementById('email').value = soggetto.EMAIL;
-      document.getElementById('telefono').value = soggetto.TELEFONO;
-      document.getElementById('indirizzo').value = soggetto.INDIRIZZO;
-      document.getElementById('citta').value = soggetto.CITTA;
-      document.getElementById('cap').value = soggetto.CAP;
-      document.getElementById('regione').value = soggetto.REGIONE;
-      document.getElementById('referente').value = soggetto.REFERENTE;
-      document.getElementById('attivo').value = soggetto.ATTIVO || 'SI';
-      document.getElementById('note').value = soggetto.NOTE;
-      document.getElementById('livello').value = soggetto.LIVELLO || '1';
-      toggleLivello();
-      document.getElementById('modalSoggetto').style.display = 'flex';
-    }
-
-    function toggleLivello() {
-      const tipo = document.getElementById('tipo').value;
-      const livelloGroup = document.getElementById('livelloGroup');
-      if (tipo === 'PROMOTER') {
-        livelloGroup.style.display = 'block';
-      } else {
-        livelloGroup.style.display = 'none';
-      }
-    }
-
-    function salvaSoggetto() {
-      const dati = {
-        id: document.getElementById('soggettoId').value,
-        tipo: document.getElementById('tipo').value,
-        nome: document.getElementById('nome').value,
-        cognome: document.getElementById('cognome').value,
-        email: document.getElementById('email').value,
-        telefono: document.getElementById('telefono').value,
-        indirizzo: document.getElementById('indirizzo').value,
-        citta: document.getElementById('citta').value,
-        cap: document.getElementById('cap').value,
-        regione: document.getElementById('regione').value,
-        referente: document.getElementById('referente').value,
-        attivo: document.getElementById('attivo').value,
-        note: document.getElementById('note').value,
-        livello: document.getElementById('livello').value
-      };
-      const func = dati.id ? 'updateSoggetto' : 'saveSoggetto';
-      callServer(func, dati, function(res) {
-        if (res.success) {
-          showMessage(res.message, 'success');
-          chiudiModale();
-          caricaSoggetti();
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    }
-
-    function eliminaSoggetto(id) {
-      if (!confirm('Eliminare questo soggetto?')) return;
-      callServer('deleteSoggetto', { id: id }, function(res) {
-        if (res.success) {
-          showMessage(res.message, 'success');
-          caricaSoggetti();
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    }
-
-    function chiudiModale() {
-      document.getElementById('modalSoggetto').style.display = 'none';
-    }
-
-    function applicaFiltri() {
-      popolaTabella();
-    }
-
-    function logout() {
-      window.logout();
-    }
-  </script>
 </head>
 <body>
-<div class="container" id="content">
+<div class="container">
   <div style="margin-bottom: 20px; text-align: right;">
     <span id="loginInfo" class="login-info" style="display: none;"></span>
-    <button class="btn btn-primary" id="loginBtn" onclick="apriModaleLogin()">🔐 Login</button>
-    <button class="btn btn-secondary" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
+    <button class="btn" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
   </div>
 
   <h2>👥 Gestione Soggetti</h2>
+  <div id="messageArea"></div>
+
   <div class="filters">
     <div class="filter-group">
       <label>Tipo</label>
-      <select id="filtroTipo" onchange="applicaFiltri()">
+      <select id="filtroTipo">
         <option value="">Tutti</option>
         <option value="PROMOTER">Promoter</option>
         <option value="NEGOZIO">Negozio</option>
@@ -336,30 +91,31 @@
     </div>
     <div class="filter-group">
       <label>Ricerca</label>
-      <input type="text" id="filtroTesto" onkeyup="applicaFiltri()" placeholder="Nome, cognome, email...">
+      <input type="text" id="filtroTesto" placeholder="Nome, cognome, email...">
     </div>
     <div>
       <button class="btn btn-success" onclick="apriModaleNuovo()">➕ Nuovo Soggetto</button>
       <button class="btn btn-secondary" onclick="caricaSoggetti()">🔄 Aggiorna</button>
     </div>
   </div>
+
   <div style="overflow-x:auto;">
     <table id="tabellaSoggetti">
       <thead>
-         <th>ID</th><th>Tipo</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Attivo</th><th>Livello</th><th>Azioni</th>
+         <th>ID</th><th>Tipo</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th>
+         <th>Attivo</th><th>Livello</th><th>Referenti</th><th>Azioni</th>
       </thead>
       <tbody></tbody>
     表格
   </div>
 </div>
 
-<!-- Modale Gestione Soggetto -->
-<div class="modal" id="modalSoggetto">
+<div id="modalSoggetto" class="modal">
   <div class="modal-content">
     <h3 id="modalTitolo">Nuovo Soggetto</h3>
     <input type="hidden" id="soggettoId">
-    <div class="form-group"><label>Tipo</label><select id="tipo" onchange="toggleLivello()"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
-    <div class="form-group"><label>Nome</label><input type="text" id="nome"></div>
+    <div class="form-group"><label>Tipo *</label><select id="tipo"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Nome *</label><input type="text" id="nome"></div>
     <div class="form-group"><label>Cognome</label><input type="text" id="cognome"></div>
     <div class="form-group"><label>Email</label><input type="email" id="email"></div>
     <div class="form-group"><label>Telefono</label><input type="text" id="telefono"></div>
@@ -367,22 +123,255 @@
     <div class="form-group"><label>Città</label><input type="text" id="citta"></div>
     <div class="form-group"><label>CAP</label><input type="text" id="cap"></div>
     <div class="form-group"><label>Regione</label><input type="text" id="regione"></div>
-    <div class="form-group"><label>Referente</label><input type="text" id="referente"></div>
-    <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
-    <div class="form-group"><label>Note</label><textarea id="note" rows="3"></textarea></div>
-    <div id="livelloGroup" class="form-group" style="display: none;">
-      <label>Livello (solo per promoter)</label>
-      <select id="livello">
-        <option value="1">1 (può assegnare a tutti)</option>
-        <option value="2">2 (può assegnare a negozi, clienti, agenti e promoter di livello 3)</option>
-        <option value="3">3 (può assegnare solo a negozi e clienti)</option>
-      </select>
+    <div class="form-group">
+      <label>Referenti (seleziona i soggetti di livello superiore che possono vedere questo)</label>
+      <div id="referentiCheckbox" class="checkbox-group"></div>
     </div>
+    <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+    <div class="form-group" id="livelloGroup"><label>Livello (solo promoter)</label><select id="livello"><option value="1">1 (può assegnare a tutti)</option><option value="2">2 (può assegnare a negozi, clienti, agenti e promoter 3)</option><option value="3">3 (può assegnare solo a negozi e clienti)</option></select></div>
+    <div class="form-group"><label>Note</label><textarea id="note" rows="2"></textarea></div>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-secondary" onclick="chiudiModale()">Annulla</button>
       <button class="btn btn-success" onclick="salvaSoggetto()">💾 Salva</button>
     </div>
   </div>
 </div>
+
+<script>
+  // ========== UTILITY ==========
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Errore ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+
+  function showMessage(message, type) {
+    const msgDiv = document.getElementById('messageArea');
+    msgDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
+    setTimeout(() => { if (msgDiv.firstChild) msgDiv.removeChild(msgDiv.firstChild); }, 5000);
+  }
+
+  function restoreSession() {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      window.currentUser = JSON.parse(userStr);
+      return true;
+    }
+    return false;
+  }
+
+  let currentUser = null;
+  let soggetti = [];
+
+  // ========== CARICAMENTO ==========
+  async function caricaSoggetti() {
+    try {
+      const data = await apiFetch('/api/soggetti');
+      soggetti = Array.isArray(data) ? data : [];
+      popolaTabella();
+    } catch (err) {
+      showMessage('Errore caricamento soggetti: ' + err.message, 'error');
+    }
+  }
+
+  function popolaTabella() {
+    const tipo = document.getElementById('filtroTipo').value;
+    const testo = document.getElementById('filtroTesto').value.toLowerCase();
+    let filtrati = soggetti;
+    if (tipo) filtrati = filtrati.filter(s => s.tipo === tipo);
+    if (testo) {
+      filtrati = filtrati.filter(s => (s.nome && s.nome.toLowerCase().includes(testo)) ||
+                                      (s.cognome && s.cognome.toLowerCase().includes(testo)) ||
+                                      (s.email && s.email.toLowerCase().includes(testo)));
+    }
+    const tbody = document.getElementById('tabellaSoggetti').querySelector('tbody');
+    tbody.innerHTML = '';
+    for (const s of filtrati) {
+      // Trova i referenti di questo soggetto
+      const refs = soggetti.filter(r => (s.referenti && s.referenti.includes(r.id)) || (r.id == s.referente));
+      const refNomi = refs.map(r => `${r.nome || ''} ${r.cognome || ''}`.trim()).join(', ');
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = s.id;
+      row.insertCell(1).innerText = s.tipo;
+      row.insertCell(2).innerText = s.nome || '';
+      row.insertCell(3).innerText = s.cognome || '';
+      row.insertCell(4).innerText = s.email || '';
+      row.insertCell(5).innerText = s.telefono || '';
+      row.insertCell(6).innerText = s.attivo === 1 ? 'SI' : 'NO';
+      row.insertCell(7).innerText = s.livello || '';
+      row.insertCell(8).innerText = refNomi || '-';
+      const actions = row.insertCell(9);
+      actions.innerHTML = `<button class="btn btn-small" onclick="modificaSoggetto(${s.id})">✏️</button>
+                           <button class="btn btn-small btn-danger" onclick="eliminaSoggetto(${s.id})">🗑️</button>`;
+    }
+  }
+
+  // Popola la sezione checkbox dei referenti
+  function popolaReferentiCheckbox(currentReferentiIds = []) {
+    const container = document.getElementById('referentiCheckbox');
+    container.innerHTML = '';
+    const currentId = document.getElementById('soggettoId').value;
+    for (const s of soggetti) {
+      if (currentId && s.id == currentId) continue; // non può essere referente di se stesso
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = s.id;
+      cb.checked = currentReferentiIds.includes(s.id);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(` ${s.tipo} - ${s.nome || ''} ${s.cognome || ''}`.trim()));
+      if (s.livello) label.appendChild(document.createTextNode(` (liv. ${s.livello})`));
+      container.appendChild(label);
+    }
+  }
+
+  async function apriModaleNuovo() {
+    document.getElementById('modalTitolo').innerText = 'Nuovo Soggetto';
+    document.getElementById('soggettoId').value = '';
+    document.getElementById('tipo').value = 'PROMOTER';
+    document.getElementById('nome').value = '';
+    document.getElementById('cognome').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('telefono').value = '';
+    document.getElementById('indirizzo').value = '';
+    document.getElementById('citta').value = '';
+    document.getElementById('cap').value = '';
+    document.getElementById('regione').value = '';
+    document.getElementById('attivo').value = 'SI';
+    document.getElementById('livello').value = '1';
+    document.getElementById('note').value = '';
+    toggleLivello();
+    await caricaSoggetti(); // assicura che soggetti sia aggiornato
+    popolaReferentiCheckbox([]);
+    document.getElementById('modalSoggetto').style.display = 'flex';
+  }
+
+  async function modificaSoggetto(id) {
+    try {
+      const s = await apiFetch(`/api/soggetti/${id}`);
+      if (!s) return;
+      document.getElementById('modalTitolo').innerText = 'Modifica Soggetto';
+      document.getElementById('soggettoId').value = s.id;
+      document.getElementById('tipo').value = s.tipo;
+      document.getElementById('nome').value = s.nome || '';
+      document.getElementById('cognome').value = s.cognome || '';
+      document.getElementById('email').value = s.email || '';
+      document.getElementById('telefono').value = s.telefono || '';
+      document.getElementById('indirizzo').value = s.indirizzo || '';
+      document.getElementById('citta').value = s.citta || '';
+      document.getElementById('cap').value = s.cap || '';
+      document.getElementById('regione').value = s.regione || '';
+      document.getElementById('attivo').value = s.attivo === 1 ? 'SI' : 'NO';
+      document.getElementById('livello').value = s.livello || '1';
+      document.getElementById('note').value = s.note || '';
+      toggleLivello();
+      await caricaSoggetti(); // aggiorna lista
+      popolaReferentiCheckbox(s.referenti || []);
+      document.getElementById('modalSoggetto').style.display = 'flex';
+    } catch (err) {
+      showMessage('Errore caricamento soggetto: ' + err.message, 'error');
+    }
+  }
+
+  function toggleLivello() {
+    const tipo = document.getElementById('tipo').value;
+    const livelloGroup = document.getElementById('livelloGroup');
+    livelloGroup.style.display = tipo === 'PROMOTER' ? 'block' : 'none';
+  }
+
+  async function salvaSoggetto() {
+    const id = document.getElementById('soggettoId').value;
+    const referenti = Array.from(document.querySelectorAll('#referentiCheckbox input:checked'))
+      .map(cb => parseInt(cb.value))
+      .filter(v => !isNaN(v));
+    const dati = {
+      tipo: document.getElementById('tipo').value,
+      nome: document.getElementById('nome').value,
+      cognome: document.getElementById('cognome').value,
+      email: document.getElementById('email').value,
+      telefono: document.getElementById('telefono').value,
+      indirizzo: document.getElementById('indirizzo').value,
+      citta: document.getElementById('citta').value,
+      cap: document.getElementById('cap').value,
+      regione: document.getElementById('regione').value,
+      referenti: referenti,
+      attivo: document.getElementById('attivo').value,
+      livello: document.getElementById('tipo').value === 'PROMOTER' ? document.getElementById('livello').value : null,
+      note: document.getElementById('note').value
+    };
+    try {
+      if (id) {
+        await apiFetch(`/api/soggetti/${id}`, { method: 'PUT', body: JSON.stringify(dati) });
+        showMessage('Soggetto aggiornato', 'success');
+      } else {
+        await apiFetch('/api/soggetti', { method: 'POST', body: JSON.stringify(dati) });
+        showMessage('Soggetto creato', 'success');
+      }
+      chiudiModale();
+      caricaSoggetti();
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  async function eliminaSoggetto(id) {
+    if (!confirm('Eliminare questo soggetto?')) return;
+    try {
+      await apiFetch(`/api/soggetti/${id}`, { method: 'DELETE' });
+      showMessage('Soggetto eliminato', 'success');
+      caricaSoggetti();
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function chiudiModale() {
+    document.getElementById('modalSoggetto').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function applicaFiltri() {
+    popolaTabella();
+  }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
+  window.onload = async () => {
+    if (!restoreSession()) {
+      window.location.href = 'Login.html';
+      return;
+    }
+    if (currentUser.ruolo !== 'admin') {
+      document.querySelector('.container').innerHTML = '<div class="message error">Accesso negato: solo amministratori.</div>';
+      return;
+    }
+    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome || currentUser.username} (${currentUser.ruolo})`;
+    document.getElementById('loginInfo').style.display = 'inline-flex';
+    document.getElementById('logoutBtn').style.display = 'inline-block';
+    await caricaSoggetti();
+    document.getElementById('filtroTipo').addEventListener('change', applicaFiltri);
+    document.getElementById('filtroTesto').addEventListener('input', applicaFiltri);
+    document.getElementById('tipo').addEventListener('change', toggleLivello);
+    // Chiudi modale se clicchi fuori
+    window.onclick = function(event) {
+      const modal = document.getElementById('modalSoggetto');
+      if (event.target === modal) chiudiModale();
+    };
+  };
+</script>
 </body>
 </html>

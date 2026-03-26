@@ -1,93 +1,94 @@
-// =============================================
-// GESTIONE UTENTI (solo admin)
-// =============================================
+const express = require('express');
+const { verifyToken } = require('../auth');
+const pool = require('../db');
+const bcrypt = require('bcrypt');
 
-function getUtenti(params) {
-  const token = params.token;
-  const userId = params.userId;
-  if (!isAdmin(token, userId)) return { success: false, message: 'Non autorizzato' };
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('UTENTI');
-  if (!sheet) return { success: false, message: 'Foglio UTENTI non trovato' };
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const rows = data.slice(1);
-  const utenti = rows.map(row => {
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = row[i]);
-    return obj;
-  });
-  return { success: true, data: utenti };
+const router = express.Router();
+
+async function isAdmin(userId) {
+  const [rows] = await pool.query('SELECT ruolo FROM utenti WHERE id = ?', [userId]);
+  return rows.length && rows[0].ruolo === 'admin';
 }
 
-function saveUtente(params) {
-  const token = params.token;
-  const userId = params.userId;
-  if (!isAdmin(token, userId)) return { success: false, message: 'Non autorizzato' };
-  const { username, password, ruolo, riferimentoId, nomeVisualizzato, email } = params;
-  if (!username) return { success: false, message: 'Username obbligatorio' };
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('UTENTI');
-  if (!sheet) return { success: false, message: 'Foglio UTENTI non trovato' };
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][1] === username) return { success: false, message: 'Username già esistente' };
+// GET /api/utenti
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.userId))) {
+      return res.status(403).json({ success: false, message: 'Accesso negato' });
+    }
+    const [rows] = await pool.query('SELECT id, username, ruolo, riferimento_id, nome_visualizzato, email FROM utenti');
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
-  const { hash, salt } = hashPassword(password);
-  const newId = sheet.getLastRow() + 1;
-  const newRow = [
-    newId,
-    username,
-    hash,
-    salt,
-    ruolo,
-    riferimentoId || '',
-    '',
-    nomeVisualizzato || '',
-    email || ''
-  ];
-  sheet.appendRow(newRow);
-  invalidateRowCache(sheet);
-  return { success: true, message: 'Utente creato con successo' };
-}
+});
 
-function updateUtente(params) {
-  const token = params.token;
-  const userId = params.userId;
-  if (!isAdmin(token, userId)) return { success: false, message: 'Non autorizzato' };
-  const { id, username, password, ruolo, riferimentoId, nomeVisualizzato, email } = params;
-  if (!id || !username) return { success: false, message: 'ID e username obbligatori' };
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('UTENTI');
-  if (!sheet) return { success: false, message: 'Foglio UTENTI non trovato' };
-  const rowIndex = findRowIndexById(sheet, id);
-  if (rowIndex === -1) return { success: false, message: 'Utente non trovato' };
-  sheet.getRange(rowIndex, 2).setValue(username);
-  if (password) {
-    const { hash, salt } = hashPassword(password);
-    sheet.getRange(rowIndex, 3).setValue(hash);
-    sheet.getRange(rowIndex, 4).setValue(salt);
+// POST /api/utenti
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.userId))) {
+      return res.status(403).json({ success: false, message: 'Accesso negato' });
+    }
+    const { username, password, ruolo, riferimentoId, nomeVisualizzato, email } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'Username e password obbligatori' });
+    }
+    const [existing] = await pool.query('SELECT id FROM utenti WHERE username = ?', [username]);
+    if (existing.length) {
+      return res.status(400).json({ success: false, message: 'Username già esistente' });
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    const [result] = await pool.query(
+      `INSERT INTO utenti (username, password_hash, ruolo, riferimento_id, nome_visualizzato, email)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [username, hashed, ruolo, riferimentoId || null, nomeVisualizzato || null, email || null]
+    );
+    res.json({ success: true, message: 'Utente creato', id: result.insertId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
-  sheet.getRange(rowIndex, 5).setValue(ruolo);
-  sheet.getRange(rowIndex, 6).setValue(riferimentoId || '');
-  sheet.getRange(rowIndex, 8).setValue(nomeVisualizzato || '');
-  sheet.getRange(rowIndex, 9).setValue(email || '');
-  invalidateRowCache(sheet);
-  return { success: true, message: 'Utente aggiornato' };
-}
+});
 
-function deleteUtente(params) {
-  const token = params.token;
-  const userId = params.userId;
-  if (!isAdmin(token, userId)) return { success: false, message: 'Non autorizzato' };
-  const { id } = params;
-  if (!id) return { success: false, message: 'ID mancante' };
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('UTENTI');
-  if (!sheet) return { success: false, message: 'Foglio UTENTI non trovato' };
-  const rowIndex = findRowIndexById(sheet, id);
-  if (rowIndex === -1) return { success: false, message: 'Utente non trovato' };
-  sheet.deleteRow(rowIndex);
-  invalidateRowCache(sheet);
-  return { success: true, message: 'Utente eliminato' };
-}
+// PUT /api/utenti/:id
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.userId))) {
+      return res.status(403).json({ success: false, message: 'Accesso negato' });
+    }
+    const { id } = req.params;
+    const { username, password, ruolo, riferimentoId, nomeVisualizzato, email } = req.body;
+    if (!username) {
+      return res.status(400).json({ success: false, message: 'Username obbligatorio' });
+    }
+    let updateFields = 'username = ?, ruolo = ?, riferimento_id = ?, nome_visualizzato = ?, email = ?';
+    const values = [username, ruolo, riferimentoId || null, nomeVisualizzato || null, email || null];
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      updateFields += ', password_hash = ?';
+      values.push(hashed);
+    }
+    values.push(id);
+    await pool.query(`UPDATE utenti SET ${updateFields} WHERE id = ?`, values);
+    res.json({ success: true, message: 'Utente aggiornato' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/utenti/:id
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.userId))) {
+      return res.status(403).json({ success: false, message: 'Accesso negato' });
+    }
+    const { id } = req.params;
+    await pool.query('DELETE FROM utenti WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Utente eliminato' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+module.exports = router;

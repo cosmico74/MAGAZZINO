@@ -1,1221 +1,1032 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Assegnazioni / Trasferimenti</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📦 Assegnazioni e Rientri</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-    .container { max-width: 1600px; margin: 0 auto; }
-    .section {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 16px 20px;
-      margin-bottom: 25px;
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
     }
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 12px;
-      padding-bottom: 5px;
-      border-bottom: 2px solid #eee;
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 25px;
     }
-    .form-row {
+    h2 {
+      margin-top: 0;
+      border-left: 5px solid #1a73e8;
+      padding-left: 15px;
+      color: #1e2a3a;
+    }
+    .source-selector {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
       display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      margin-bottom: 12px;
+      gap: 20px;
+      align-items: center;
     }
-    .form-group {
-      flex: 1 1 200px;
+    .source-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .form-group label {
+    .source-option input {
+      width: auto;
+      margin: 0;
+    }
+    .filters {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .filter-group label {
       display: block;
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 3px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-bottom: 4px;
+      color: #2c3e50;
     }
-    .form-group select, .form-group input, .form-group textarea {
+    .filter-group input, .filter-group select {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 0.85rem;
     }
     .btn {
-      padding: 8px 16px;
+      background: #1a73e8;
+      color: white;
       border: none;
-      border-radius: 4px;
+      padding: 6px 14px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 0.85rem;
+      transition: background 0.2s;
     }
-    .btn-primary { background: #1a73e8; color: #fff; }
-    .btn-success { background: #27ae60; color: #fff; }
-    .btn-warning { background: #f39c12; color: #fff; }
-    .btn-secondary { background: #34495e; color: #fff; }
-    .btn-danger { background: #e74c3c; color: #fff; }
-    .btn-small { padding: 4px 8px; font-size: 12px; }
+    .btn:hover { background: #0f5bb5; }
+    .btn-success { background: #27ae60; }
+    .btn-success:hover { background: #219653; }
+    .btn-secondary { background: #6c757d; }
+    .btn-secondary:hover { background: #5a6268; }
+    .btn-warning { background: #f39c12; }
+    .btn-warning:hover { background: #e67e22; }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 12px;
-      font-size: 12px;
+      font-size: 0.85rem;
     }
     th, td {
-      padding: 6px 8px;
+      border: 1px solid #ddd;
+      padding: 8px;
       text-align: left;
-      border-bottom: 1px solid #ddd;
     }
     th {
-      background: #f5f5f5;
-      font-weight: bold;
+      background: #f8f9fa;
+      font-weight: 600;
     }
-    .badge {
+    .table-wrapper {
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+    .selected-info {
+      background: #e8f0fe;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+    }
+    .message {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
+    .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
+    .info { background: #e8f0fe; color: #1a73e8; border-left: 4px solid #1a73e8; }
+    .spinner {
       display: inline-block;
-      padding: 2px 6px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: bold;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
     }
-    .badge-success { background: #d4edda; color: #155724; }
-    .badge-warning { background: #fff3cd; color: #856404; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .text-center { text-align: center; }
     .login-info {
       background: #e8f0fe;
-      padding: 8px 15px;
+      padding: 5px 12px;
       border-radius: 20px;
       display: inline-flex;
       align-items: center;
       gap: 10px;
       float: right;
     }
-    .loading {
-      display: none;
-      position: fixed;
-      top:0; left:0; width:100%; height:100%;
-      background: rgba(255,255,255,0.8);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
-    .message {
-      padding: 10px;
-      border-radius: 4px;
-      margin-bottom: 15px;
-    }
-    .message.success { background: #d4edda; color: #155724; }
-    .message.error { background: #f8d7da; color: #721c24; }
-    .message.info { background: #d1ecf1; color: #0c5460; }
-    .modal {
-      display: none;
-      position: fixed;
-      top:0; left:0; width:100%; height:100%;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #fff;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 1300px;
-      max-height: 80vh;
-      overflow-y: auto;
-      padding: 20px;
-    }
-    .subject-selector {
-      background: #e3f2fd;
-      padding: 12px;
-      border-radius: 8px;
+    .header-bar {
       margin-bottom: 20px;
-      display: flex;
-      gap: 15px;
-      align-items: flex-end;
+      text-align: right;
     }
-    .subject-selector .form-group { flex: 1; }
-    .qta-input {
-      width: 70px;
-      text-align: center;
+    input:disabled, select:disabled, button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
-    .debug-panel {
-      background: #fff3cd;
-      border-left: 4px solid #f39c12;
-      padding: 8px;
+    .source-selection {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 12px 15px;
       margin-bottom: 20px;
-      font-family: monospace;
-      font-size: 11px;
-      white-space: pre-wrap;
-    }
-    .radio-group {
       display: flex;
       gap: 20px;
-      align-items: center;
-      margin-bottom: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
     }
-    .radio-group label {
-      font-weight: normal;
-      display: inline-flex;
-      align-items: center;
+    .source-selection .form-group {
+      flex: 1;
+      min-width: 150px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .inline-refresh {
+      display: flex;
+      align-items: flex-end;
       gap: 5px;
     }
   </style>
-  <script>
-  // ========== LIBRERIA COMUNE ==========
-  (function() {
-    window.currentUser = null;
-    window.authToken = null;
-
-    window.login = function(username, password, callback) {
-      apiCall('/api/auth/login', 'POST', { username, password }, function(res) {
-        if (res.success) {
-          window.currentUser = res.user;
-          window.authToken = res.token;
-          localStorage.setItem('magazzino_user', JSON.stringify({ user: res.user, token: res.token }));
-          callback && callback(true, res);
-        } else {
-          callback && callback(false, res);
-        }
-      });
-    };
-
-    window.restoreSession = function() {
-      const saved = localStorage.getItem('magazzino_user');
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          window.currentUser = data.user;
-          window.authToken = data.token;
-          return true;
-        } catch(e) {}
-      }
-      return false;
-    };
-
-    window.logout = function() {
-      window.currentUser = null;
-      window.authToken = null;
-      localStorage.removeItem('magazzino_user');
-      google.script.host.close(); // ma non c'è più google.script, quindi forse ricarica la pagina
-      window.location.reload();
-    };
-
-    // Helper per chiamate API
-    window.apiCall = function(endpoint, method, data, callback) {
-      const token = window.authToken || localStorage.getItem('token');
-      fetch(endpoint, {
-        method: method || 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: data ? JSON.stringify(data) : undefined
-      })
-        .then(res => res.json())
-        .then(callback)
-        .catch(err => callback({ success: false, message: err.message }));
-    };
-  })();
-
-  // ========== VARIABILI GLOBALI ==========
-  let livello = null;
-  let oggettiInCarico = [];
-  let oggettiSelezionati = [];
-  let magazzini = [];
-  let soggettiList = [];
-  let targetSoggetto = null;
-  let magazzinoCorrente = '';
-  let articoliKitDisponibili = [];
-
-  // ========== INIZIALIZZAZIONE ==========
-  window.onload = function() {
-    if (!window.restoreSession()) {
-      apriModaleLogin();
-      return;
-    }
-    if (window.currentUser.ruolo === 'promoter') {
-      window.apiCall('/api/auth/livello', 'GET', null, function(liv) {
-        livello = liv;
-        init();
-      });
-    } else {
-      init();
-    }
-  };
-
-  function init() {
-    document.getElementById('loginInfo').innerHTML = `👤 ${window.currentUser.nome} (${window.currentUser.ruolo})`;
-    document.getElementById('loginInfo').style.display = 'inline-flex';
-    document.getElementById('loginBtn').style.display = 'none';
-    document.getElementById('logoutBtn').style.display = 'inline-block';
-
-    window.apiCall('/api/anagrafiche/magazzini', 'GET', null, function(mag) {
-      magazzini = mag;
-      const select = document.getElementById('filtroMagazzino');
-      select.innerHTML = '<option value="">-- Seleziona un magazzino (opzionale) --</option>';
-      mag.forEach(m => select.innerHTML += `<option value="${m.id}">${m.nome}</option>`);
-
-      if (window.currentUser.ruolo === 'admin') {
-        document.getElementById('subjectSelector').style.display = 'flex';
-        caricaSoggetti();
-        document.getElementById('magazzinoGroup').style.display = 'block';
-      } 
-      else if (window.currentUser.ruolo === 'agente') {
-        targetSoggetto = {
-          tipo: window.currentUser.ruolo.toUpperCase(),
-          id: window.currentUser.riferimentoId
-        };
-        document.getElementById('magazzinoGroup').style.display = 'none';
-        caricaOggetti();
-      } 
-      else {
-        targetSoggetto = {
-          tipo: window.currentUser.ruolo.toUpperCase(),
-          id: window.currentUser.riferimentoId
-        };
-        const puoFiltrareMagazzino = (window.currentUser.ruolo === 'promoter' && livello === 1);
-        if (puoFiltrareMagazzino) {
-          document.getElementById('magazzinoGroup').style.display = 'block';
-        } else {
-          document.getElementById('magazzinoGroup').style.display = 'none';
-        }
-        caricaOggetti();
-      }
-      aggiornaDebug();
-    });
-
-    const puoAssegnare = (window.currentUser.ruolo === 'admin' ||
-                          (window.currentUser.ruolo === 'promoter' && livello === 1) ||
-                          window.currentUser.ruolo === 'agente');
-    if (puoAssegnare) {
-      document.getElementById('btnAssegnaMagazzino').style.display = 'inline-block';
-    }
-  }
-
-  function caricaSoggetti() {
-    window.apiCall('/api/soggetti', 'GET', null, function(soggetti) {
-      soggettiList = soggetti;
-      const soggettiValidi = soggettiList.filter(s => s.id && s.id > 0);
-      const selectSog = document.getElementById('selectSoggetto');
-      selectSog.innerHTML = '<option value="">-- Seleziona un soggetto --</option>';
-      soggettiValidi.forEach(s => {
-        let nome = s.nome;
-        if (s.cognome) nome += ' ' + s.cognome;
-        selectSog.innerHTML += `<option value="${s.tipo}_${s.id}">${nome} (${s.tipo})</option>`;
-      });
-      aggiornaDebug();
-    });
-  }
-
-  function ricaricaSoggetti() {
-    window.apiCall('/api/anagrafiche/clear-cache', 'POST', null, function(res) {
-      if (res.success) {
-        showMessage('Cache soggetti cancellata, ricarico...', 'success');
-        caricaSoggetti();
-      } else {
-        showMessage('Errore nella cancellazione cache', 'error');
-      }
-    });
-  }
-
-  function aggiornaDebug() {
-    let debugHtml = `<strong>🔍 DEBUG:</strong><br>`;
-    debugHtml += `Ruolo: ${window.currentUser.ruolo}<br>`;
-    if (window.currentUser.ruolo === 'admin') {
-      debugHtml += `Magazzino selezionato: ${magazzinoCorrente || 'nessuno'}<br>`;
-      const soggettoVal = document.getElementById('selectSoggetto')?.value || '';
-      debugHtml += `Soggetto selezionato: ${soggettoVal || 'nessuno'}<br>`;
-    } else {
-      debugHtml += `Soggetto (automatico): ${targetSoggetto?.tipo} ${targetSoggetto?.id}<br>`;
-    }
-    debugHtml += `Oggetti in carico caricati: ${oggettiInCarico.length}<br>`;
-    if (oggettiInCarico.length > 0) {
-      debugHtml += `Primo oggetto: ${JSON.stringify(oggettiInCarico[0]).substring(0, 200)}...<br>`;
-    }
-    if (window.currentUser.ruolo === 'agente') {
-      debugHtml += `<br><button class="btn btn-small btn-info" onclick="mostraRigheSintesi()">🔍 Mostra righe sintesi per agente</button> `;
-      debugHtml += `<button class="btn btn-small btn-warning" onclick="ricostruisciSintesi()">🔁 Ricostruisci sintesi</button>`;
-    }
-    document.getElementById('debugInfo').innerHTML = debugHtml;
-  }
-
-  function mostraRigheSintesi() {
-    if (window.currentUser.ruolo !== 'agente') {
-      showMessage('Questa funzione è solo per agenti', 'warning');
-      return;
-    }
-    const tipo = 'AGENTE';
-    const id = window.currentUser.riferimentoId;
-    window.apiCall('/api/movimenti/righe-sintesi', 'GET', { tipo, id }, function(righe) {
-      if (righe && righe.length) {
-        let msg = `Righe CARICO_SINTESI per ${tipo} ${id}:\n`;
-        righe.forEach(r => {
-          msg += `${r.TIPO_OGGETTO} ID ${r.OGGETTO_ID} -> q. ${r.QUANTITA}\n`;
-        });
-        alert(msg);
-      } else {
-        alert(`Nessuna riga in CARICO_SINTESI per ${tipo} ${id}`);
-      }
-    });
-  }
-
-  function ricostruisciSintesi() {
-    if (confirm('Ricostruire la tabella CARICO_SINTESI dai movimenti esistenti? Questa operazione può richiedere qualche secondo.')) {
-      window.apiCall('/api/movimenti/ricostruisci-sintesi', 'POST', null, function(res) {
-        if (res.success) {
-          showMessage(res.message, 'success');
-          caricaOggetti();
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    }
-  }
-
-  function cambiaMagazzino() {
-    magazzinoCorrente = document.getElementById('filtroMagazzino').value;
-    if (window.currentUser.ruolo === 'admin') {
-      const soggettoVal = document.getElementById('selectSoggetto').value;
-      if (!soggettoVal) {
-        oggettiInCarico = [];
-        renderTabella();
-        aggiornaDebug();
-        return;
-      }
-      const [tipo, id] = soggettoVal.split('_');
-      targetSoggetto = { tipo, id };
-      caricaOggetti();
-    } else if (window.currentUser.ruolo === 'promoter' && livello === 1) {
-      caricaOggetti();
-    }
-  }
-
-  function cambiaSoggetto() {
-    const soggettoVal = document.getElementById('selectSoggetto').value;
-    if (!soggettoVal) {
-      oggettiInCarico = [];
-      renderTabella();
-      aggiornaDebug();
-      return;
-    }
-    const [tipo, id] = soggettoVal.split('_');
-    targetSoggetto = { tipo, id };
-    caricaOggetti();
-  }
-
-  function resetSoggetto() {
-    document.getElementById('selectSoggetto').value = '';
-    targetSoggetto = null;
-    oggettiInCarico = [];
-    renderTabella();
-    aggiornaDebug();
-  }
-
-  function caricaOggetti() {
-    if (!targetSoggetto) return;
-    mostraLoading(true);
-    const params = { targetTipo: targetSoggetto.tipo, targetId: targetSoggetto.id };
-    const puoFiltrareMagazzino = (window.currentUser.ruolo === 'admin' ||
-                                  (window.currentUser.ruolo === 'promoter' && livello === 1));
-    if (puoFiltrareMagazzino && magazzinoCorrente) {
-      params.magazzino = magazzinoCorrente;
-    }
-    console.log('📤 Chiamo /api/movimenti/oggetti con params:', params);
-    window.apiCall('/api/movimenti/oggetti', 'POST', params, function(res) {
-      console.log('📥 Risposta /api/movimenti/oggetti:', res);
-      mostraLoading(false);
-      if (res.success) {
-        oggettiInCarico = res.oggetti || [];
-        console.log(`✅ Caricati ${oggettiInCarico.length} oggetti`);
-        filtraTabella();
-      } else {
-        showMessage(`Errore nel caricamento oggetti: ${res.message}`, 'error');
-        oggettiInCarico = [];
-        filtraTabella();
-      }
-      aggiornaDebug();
-    });
-  }
-
-  let oggettiFiltrati = [];
-
-  function filtraTabella() {
-    const tipo = document.getElementById('filtroTipo').value;
-    const testo = document.getElementById('filtroTesto').value.toLowerCase();
-    oggettiFiltrati = oggettiInCarico.filter(o => {
-      if (tipo && o.tipo !== tipo) return false;
-      if (testo) {
-        const sigla = o.SIGLA || o.SCI_SIGLA || '';
-        const desc = o.descrizione || '';
-        if (!sigla.toLowerCase().includes(testo) && !desc.toLowerCase().includes(testo)) return false;
-      }
-      return true;
-    });
-
-    oggettiFiltrati.sort((a, b) => {
-      let lenA = a.tipo === 'ARTICOLO' ? parseFloat(a.LUNGHEZZA) : parseFloat(a.SCI_LUNGHEZZA);
-      let lenB = b.tipo === 'ARTICOLO' ? parseFloat(b.LUNGHEZZA) : parseFloat(b.SCI_LUNGHEZZA);
-      if (isNaN(lenA)) lenA = 0;
-      if (isNaN(lenB)) lenB = 0;
-      return lenA - lenB;
-    });
-
-    console.log(`🔍 Filtro applicato: ${oggettiFiltrati.length} oggetti rimasti (ordinati per lunghezza)`);
-    renderTabella();
-  }
-
-  function renderTabella() {
-    const tbody = document.getElementById('tabellaBody');
-    if (!oggettiFiltrati.length) {
-      tbody.innerHTML = '}<td colspan="8">Nessun oggetto trovato per questi criteri.';
-      return;
-    }
-    let html = '';
-    oggettiFiltrati.forEach(o => {
-      const isChecked = oggettiSelezionati.some(sel => sel.id == o.ID && sel.tipo === o.tipo);
-      const badge = o.tipo === 'ARTICOLO' ? 'badge-success' : 'badge-warning';
-      let codiceMostrato = '';
-      if (o.tipo === 'ARTICOLO') {
-        codiceMostrato = o.SIGLA || o.codice || '';
-      } else {
-        codiceMostrato = o.SCI_SIGLA || o.codice || '';
-      }
-
-      let dettagli = '';
-      if (o.tipo === 'ARTICOLO') {
-        let parts = [];
-        const lung = o.LUNGHEZZA ? o.LUNGHEZZA.toString().trim() : '';
-        const dur = o.DUREZZA ? o.DUREZZA.toString().trim() : '';
-        if (lung) parts.push(`L:${lung}`);
-        if (dur) parts.push(`D:${dur}`);
-        dettagli = parts.join(' · ');
-      } else {
-        let parts = [];
-        const sciLung = o.SCI_LUNGHEZZA ? o.SCI_LUNGHEZZA.toString().trim() : '';
-        const sciDur = o.SCI_DUREZZA ? o.SCI_DUREZZA.toString().trim() : '';
-        if (sciLung) parts.push(`L:${sciLung}`);
-        if (sciDur) parts.push(`D:${sciDur}`);
-        dettagli = parts.join(' · ');
-      }
-
-      let azioni = '';
-      if (window.currentUser.ruolo === 'admin' || o.permettiGestione) {
-        azioni = `<button class="btn btn-small btn-success" onclick="preparaRientro('${o.ID}','${o.tipo}',${o.quantita})">📦 Rientra / Sposta</button>
-                  <button class="btn btn-small btn-warning" onclick="preparaTrasferimento('${o.ID}','${o.tipo}',${o.quantita})">🔄 Trasferisci</button>`;
-      } else if (o.tipoAssegnazione === 'altri' || o.tipoAssegnazione === 'referente') {
-        azioni = `<button class="btn btn-small btn-danger" onclick="richiamaOggetto('${o.ID}','${o.tipo}',${o.quantita}, '${o.destinazioneTipo}', ${o.destinazioneId})">Richiama</button>`;
-      }
-
-      html += `
-         ·
-          <td style="width:30px;"><input type="checkbox" class="seleziona-oggetto" data-id="${o.ID}" data-tipo="${o.tipo}" data-quantita="${o.quantita}" data-tipoAssegnazione="${o.tipoAssegnazione || ''}" data-magazzino="${o.MAGAZZINO || ''}" data-dest-tipo="${o.destinazioneTipo || ''}" data-dest-id="${o.destinazioneId || ''}" ${isChecked ? 'checked' : ''}>
-             <td><span class="badge ${badge}">${o.tipo}</span>
-             <td>${codiceMostrato}
-             <td>${o.descrizione || ''}
-             <td>${dettagli}
-             <td>${o.quantita}
-             <td>${o.destinatarioNome || ''}
-            <td class="action-buttons">${azioni}
-         </tr>
-      `;
-    });
-    tbody.innerHTML = html;
-    document.querySelectorAll('.seleziona-oggetto').forEach(cb => cb.addEventListener('change', aggiornaSelezione));
-  }
-
-  function aggiornaSelezione() {
-    oggettiSelezionati = [];
-    document.querySelectorAll('.seleziona-oggetto:checked').forEach(cb => {
-      oggettiSelezionati.push({
-        id: cb.dataset.id,
-        tipo: cb.dataset.tipo,
-        quantita: parseInt(cb.dataset.quantita),
-        tipoAssegnazione: cb.dataset.tipoAssegnazione,
-        MAGAZZINO: cb.dataset.magazzino,
-        destinazioneTipo: cb.dataset.destTipo,
-        destinazioneId: cb.dataset.destId
-      });
-    });
-  }
-
-  function selezionaTuttiFiltrati() {
-    oggettiSelezionati = oggettiFiltrati.map(o => ({
-      id: o.ID,
-      tipo: o.tipo,
-      quantita: o.quantita,
-      tipoAssegnazione: o.tipoAssegnazione || '',
-      MAGAZZINO: o.MAGAZZINO,
-      destinazioneTipo: o.destinazioneTipo,
-      destinazioneId: o.destinazioneId
-    }));
-    renderTabella();
-  }
-
-  function deselezionaTutti() {
-    oggettiSelezionati = [];
-    renderTabella();
-  }
-
-  // ========== MODALE ASSEGNA DAL MAGAZZINO ==========
-  function apriModaleAssegnaMagazzino() {
-    const magSelect = document.getElementById('assegnaMagazzinoId');
-    if (window.currentUser.ruolo === 'agente') {
-      magSelect.innerHTML = '';
-      const west = magazzini.find(m => m.nome.toLowerCase() === 'west');
-      if (west) {
-        magSelect.innerHTML = `<option value="${west.id}" selected>${west.nome}</option>`;
-        magSelect.disabled = true;
-        caricaArticoliKitPerAssegnazione(west.id);
-      } else {
-        showMessage('Magazzino WEST non trovato', 'error');
-        return;
-      }
-    } else {
-      magSelect.disabled = false;
-      magSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      magazzini.forEach(m => {
-        magSelect.innerHTML += `<option value="${m.id}">${m.nome}</option>`;
-      });
-      magSelect.value = magazzinoCorrente || '';
-      if (magSelect.value) {
-        caricaArticoliKitPerAssegnazione(magSelect.value);
-      } else {
-        document.getElementById('assegnaTabellaBody').innerHTML = '}<td colspan="7">Seleziona un magazzino';
-      }
-      magSelect.onchange = function() {
-        if (this.value) caricaArticoliKitPerAssegnazione(this.value);
-        else document.getElementById('assegnaTabellaBody').innerHTML = '}<td colspan="7">Seleziona un magazzino';
-      };
-    }
-    caricaDestinatariAssegnazione();
-    document.getElementById('modalAssegnaMagazzino').style.display = 'flex';
-  }
-
-  function caricaArticoliKitPerAssegnazione(magId) {
-    if (!magId) return;
-    mostraLoading(true);
-    window.apiCall('/api/articoli', 'GET', { magazzino: magId, soloDisponibili: true }, function(data) {
-      const articoli = data.data.map(a => ({
-        ID: a.id,
-        CODICE: a.codice,
-        DESCRIZIONE_COMPLETA: a.descrizione_completa,
-        tipo: 'ARTICOLO',
-        GIACENZA_REALE: a.giacenza_reale,
-        SIGLA: a.sigla || '',
-        LUNGHEZZA: a.lunghezza || '',
-        DUREZZA: a.durezza || ''
-      }));
-      window.apiCall('/api/kit', 'GET', { magazzino: magId }, function(kits) {
-        const kitsFormattati = kits.map(k => ({
-          ID: k.id,
-          CODICE: k.codice_kit,
-          DESCRIZIONE_COMPLETA: k.descrizione,
-          tipo: 'KIT',
-          GIACENZA_REALE: k.quantita,
-          SIGLA: k.sigla || '',
-          LUNGHEZZA: k.SCI_LUNGHEZZA || '',
-          DUREZZA: k.SCI_DUREZZA || ''
-        }));
-        articoliKitDisponibili = [...articoli, ...kitsFormattati];
-        popolaTabellaAssegnazione();
-        mostraLoading(false);
-      });
-    });
-  }
-
-  function popolaTabellaAssegnazione() {
-    const tbody = document.getElementById('assegnaTabellaBody');
-    if (!articoliKitDisponibili.length) {
-      tbody.innerHTML = '}<td colspan="7">Nessun prodotto disponibile in questo magazzino';
-      return;
-    }
-    let html = '';
-    articoliKitDisponibili.forEach(item => {
-      const badge = item.tipo === 'ARTICOLO' ? 'badge-success' : 'badge-warning';
-      html += `
-         ·
-          <td style="width:30px;"><input type="checkbox" class="assegna-checkbox" data-id="${item.ID}" data-tipo="${item.tipo}" data-max="${item.GIACENZA_REALE}">
-          <td><span class="badge ${badge}">${item.tipo}</span>
-          <td>${item.SIGLA || item.CODICE}
-          <td>${item.DESCRIZIONE_COMPLETA}
-          <td>L:${item.LUNGHEZZA || ''} D:${item.DUREZZA || ''}
-          <td>${item.GIACENZA_REALE}
-          <td><input type="number" class="qta-input" value="1" min="1" max="${item.GIACENZA_REALE}" style="width:70px;">
-         </tr>
-      `;
-    });
-    tbody.innerHTML = html;
-  }
-
-  function caricaDestinatariAssegnazione() {
-    const tipo = document.getElementById('assegnaTipoDestinatario').value;
-    const select = document.getElementById('assegnaDestinatarioId');
-    select.innerHTML = '<option value="">Caricamento...</option>';
-    window.apiCall('/api/soggetti/tipo/' + tipo, 'GET', null, function(lista) {
-      select.innerHTML = '<option value="">Seleziona</option>';
-      lista.forEach(d => {
-        let nome = d.nome;
-        if (d.cognome) nome += ' ' + d.cognome;
-        select.innerHTML += `<option value="${d.id}">${nome}</option>`;
-      });
-    });
-  }
-
-  function confermaAssegnazione() {
-    const magazzinoId = document.getElementById('assegnaMagazzinoId').value;
-    const tipoDest = document.getElementById('assegnaTipoDestinatario').value;
-    const destId = document.getElementById('assegnaDestinatarioId').value;
-    const note = document.getElementById('assegnaNote').value;
-    if (!magazzinoId || !tipoDest || !destId) return showMessage('Compila tutti i campi', 'warning');
-    const oggettiSelezionatiModale = [];
-    const checkboxes = document.querySelectorAll('#assegnaTabellaBody .assegna-checkbox:checked');
-    if (checkboxes.length === 0) return showMessage('Seleziona almeno un prodotto', 'warning');
-    for (const cb of checkboxes) {
-      const row = cb.closest('tr');
-      const qtaInput = row.querySelector('.qta-input');
-      const quantita = parseInt(qtaInput.value);
-      if (isNaN(quantita) || quantita <= 0) return showMessage('Quantità non valida per un prodotto', 'error');
-      const max = parseInt(cb.dataset.max);
-      if (quantita > max) return showMessage(`Quantità richiesta per ${cb.dataset.id} supera la disponibilità (max ${max})`, 'error');
-      oggettiSelezionatiModale.push({
-        tipoOggetto: cb.dataset.tipo,
-        oggettoId: cb.dataset.id,
-        quantita: quantita
-      });
-    }
-    const payload = {
-      magazzinoId,
-      destinazioneTipo: tipoDest,
-      destinazioneId: destId,
-      note,
-      oggetti: oggettiSelezionatiModale
-    };
-    mostraLoading(true);
-    window.apiCall('/api/movimenti/uscita/batch', 'POST', payload, function(res) {
-      mostraLoading(false);
-      if (res.success) {
-        showMessage(res.message, 'success');
-        chiudiModale('modalAssegnaMagazzino');
-        if (magazzinoId === magazzinoCorrente) caricaOggetti();
-      } else {
-        showMessage(res.message, 'error');
-      }
-    });
-  }
-
-  // ========== MODALE UNIFICATO PER RIENTRO/SPOSTAMENTO ==========
-  function apriModaleRientroMultiplo() {
-    if (oggettiSelezionati.length === 0) return showMessage('Seleziona almeno un oggetto', 'warning');
-    const container = document.getElementById('confermaRientroLista');
-    let html = '<strong>Oggetti selezionati:</strong><div class="confirm-list">';
-    oggettiSelezionati.forEach(sel => {
-      const oggetto = oggettiInCarico.find(o => o.ID == sel.id && o.tipo === sel.tipo);
-      html += `<div class="confirm-item">${sel.tipo} ID ${sel.id} - ${oggetto?.descrizione || ''} (q. ${sel.quantita})</div>`;
-    });
-    html += '</div>';
-    container.innerHTML = html;
-
-    const magSelect = document.getElementById('rientroMagazzinoId');
-    magSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-    magazzini.forEach(m => magSelect.innerHTML += `<option value="${m.id}">${m.nome}</option>`);
-    if (magazzinoCorrente) magSelect.value = magazzinoCorrente;
-
-    const soggettoGroup = document.getElementById('rientroSoggettoGroup');
-    if (window.currentUser.ruolo === 'admin') {
-      soggettoGroup.style.display = 'block';
-      const tipoSelect = document.getElementById('rientroDestTipo');
-      tipoSelect.innerHTML = '<option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option>';
-      tipoSelect.value = 'PROMOTER';
-      caricaDestinatariRientro();
-      tipoSelect.onchange = caricaDestinatariRientro;
-      document.getElementById('adminRientroOriginGroup').style.display = 'block';
-    } else {
-      soggettoGroup.style.display = 'none';
-      document.getElementById('adminRientroOriginGroup').style.display = 'none';
-    }
-
-    function toggleDestinazione() {
-      const tipo = document.querySelector('input[name="rientroDestType"]:checked').value;
-      if (tipo === 'magazzino') {
-        document.getElementById('rientroMagazzinoGroup').style.display = 'block';
-        document.getElementById('rientroSoggettoGroup').style.display = 'none';
-      } else {
-        document.getElementById('rientroMagazzinoGroup').style.display = 'none';
-        document.getElementById('rientroSoggettoGroup').style.display = window.currentUser.ruolo === 'admin' ? 'block' : 'none';
-      }
-    }
-    const radios = document.querySelectorAll('input[name="rientroDestType"]');
-    radios.forEach(r => r.addEventListener('change', toggleDestinazione));
-    toggleDestinazione();
-
-    document.getElementById('modalRientroMultiplo').style.display = 'flex';
-  }
-
-  function caricaDestinatariRientro() {
-    const tipo = document.getElementById('rientroDestTipo').value;
-    const select = document.getElementById('rientroDestId');
-    select.innerHTML = '<option value="">Caricamento...</option>';
-    window.apiCall('/api/soggetti/tipo/' + tipo, 'GET', null, function(lista) {
-      select.innerHTML = '<option value="">Seleziona</option>';
-      lista.forEach(d => {
-        let nome = d.nome;
-        if (d.cognome) nome += ' ' + d.cognome;
-        select.innerHTML += `<option value="${d.id}">${nome}</option>`;
-      });
-    });
-  }
-
-  function confermaRientroMultiplo() {
-    const destType = document.querySelector('input[name="rientroDestType"]:checked').value;
-    const note = document.getElementById('rientroNote').value;
-
-    if (destType === 'magazzino') {
-      const magazzinoId = document.getElementById('rientroMagazzinoId').value;
-      if (!magazzinoId) return showMessage('Seleziona magazzino', 'error');
-      const oggetti = oggettiSelezionati.map(sel => ({ tipoOggetto: sel.tipo, oggettoId: sel.id, quantita: sel.quantita }));
-      const payload = { magazzinoId, note, oggetti };
-      if (window.currentUser.ruolo === 'admin') {
-        const originTipo = document.getElementById('rientroOriginTipo').value;
-        const originId = document.getElementById('rientroOriginId').value;
-        if (!originTipo || !originId) return showMessage('Seleziona origine per il rientro', 'warning');
-        payload.oggetti = oggetti.map(o => ({ ...o, daTipo: originTipo, daId: originId }));
-      } else {
-        payload.oggetti = oggetti.map(o => ({ ...o, daTipo: targetSoggetto.tipo, daId: targetSoggetto.id }));
-      }
-      mostraLoading(true);
-      window.apiCall('/api/movimenti/rientro/batch', 'POST', payload, function(res) {
-        mostraLoading(false);
-        if (res.success) {
-          showMessage(res.message, 'success');
-          chiudiModale('modalRientroMultiplo');
-          caricaOggetti();
-          oggettiSelezionati = [];
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    } else {
-      const destTipo = document.getElementById('rientroDestTipo').value;
-      const destId = document.getElementById('rientroDestId').value;
-      if (!destTipo || !destId) return showMessage('Seleziona destinatario', 'error');
-      const daTipo = targetSoggetto.tipo;
-      const daId = targetSoggetto.id;
-
-      chiudiModale('modalRientroMultiplo');
-
-      async function trasferisciUnOggetto(oggetto, index, totale) {
-        return new Promise((resolve, reject) => {
-          showMessage(`Spostamento ${index + 1}/${totale}: ${oggetto.tipo} ID ${oggetto.id} (q. ${oggetto.quantita}) verso ${destTipo} ${destId}...`, 'info');
-          window.apiCall('/api/movimenti/trasferimento', 'POST', {
-            daTipo,
-            daId,
-            oggettoId: oggetto.id,
-            tipoOggetto: oggetto.tipo,
-            quantita: oggetto.quantita,
-            destinazioneTipo: destTipo,
-            destinazioneId: destId,
-            note: note,
-            magazzinoId: oggetto.MAGAZZINO
-          }, function(res) {
-            if (res.success) resolve();
-            else reject(new Error(`Oggetto ${oggetto.id}: ${res.message}`));
-          });
-        });
-      }
-
-      async function eseguiSpostamenti() {
-        mostraLoading(true);
-        const errori = [];
-        const totale = oggettiSelezionati.length;
-        for (let i = 0; i < totale; i++) {
-          try {
-            await trasferisciUnOggetto(oggettiSelezionati[i], i, totale);
-          } catch (err) {
-            errori.push(err.message);
-          }
-        }
-        mostraLoading(false);
-        if (errori.length === 0) {
-          showMessage(`Spostamento completato: ${totale} oggetti spostati.`, 'success');
-        } else {
-          showMessage(`Spostamento completato con errori: ${totale - errori.length} ok, errori: ${errori.join('; ')}`, 'warning');
-        }
-        caricaOggetti();
-        oggettiSelezionati = [];
-      }
-
-      eseguiSpostamenti();
-    }
-  }
-
-  // ========== MODALE TRASFERIMENTO SELEZIONATI ==========
-  function apriModaleTrasferimentoMultiplo() {
-    if (oggettiSelezionati.length === 0) return showMessage('Seleziona almeno un oggetto', 'warning');
-    if (window.currentUser.ruolo !== 'admin') {
-      const nonTrasferibili = oggettiSelezionati.filter(sel => sel.tipoAssegnazione !== 'me');
-      if (nonTrasferibili.length) {
-        return showMessage('Alcuni oggetti non sono tuoi (non puoi trasferirli)', 'warning');
-      }
-    }
-    const container = document.getElementById('confermaTrasferimentoLista');
-    let html = '<strong>Oggetti selezionati:</strong><div class="confirm-list">';
-    oggettiSelezionati.forEach(sel => {
-      const oggetto = oggettiInCarico.find(o => o.ID == sel.id && o.tipo === sel.tipo);
-      html += `<div class="confirm-item">${sel.tipo} ID ${sel.id} - ${oggetto?.descrizione || ''} (q. ${sel.quantita})</div>`;
-    });
-    html += '</div>';
-    container.innerHTML = html;
-
-    if (window.currentUser.ruolo === 'admin') {
-      const tipoSelect = document.getElementById('trasferimentoTipoDest');
-      tipoSelect.innerHTML = '<option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option>';
-      tipoSelect.value = 'PROMOTER';
-      caricaDestinatariTrasferimento();
-    } else {
-      caricaTipiDestinatariPermessi();
-      const tipoSelect = document.getElementById('trasferimentoTipoDest');
-      if (tipoSelect.options.length > 1) {
-        tipoSelect.value = tipoSelect.options[1].value;
-        caricaDestinatariTrasferimento();
-      }
-    }
-    document.getElementById('modalTrasferimentoMultiplo').style.display = 'flex';
-  }
-
-  function caricaDestinatariTrasferimento() {
-    const tipo = document.getElementById('trasferimentoTipoDest').value;
-    const select = document.getElementById('trasferimentoDestinatarioId');
-    if (!tipo) { select.innerHTML = '<option value="">Seleziona tipo</option>'; return; }
-    select.innerHTML = '<option value="">Caricamento...</option>';
-    window.apiCall('/api/soggetti/tipo/' + tipo, 'GET', null, function(lista) {
-      console.log('📥 Destinatari ricevuti per tipo', tipo, ':', lista);
-      select.innerHTML = '<option value="">Seleziona</option>';
-      if (lista.length === 0) {
-        select.innerHTML = '<option value="">Nessun destinatario disponibile</option>';
-        showMessage(`Nessun destinatario di tipo ${tipo} trovato`, 'warning');
-      } else {
-        lista.forEach(d => {
-          let nome = d.nome;
-          if (d.cognome) nome += ' ' + d.cognome;
-          select.innerHTML += `<option value="${d.id}">${nome}</option>`;
-        });
-      }
-    });
-  }
-
-  function ricaricaDestinatariTrasferimento() {
-    caricaDestinatariTrasferimento();
-  }
-
-  function caricaTipiDestinatariPermessi() {
-    const select = document.getElementById('trasferimentoTipoDest');
-    select.innerHTML = '<option value="">Seleziona tipo</option>';
-    if (window.currentUser.ruolo === 'agente') {
-      select.innerHTML += `<option value="PROMOTER">Promoter</option>
-                           <option value="NEGOZIO">Negozio</option>
-                           <option value="CLIENTE">Cliente</option>`;
-    } else if (window.currentUser.ruolo !== 'admin' && livello) {
-      const ammessi = [];
-      if (livello === 1) ammessi.push('PROMOTER', 'NEGOZIO', 'CLIENTE', 'AGENTE');
-      else if (livello === 2) ammessi.push('NEGOZIO', 'CLIENTE', 'AGENTE', 'PROMOTER');
-      else if (livello === 3) ammessi.push('NEGOZIO', 'CLIENTE');
-      ammessi.forEach(t => select.innerHTML += `<option value="${t}">${t}</option>`);
-    } else {
-      select.innerHTML += `<option value="PROMOTER">Promoter</option>
-                           <option value="NEGOZIO">Negozio</option>
-                           <option value="CLIENTE">Cliente</option>
-                           <option value="AGENTE">Agente</option>`;
-    }
-  }
-
-  function confermaTrasferimentoMultiplo() {
-    const tipoDest = document.getElementById('trasferimentoTipoDest').value;
-    const destId = document.getElementById('trasferimentoDestinatarioId').value;
-    const note = document.getElementById('trasferimentoNote').value;
-    if (!tipoDest || !destId) return showMessage('Seleziona destinatario', 'error');
-    const daTipo = targetSoggetto.tipo;
-    const daId = targetSoggetto.id;
-    chiudiModale('modalTrasferimentoMultiplo');
-
-    async function trasferisciUnOggetto(oggetto, index, totale) {
-      return new Promise((resolve, reject) => {
-        showMessage(`Trasferimento ${index + 1}/${totale}: ${oggetto.tipo} ID ${oggetto.id} (q. ${oggetto.quantita})...`, 'info');
-        window.apiCall('/api/movimenti/trasferimento', 'POST', {
-          daTipo,
-          daId,
-          oggettoId: oggetto.id,
-          tipoOggetto: oggetto.tipo,
-          quantita: oggetto.quantita,
-          destinazioneTipo: tipoDest,
-          destinazioneId: destId,
-          note: note,
-          magazzinoId: oggetto.MAGAZZINO
-        }, function(res) {
-          if (res.success) resolve();
-          else reject(new Error(`Oggetto ${oggetto.id}: ${res.message}`));
-        });
-      });
-    }
-
-    async function eseguiTrasferimenti() {
-      mostraLoading(true);
-      const errori = [];
-      const totale = oggettiSelezionati.length;
-      for (let i = 0; i < totale; i++) {
-        try {
-          await trasferisciUnOggetto(oggettiSelezionati[i], i, totale);
-        } catch (err) {
-          errori.push(err.message);
-        }
-      }
-      mostraLoading(false);
-      if (errori.length === 0) {
-        showMessage(`Trasferimento completato: ${totale} oggetti trasferiti.`, 'success');
-      } else {
-        showMessage(`Trasferimento completato con errori: ${totale - errori.length} ok, errori: ${errori.join('; ')}`, 'warning');
-      }
-      caricaOggetti();
-      oggettiSelezionati = [];
-    }
-    eseguiTrasferimenti();
-  }
-
-  // ========== AZIONI SINGOLE (con prompt quantità) ==========
-  function preparaRientro(id, tipo, qta) {
-    const quantita = prompt(`Quanti pezzi rientrare/spostare? (max ${qta})`, qta);
-    if (!quantita) return;
-    const q = parseInt(quantita);
-    if (isNaN(q) || q <= 0 || q > qta) return showMessage('Quantità non valida', 'warning');
-    oggettiSelezionati = [{ id, tipo, quantita: q, tipoAssegnazione: 'me', MAGAZZINO: oggettiInCarico.find(o => o.ID == id)?.MAGAZZINO }];
-    apriModaleRientroMultiplo();
-  }
-
-  function preparaTrasferimento(id, tipo, qta) {
-    const quantita = prompt(`Quanti pezzi trasferire? (max ${qta})`, qta);
-    if (!quantita) return;
-    const q = parseInt(quantita);
-    if (isNaN(q) || q <= 0 || q > qta) return showMessage('Quantità non valida', 'warning');
-    oggettiSelezionati = [{ id, tipo, quantita: q, tipoAssegnazione: 'me', MAGAZZINO: oggettiInCarico.find(o => o.ID == id)?.MAGAZZINO }];
-    apriModaleTrasferimentoMultiplo();
-  }
-
-  function richiamaOggetto(id, tipo, qta, destinazioneTipo, destinazioneId) {
-    const quantita = prompt(`Quanti pezzi richiamare? (max ${qta})`, '1');
-    if (!quantita) return;
-    const q = parseInt(quantita);
-    if (isNaN(q) || q <= 0 || q > qta) return showMessage('Quantità non valida', 'warning');
-    window.apiCall('/api/movimenti/richiamo', 'POST', {
-      oggettoId: id,
-      tipoOggetto: tipo,
-      quantita: q,
-      destinazioneTipo: destinazioneTipo,
-      destinazioneId: destinazioneId
-    }, function(res) {
-      if (res.success) {
-        showMessage(res.message, 'success');
-        caricaOggetti();
-      } else {
-        showMessage(res.message, 'error');
-      }
-    });
-  }
-
-  // ========== UTILITY ==========
-  function mostraLoading(show) {
-    document.getElementById('loading').style.display = show ? 'flex' : 'none';
-  }
-  function apriModaleLogin() {
-    document.getElementById('modalLogin').style.display = 'flex';
-  }
-  
-  function chiudiModale(id) {
-    document.getElementById(id).style.display = 'none';
-  }
-</script>
 </head>
 <body>
-<div class="loading" id="loading">Caricamento...</div>
 <div class="container">
-  <div style="margin-bottom: 20px; text-align: right;">
+  <div class="header-bar">
     <span id="loginInfo" class="login-info" style="display: none;"></span>
-    <button class="btn btn-primary" id="loginBtn" onclick="apriModaleLogin()">🔐 Login</button>
     <button class="btn btn-secondary" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
   </div>
 
-  <div id="debugInfo" class="debug-panel"></div>
+  <h2>📦 Assegnazioni e Rientri</h2>
+  <div id="messageArea"></div>
 
-  <div id="subjectSelector" class="subject-selector" style="display: none;">
+  <!-- Scelta sorgente -->
+  <div class="source-selector">
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
+      <label for="sourceMagazzino">🏭 Dal magazzino</label>
+    </div>
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceCarico" value="carico" checked>
+      <label for="sourceCarico">📦 In carico (da redistribuire)</label>
+    </div>
+  </div>
+
+  <!-- Sezione per admin: scelta sorgente (in carico) -->
+  <div id="adminSourceSection" style="display: none;" class="source-selection">
     <div class="form-group">
-      <label>🎯 Visualizza oggetti di:</label>
-      <select id="selectSoggetto" onchange="cambiaSoggetto()">
-        <option value="">-- Seleziona un soggetto --</option>
+      <label>Sorgente (da cui prelevare gli oggetti)</label>
+      <select id="sourceTipo" disabled>
+        <option value="PROMOTER">👤 Promoter</option>
+        <option value="NEGOZIO">🏪 Negozio</option>
+        <option value="CLIENTE">👥 Cliente</option>
+        <option value="AGENTE">🤝 Agente</option>
       </select>
     </div>
     <div class="form-group">
-      <button class="btn btn-secondary" onclick="resetSoggetto()">Reset</button>
-      <button class="btn btn-primary" onclick="ricaricaSoggetti()">🔄 Ricarica soggetti</button>
+      <label>Seleziona soggetto</label>
+      <select id="sourceId" disabled>
+        <option value="">Seleziona...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="includeReferenced"> Includi referenti
+      </label>
     </div>
   </div>
 
-  <div id="caricoSection" class="section">
-    <div class="section-title">📋 Oggetti in carico</div>
-    <div class="form-row">
-      <div id="magazzinoGroup" style="display: none;">
-        <div class="form-group">
-          <label>Magazzino (opzionale)</label>
-          <select id="filtroMagazzino" onchange="cambiaMagazzino()">
-            <option value="">-- Seleziona un magazzino --</option>
-          </select>
-        </div>
+  <!-- Filtri -->
+  <div class="filters">
+    <div class="filter-row">
+      <div class="filter-group" id="magazzinoGroup">
+        <label id="magazzinoLabel">Magazzino *</label>
+        <select id="magazzino"></select>
       </div>
-      <div class="form-group">
-        <label>Filtro tipo</label>
-        <select id="filtroTipo" onchange="filtraTabella()">
-          <option value="">Tutti</option>
-          <option value="ARTICOLO">Articoli</option>
-          <option value="KIT">Kit</option>
+      <div class="filter-group">
+        <label>Tipo oggetto</label>
+        <select id="tipoOggetto"><option value="">Tutti</option><option value="ARTICOLO">📦 Articolo</option><option value="KIT">🔧 Kit</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Settore</label>
+        <select id="settore"></select>
+      </div>
+      <div class="filter-group">
+        <label>Marca</label>
+        <select id="marca"></select>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Descrizione</label>
+        <input type="text" id="filtroDescrizione" list="descrizioneList" autocomplete="off" placeholder="Contiene...">
+        <datalist id="descrizioneList"></datalist>
+      </div>
+      <div class="filter-group">
+        <label>Lunghezza</label>
+        <input type="text" id="filtroLunghezza" list="lunghezzaList" autocomplete="off" placeholder="Esatta">
+        <datalist id="lunghezzaList"></datalist>
+      </div>
+      <div class="filter-group">
+        <label>Durezza</label>
+        <input type="text" id="filtroDurezza" list="durezzaList" autocomplete="off" placeholder="Esatta">
+        <datalist id="durezzaList"></datalist>
+      </div>
+      <div class="filter-group">
+        <label>Sigla</label>
+        <input type="text" id="filtroSigla" list="siglaList" autocomplete="off" placeholder="Esatta">
+        <datalist id="siglaList"></datalist>
+      </div>
+    </div>
+    <div class="filter-row">
+      <button class="btn" onclick="applicaFiltri()">🔍 Filtra</button>
+      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
+    </div>
+  </div>
+
+  <!-- Tabella oggetti -->
+  <div class="table-wrapper">
+    <table id="tabellaOggetti">
+      <thead>
+         <th style="width:30px"><input type="checkbox" id="selectAll"></th>
+         <th>Codice / Sigla</th><th>Descrizione</th><th>Disponibile</th><th>Quantità da inviare</th>
+      </thead>
+      <tbody id="tabellaBody">
+         <td colspan="5" class="text-center">Caricamento...<\/td>
+      </tbody>
+    表格
+  </div>
+
+  <div class="selected-info" id="selectedInfo">Nessun oggetto selezionato</div>
+
+  <!-- Destinazione e azione -->
+  <div class="filter-row" id="destinazioneRow">
+    <div class="filter-group">
+      <label>Destinazione</label>
+      <div class="inline-refresh">
+        <select id="destinazioneTipo" onchange="caricaDestinazioni()">
+          <option value="PROMOTER">👤 Promoter</option>
+          <option value="NEGOZIO">🏪 Negozio</option>
+          <option value="CLIENTE">👥 Cliente</option>
+          <option value="AGENTE">🤝 Agente</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label>Ricerca (sigla/descrizione)</label>
-        <input type="text" id="filtroTesto" placeholder="Cerca..." onkeyup="filtraTabella()">
-      </div>
-      <div class="form-group">
-        <button class="btn btn-secondary" onclick="caricaOggetti()">🔄 Aggiorna</button>
-        <button class="btn btn-primary" onclick="caricaOggetti()">🔄 Forza Ricarica</button>
+        <button class="btn btn-secondary" style="padding: 4px 8px;" onclick="caricaDestinazioni()" title="Aggiorna destinazioni">🔄</button>
       </div>
     </div>
-    <div style="margin-bottom:10px;">
-      <button class="btn btn-success" onclick="apriModaleRientroMultiplo()">📦 Rientra / Sposta</button>
-      <button class="btn btn-warning" onclick="apriModaleTrasferimentoMultiplo()">🔄 Trasferisci</button>
-      <button class="btn btn-info" onclick="selezionaTuttiFiltrati()">✅ Seleziona tutti</button>
-      <button class="btn btn-secondary" onclick="deselezionaTutti()">❌ Deseleziona tutti</button>
-      <button id="btnAssegnaMagazzino" class="btn btn-primary" style="display: none;" onclick="apriModaleAssegnaMagazzino()">➕ Assegna dal magazzino</button>
-    </div>
-    <div style="overflow-x:auto;">
-      <table id="tabellaOggetti">
-        <thead>
-           <th style="width:30px;">Sel.</th>
-           <th>Tipo</th>
-           <th>Sigla / Codice</th>
-           <th>Descrizione</th>
-           <th>Dettagli</th>
-           <th>Qtà</th>
-           <th>Destinatario</th>
-           <th>Azioni</th>
-        </thead>
-        <tbody id="tabellaBody">
-           <td colspan="8">Caricamento...</td>
-        </tbody>
-       </table>
-    </div>
+    <div class="filter-group"><label>Seleziona destinazione</label><select id="destinazioneId"></select></div>
+    <div class="filter-group"><label>Note</label><input type="text" id="noteUscita" placeholder="Note (opzionale)"></div>
   </div>
-</div>
 
-<!-- Modale Login -->
-<div class="modal" id="modalLogin">
-  <div class="modal-content">
-    <h3>🔐 Login</h3>
-    <div class="form-group"><label>Username</label><input type="text" id="loginUsername"></div>
-    <div class="form-group"><label>Password</label><input type="password" id="loginPassword"></div>
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-secondary" onclick="chiudiModale('modalLogin')">Annulla</button>
-      <button class="btn btn-primary" onclick="effettuaLogin()">Accedi</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modale Assegna dal magazzino -->
-<div class="modal" id="modalAssegnaMagazzino">
-  <div class="modal-content">
-    <h3>📦 Assegna dal magazzino</h3>
-    <div class="form-row">
-      <div class="form-group"><label>Magazzino *</label><select id="assegnaMagazzinoId"></select></div>
-      <div class="form-group"><label>Tipo destinatario</label><select id="assegnaTipoDestinatario" onchange="caricaDestinatariAssegnazione()"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
-      <div class="form-group"><label>Destinatario</label><select id="assegnaDestinatarioId"></select></div>
-    </div>
-    <div style="margin-top:15px;">
-      <table style="width:100%;">
-        <thead>
-           <th style="width:30px;">Sel.</th>
-           <th>Tipo</th>
-           <th>Sigla / Codice</th>
-           <th>Descrizione</th>
-           <th>Dettagli (L/D)</th>
-           <th>Disponibili</th>
-           <th>Qtà da assegnare</th>
-        </thead>
-        <tbody id="assegnaTabellaBody">
-           <td colspan="7">Seleziona un magazzino</td>
-        </tbody>
-       </table>
-    </div>
-    <div class="form-group"><label>Note</label><textarea id="assegnaNote" rows="2" style="width:100%;"></textarea></div>
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-secondary" onclick="chiudiModale('modalAssegnaMagazzino')">Annulla</button>
-      <button class="btn btn-success" onclick="confermaAssegnazione()">📤 Assegna selezionati</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modale Rientro/Spostamento (unificato) -->
-<div class="modal" id="modalRientroMultiplo">
-  <div class="modal-content">
-    <h3>📦 Rientro / Sposta</h3>
-    <div id="confermaRientroLista"></div>
-    <div class="radio-group">
-      <label><input type="radio" name="rientroDestType" value="magazzino" checked> Magazzino</label>
-      <label><input type="radio" name="rientroDestType" value="soggetto"> Soggetto</label>
-    </div>
-    <div id="rientroMagazzinoGroup" style="display: block;">
-      <div class="form-group"><label>Magazzino di rientro *</label><select id="rientroMagazzinoId"></select></div>
-    </div>
-    <div id="rientroSoggettoGroup" style="display: none;">
-      <div class="form-row">
-        <div class="form-group"><label>Tipo destinatario</label><select id="rientroDestTipo"></select></div>
-        <div class="form-group"><label>Destinatario</label><select id="rientroDestId"></select></div>
-      </div>
-    </div>
-    <div id="adminRientroOriginGroup" style="display: none; margin-bottom: 15px;">
-      <div class="form-row">
-        <div class="form-group"><label>Tipo origine (soggetto da cui rientra)</label><select id="rientroOriginTipo"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
-        <div class="form-group"><label>Soggetto</label><select id="rientroOriginId"></select></div>
-      </div>
-    </div>
-    <div class="form-group"><label>Note</label><textarea id="rientroNote" rows="2"></textarea></div>
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-secondary" onclick="chiudiModale('modalRientroMultiplo')">Annulla</button>
-      <button class="btn btn-success" onclick="confermaRientroMultiplo()">Conferma</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modale Trasferimento multiplo -->
-<div class="modal" id="modalTrasferimentoMultiplo">
-  <div class="modal-content">
-    <h3>🔄 Trasferimento multiplo</h3>
-    <div id="confermaTrasferimentoLista"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Tipo destinatario *</label><select id="trasferimentoTipoDest" onchange="caricaDestinatariTrasferimento()"></select></div>
-      <div class="form-group"><label>Destinatario *</label><select id="trasferimentoDestinatarioId"></select></div>
-      <div class="form-group"><button class="btn btn-small btn-primary" onclick="ricaricaDestinatariTrasferimento()">🔄 Ricarica</button></div>
-    </div>
-    <div class="form-group"><label>Note</label><textarea id="trasferimentoNote" rows="2"></textarea></div>
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-secondary" onclick="chiudiModale('modalTrasferimentoMultiplo')">Annulla</button>
-      <button class="btn btn-warning" onclick="confermaTrasferimentoMultiplo()">Conferma</button>
-    </div>
+  <div class="action-buttons">
+    <button class="btn btn-success" id="assegnaBtn" onclick="assegnaSelezionati()">📤 Assegna selezionati</button>
+    <button class="btn btn-warning" id="rientroBtn" onclick="rientraSelezionati()" style="display: none;">📦 Rientra in magazzino</button>
   </div>
 </div>
 
 <script>
-  if (window.restoreSession()) {
-    callServer('getMagazzini', {}, function(mag) {
-      const select = document.getElementById('rientroMagazzinoId');
-      select.innerHTML = '<option value="">Seleziona magazzino</option>';
-      mag.forEach(m => select.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
-    });
+  // ---------- UTILITY ----------
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
   }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    console.log(`📡 Chiamata API: ${endpoint}`, options.method || 'GET', headers);
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) {
+      let errorMsg = `Errore ${response.status}`;
+      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
+      throw new Error(errorMsg);
+    }
+    const data = await response.json();
+    console.log(`✅ Risposta da ${endpoint}:`, data);
+    return data;
+  }
+
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  // ---------- GLOBALI ----------
+  let currentUser = null;
+  let magazzini = [], settori = [], marche = [];
+  let oggetti = [];
+  let magazzinoKey = 'id';
+
+  // Elementi DOM
+  const radioMagazzino = document.getElementById('sourceMagazzino');
+  const radioCarico = document.getElementById('sourceCarico');
+  const magazzinoGroup = document.getElementById('magazzinoGroup');
+  const magazzinoSelect = document.getElementById('magazzino');
+  const magazzinoLabel = document.getElementById('magazzinoLabel');
+  const tipoOggettoSelect = document.getElementById('tipoOggetto');
+  const settoreSelect = document.getElementById('settore');
+  const marcaSelect = document.getElementById('marca');
+  const filtroDescrizione = document.getElementById('filtroDescrizione');
+  const filtroLunghezza = document.getElementById('filtroLunghezza');
+  const filtroDurezza = document.getElementById('filtroDurezza');
+  const filtroSigla = document.getElementById('filtroSigla');
+  const destinazioneTipo = document.getElementById('destinazioneTipo');
+  const destinazioneId = document.getElementById('destinazioneId');
+  const assegnaBtn = document.getElementById('assegnaBtn');
+  const rientroBtn = document.getElementById('rientroBtn');
+  const destinazioneRow = document.getElementById('destinazioneRow');
+
+  // Elementi admin per sorgente
+  const adminSourceSection = document.getElementById('adminSourceSection');
+  const sourceTipo = document.getElementById('sourceTipo');
+  const sourceId = document.getElementById('sourceId');
+  const includeReferenced = document.getElementById('includeReferenced');
+
+  // ---------- CARICAMENTO ANAGRAFICHE ----------
+  async function caricaAnagrafiche() {
+    try {
+      magazzini = await apiFetch('/api/anagrafiche/magazzini');
+      settori = await apiFetch('/api/anagrafiche/settori');
+      marche = await apiFetch('/api/anagrafiche/marche');
+      console.log('Magazzini caricati:', magazzini);
+
+      if (magazzini.length > 0) {
+        const first = magazzini[0];
+        if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
+        else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
+        else {
+          const keys = Object.keys(first).filter(k => !isNaN(parseInt(k)));
+          if (keys.length) magazzinoKey = keys[0];
+        }
+        console.log(`Chiave magazzino rilevata: ${magazzinoKey}`);
+      }
+
+      function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
+        if (!select) return;
+        select.innerHTML = '';
+        if (conVuoto) select.appendChild(new Option('Tutti', ''));
+        items.forEach(item => {
+          let testo = item[textKey];
+          if (textKey === 'nome' && item.cognome) testo = `${item.nome} ${item.cognome}`.trim();
+          select.appendChild(new Option(testo, item[valueKey]));
+        });
+      }
+      popolaSelect(magazzinoSelect, magazzini, magazzinoKey, 'nome', false);
+      popolaSelect(settoreSelect, settori, 'settore_id', 'nome', true);
+      popolaSelect(marcaSelect, marche, 'marca_id', 'nome', true);
+
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) {
+        const defaultVal = defaultMag[magazzinoKey];
+        magazzinoSelect.value = defaultVal;
+        console.log(`Magazzino di default impostato: ${defaultMag.nome} (${magazzinoKey}=${defaultVal})`);
+      } else {
+        console.warn('Magazzino "race" non trovato');
+      }
+    } catch (err) {
+      console.error('Errore caricaAnagrafiche:', err);
+      showMessage('Errore caricamento dati: ' + err.message, 'error');
+    }
+  }
+
+  // ---------- CARICA SORGENTI PER ADMIN ----------
+  async function caricaSorgentiAdmin() {
+    const tipo = sourceTipo.value;
+    console.log(`[DEBUG] caricaSorgentiAdmin: tipo = ${tipo}`);
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      console.log(`[DEBUG] Soggetti ricevuti per tipo ${tipo}:`, data);
+      sourceId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        sourceId.appendChild(new Option(testo, item.id));
+      });
+      if (sourceId.options.length > 1 && !sourceId.value) {
+        sourceId.selectedIndex = 1;
+        console.log(`[DEBUG] Impostato soggetto di default: ${sourceId.value} (${sourceId.options[sourceId.selectedIndex].text})`);
+      }
+      if (radioCarico.checked) {
+        console.log(`[DEBUG] Radio "In carico" attivo, chiamo caricaOggettiInCarico()`);
+        await caricaOggettiInCarico();
+      }
+    } catch (err) {
+      console.error('Errore caricaSorgentiAdmin:', err);
+      showMessage('Errore caricamento sorgenti: ' + err.message, 'error');
+    }
+  }
+
+  // ---------- DESTINAZIONI ----------
+  async function caricaDestinazioni() {
+    const tipo = destinazioneTipo.value;
+    console.log(`[DEBUG] caricaDestinazioni chiamata con tipo = ${tipo}`);
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      console.log(`[DEBUG] Destinazioni ricevute per tipo ${tipo}:`, data);
+      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destinazioneId.appendChild(new Option(testo, item.id));
+      });
+      if (destinazioneId.options.length > 1 && !destinazioneId.value) {
+        destinazioneId.selectedIndex = 1;
+      }
+    } catch (err) {
+      console.error('Errore caricaDestinazioni:', err);
+      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
+    }
+  }
+
+  // ---------- FORMATTA OGGETTO PER LA TABELLA ----------
+  function formatOggetto(item, tipo) {
+    let codice = '';
+    let descrizione = '';
+    let disponibile = 0;
+    let id = item.id || item.ID;
+
+    if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
+      const sciSigla = item.SCI_SIGLA || '';
+      const kitDesc = item.descrizione || '';
+      codice = sciSigla ? `[${sciSigla}]` : (item.codice_kit || `Kit ${id}`);
+      descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
+      disponibile = item.quantita || 0;
+    } else {
+      codice = item.codice || '';
+      descrizione = item.descrizione || '';
+      disponibile = item.quantita || 0;
+    }
+    return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
+  }
+
+  // ---------- CARICAMENTO DAL MAGAZZINO ----------
+  async function caricaOggettiDaMagazzino() {
+    const magId = magazzinoSelect.value;
+    console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
+    if (!magId) {
+      oggetti = [];
+      popolaTabella();
+      showMessage('Seleziona un magazzino', 'info');
+      return;
+    }
+
+    const tipo = tipoOggettoSelect.value;
+    console.log(`[DEBUG] Tipo oggetto selezionato: ${tipo}`);
+    let lista = [];
+
+    try {
+      const paramsArticoli = new URLSearchParams();
+      paramsArticoli.append('magazzino', magId);
+      if (settoreSelect.value) paramsArticoli.append('settore', settoreSelect.value);
+      if (marcaSelect.value) paramsArticoli.append('marca', marcaSelect.value);
+      if (filtroDescrizione.value) paramsArticoli.append('descrizione', filtroDescrizione.value);
+      if (filtroLunghezza.value) paramsArticoli.append('lunghezza', filtroLunghezza.value);
+      if (filtroDurezza.value) paramsArticoli.append('durezza', filtroDurezza.value);
+      if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
+      paramsArticoli.append('min_giacenza', '1');
+
+      if (tipo === '' || tipo === 'ARTICOLO') {
+        const urlArticoli = `/api/articoli?${paramsArticoli.toString()}`;
+        console.log(`[DEBUG] Chiamata articoli: ${urlArticoli}`);
+        const resArticoli = await apiFetch(urlArticoli);
+        let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
+        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
+        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO' })));
+      }
+
+      if (tipo === '' || tipo === 'KIT') {
+        console.log(`[DEBUG] Caricamento kit da /api/kit`);
+        const resKit = await apiFetch('/api/kit');
+        let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
+        console.log(`[DEBUG] Kit totali: ${kits.length}`);
+        kits = kits.filter(k => k.magazzino == magId);
+        console.log(`[DEBUG] Kit dopo filtro magazzino ${magId}: ${kits.length}`);
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT' })));
+      }
+
+      console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
+      oggetti = lista.map(item => formatOggetto(item, item.tipo));
+      console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
+      popolaTabella();
+      assegnaBtn.disabled = false;
+    } catch (err) {
+      console.error('Errore caricaOggettiDaMagazzino:', err);
+      showMessage('Errore caricamento oggetti: ' + err.message, 'error');
+    }
+  }
+
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
+  async function caricaOggettiInCarico() {
+    console.log('[DEBUG] caricaOggettiInCarico - inizio');
+    const body = {};
+    if (currentUser.ruolo === 'admin' && sourceId.value) {
+      body.targetTipo = sourceTipo.value;
+      body.targetId = parseInt(sourceId.value);
+      if (includeReferenced.checked) body.includeReferenced = true;
+      console.log(`[DEBUG] Admin: sorgente selezionata: ${body.targetTipo} ${body.targetId}, referenti=${body.includeReferenced}`);
+    } else if (currentUser.ruolo !== 'admin') {
+      console.log(`[DEBUG] Non admin: utilizzo riferimento utente ${currentUser.riferimento_id}`);
+    } else {
+      console.log(`[DEBUG] Admin ma nessuna sorgente selezionata (sourceId.value = ${sourceId.value})`);
+    }
+
+    try {
+      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      if (res.success) {
+        let tutti = res.oggetti || [];
+        console.log(`[DEBUG] Oggetti ricevuti: ${tutti.length}`);
+        const tipoFiltro = tipoOggettoSelect.value;
+        if (tipoFiltro !== '') {
+          tutti = tutti.filter(item => item.tipo === tipoFiltro);
+          console.log(`[DEBUG] Dopo filtro tipo (${tipoFiltro}): ${tutti.length}`);
+        }
+        if (settoreSelect.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
+          console.log(`[DEBUG] Dopo filtro settore (${settoreSelect.value}): ${old} -> ${tutti.length}`);
+        }
+        if (marcaSelect.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
+          console.log(`[DEBUG] Dopo filtro marca (${marcaSelect.value}): ${old} -> ${tutti.length}`);
+        }
+        if (filtroDescrizione.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
+          console.log(`[DEBUG] Dopo filtro descrizione: ${old} -> ${tutti.length}`);
+        }
+        if (filtroLunghezza.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
+          console.log(`[DEBUG] Dopo filtro lunghezza: ${old} -> ${tutti.length}`);
+        }
+        if (filtroDurezza.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
+          console.log(`[DEBUG] Dopo filtro durezza: ${old} -> ${tutti.length}`);
+        }
+        if (filtroSigla.value) {
+          const old = tutti.length;
+          tutti = tutti.filter(o => o.SIGLA == filtroSigla.value);
+          console.log(`[DEBUG] Dopo filtro sigla: ${old} -> ${tutti.length}`);
+        }
+        oggetti = tutti.map(item => formatOggetto(item, item.tipo));
+        console.log(`[DEBUG] Oggetti finali: ${oggetti.length}`);
+        popolaTabella();
+        assegnaBtn.disabled = false;
+      } else {
+        throw new Error(res.message);
+      }
+    } catch (err) {
+      console.error('Errore caricaOggettiInCarico:', err);
+      showMessage('Errore caricamento oggetti in carico: ' + err.message, 'error');
+    }
+  }
+
+  // ---------- POPOLA TABELLA ----------
+  function popolaTabella() {
+    const tbody = document.getElementById('tabellaBody');
+    console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
+    if (!oggetti.length) {
+      tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>';
+      return;
+    }
+    tbody.innerHTML = '';
+    oggetti.forEach((obj, idx) => {
+      const row = tbody.insertRow();
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'select-item';
+      cb.dataset.idx = idx;
+      row.insertCell(0).appendChild(cb);
+      row.insertCell(1).innerText = obj.codice;
+      row.insertCell(2).innerText = obj.descrizione;
+      row.insertCell(3).innerText = obj.disponibile;
+      const qtaInput = document.createElement('input');
+      qtaInput.type = 'number';
+      qtaInput.min = 1;
+      qtaInput.max = obj.disponibile;
+      qtaInput.value = 1;
+      qtaInput.style.width = '80px';
+      row.insertCell(4).appendChild(qtaInput);
+    });
+    document.getElementById('selectAll').onclick = () => toggleSelectAll();
+    aggiornaSelezione();
+  }
+
+  function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('.select-item');
+    const all = document.getElementById('selectAll');
+    checkboxes.forEach(cb => cb.checked = all.checked);
+    aggiornaSelezione();
+  }
+
+  function aggiornaSelezione() {
+    const rows = document.querySelectorAll('#tabellaBody tr');
+    let count = 0, total = 0;
+    rows.forEach(row => {
+      const cb = row.querySelector('.select-item');
+      if (cb && cb.checked) {
+        const qtaInput = row.querySelector('input[type="number"]');
+        let qta = parseInt(qtaInput.value);
+        if (isNaN(qta) || qta < 1) qta = 1;
+        count++;
+        total += qta;
+      }
+    });
+    document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
+  }
+
+  // ---------- FILTRI DATALIST ----------
+  const filterFieldMap = {
+    descrizioni: 'descrizione',
+    lunghezze: 'lunghezza',
+    durezze: 'durezza',
+    sigle: 'sigla'
+  };
+
+  async function getDistinctFilterValues(field, exceptField = null) {
+    const params = new URLSearchParams();
+    const magId = magazzinoSelect.value;
+    if (magId) params.append('magazzino', magId);
+    if (settoreSelect.value) params.append('settore', settoreSelect.value);
+    if (marcaSelect.value) params.append('marca', marcaSelect.value);
+    if (exceptField !== 'descrizione' && filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
+    if (exceptField !== 'lunghezza' && filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
+    if (exceptField !== 'durezza' && filtroDurezza.value) params.append('durezza', filtroDurezza.value);
+    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
+    const endpoint = `/api/articoli/valori/${field}`;
+    const url = `${endpoint}?${params.toString()}`;
+    console.log(`[DEBUG] getDistinctFilterValues: chiamata ${url}`);
+    const data = await apiFetch(url);
+    const columnName = filterFieldMap[field] || field;
+    const values = data.map(item => item[columnName]).filter(v => v && v !== '');
+    console.log(`[DEBUG] Valori distinti per ${field}:`, values);
+    return values;
+  }
+
+  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
+    try {
+      const values = await getDistinctFilterValues(field, exceptField);
+      const datalist = document.getElementById(datalistId);
+      if (!datalist) return;
+      datalist.innerHTML = '';
+      values.forEach(val => {
+        const option = document.createElement('option');
+        option.value = val;
+        datalist.appendChild(option);
+      });
+    } catch (err) {
+      console.error(`Errore caricamento datalist filtro ${field}:`, err);
+    }
+  }
+
+  async function refreshFilterDatalists() {
+    await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
+    await popolaFilterDatalist('lunghezze', 'lunghezzaList', 'lunghezza');
+    await popolaFilterDatalist('durezze', 'durezzaList', 'durezza');
+    await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
+  }
+
+  // ---------- GESTIONE FILTRI GLOBALI ----------
+  let debounceTimer;
+  async function handleFilterChange() {
+    console.log('[DEBUG] handleFilterChange triggered');
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      await refreshFilterDatalists();
+      await caricaOggetti();
+    }, 300);
+  }
+
+  function attachFilterEvents() {
+    const filterInputs = [filtroDescrizione, filtroLunghezza, filtroDurezza, filtroSigla];
+    filterInputs.forEach(input => {
+      if (input) input.addEventListener('input', handleFilterChange);
+    });
+    const selectFilters = [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect];
+    selectFilters.forEach(select => {
+      if (select) select.addEventListener('change', handleFilterChange);
+    });
+    console.log('[DEBUG] attachFilterEvents completato');
+  }
+
+  async function caricaOggetti() {
+    console.log('[DEBUG] caricaOggetti chiamata, radioMagazzino.checked =', radioMagazzino.checked);
+    if (radioMagazzino.checked) {
+      await caricaOggettiDaMagazzino();
+    } else {
+      await caricaOggettiInCarico();
+    }
+  }
+
+  async function applicaFiltri() {
+    console.log('[DEBUG] applicaFiltri manuale');
+    await refreshFilterDatalists();
+    await caricaOggetti();
+  }
+
+  async function resetFiltri() {
+    console.log('[DEBUG] resetFiltri');
+    settoreSelect.value = '';
+    marcaSelect.value = '';
+    filtroDescrizione.value = '';
+    filtroLunghezza.value = '';
+    filtroDurezza.value = '';
+    filtroSigla.value = '';
+    await refreshFilterDatalists();
+    await caricaOggetti();
+  }
+
+  // ---------- ASSEGNAZIONE (trasferimento) ----------
+  async function assegnaSelezionati() {
+    const isCarico = radioCarico.checked;
+    const magazzinoId = magazzinoSelect.value;
+    const destinazioneTipoVal = destinazioneTipo.value;
+    const destinazioneIdVal = destinazioneId.value;
+    const note = document.getElementById('noteUscita').value;
+
+    if (isCarico) {
+      if (!destinazioneIdVal) { showMessage('Seleziona una destinazione', 'error'); return; }
+      let daTipo, daId;
+      if (currentUser.ruolo === 'admin' && sourceId.value) {
+        daTipo = sourceTipo.value;
+        daId = parseInt(sourceId.value);
+      } else {
+        if (!currentUser.riferimento_id) {
+          showMessage('Utente non associato a un soggetto. Contatta l\'amministratore.', 'error');
+          return;
+        }
+        daTipo = currentUser.ruolo.toUpperCase();
+        daId = parseInt(currentUser.riferimento_id);
+      }
+
+      const selezionati = [];
+      const rows = document.querySelectorAll('#tabellaBody tr');
+      rows.forEach((row, idx) => {
+        const cb = row.querySelector('.select-item');
+        if (cb && cb.checked) {
+          const qtaInput = row.querySelector('input[type="number"]');
+          let qta = parseInt(qtaInput.value);
+          if (isNaN(qta) || qta < 1) qta = 1;
+          const obj = oggetti[idx];
+          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+        }
+      });
+      if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+
+      const payload = {
+        daTipo, daId,
+        aTipo: destinazioneTipoVal, aId: parseInt(destinazioneIdVal),
+        magazzinoId: parseInt(magazzinoId),
+        oggetti: selezionati,
+        note
+      };
+      console.log('[DEBUG] Trasferimento payload:', payload);
+
+      const originalText = assegnaBtn.innerText;
+      assegnaBtn.disabled = true;
+      assegnaBtn.innerHTML = '<span class="spinner"></span> Trasferimento in corso...';
+      try {
+        const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+        showMessage(res.message, res.success ? 'success' : 'error');
+        if (res.success) { await caricaOggetti(); }
+      } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+      finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
+      return;
+    }
+
+    // Modalità dal magazzino
+    if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
+    if (!destinazioneIdVal) { showMessage('Seleziona una destinazione', 'error'); return; }
+    const selezionati = [];
+    const rows = document.querySelectorAll('#tabellaBody tr');
+    rows.forEach((row, idx) => {
+      const cb = row.querySelector('.select-item');
+      if (cb && cb.checked) {
+        const qtaInput = row.querySelector('input[type="number"]');
+        let qta = parseInt(qtaInput.value);
+        if (isNaN(qta) || qta < 1) qta = 1;
+        const max = parseInt(qtaInput.max);
+        if (qta > max) qta = max;
+        const obj = oggetti[idx];
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+      }
+    });
+    if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destinazioneTipoVal,
+      destinazioneId: parseInt(destinazioneIdVal),
+      note: note,
+      oggetti: selezionati
+    };
+    const originalText = assegnaBtn.innerText;
+    assegnaBtn.disabled = true;
+    assegnaBtn.innerHTML = '<span class="spinner"></span> Assegnazione in corso...';
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      showMessage(res.message, res.success ? 'success' : 'error');
+      if (res.success) { await caricaOggetti(); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
+  }
+
+  // ---------- RIENTRO IN MAGAZZINO ----------
+  async function rientraSelezionati() {
+    if (!radioCarico.checked) {
+      showMessage('La funzione "Rientra in magazzino" è disponibile solo in modalità "In carico".', 'error');
+      return;
+    }
+
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) {
+      showMessage('Seleziona un magazzino di rientro', 'error');
+      return;
+    }
+
+    const note = document.getElementById('noteUscita').value;
+
+    let daTipo, daId;
+    if (currentUser.ruolo === 'admin' && sourceId.value) {
+      daTipo = sourceTipo.value;
+      daId = parseInt(sourceId.value);
+    } else {
+      if (!currentUser.riferimento_id) {
+        showMessage('Utente non associato a un soggetto. Contatta l\'amministratore.', 'error');
+        return;
+      }
+      daTipo = currentUser.ruolo.toUpperCase();
+      daId = parseInt(currentUser.riferimento_id);
+    }
+
+    const selezionati = [];
+    const rows = document.querySelectorAll('#tabellaBody tr');
+    rows.forEach((row, idx) => {
+      const cb = row.querySelector('.select-item');
+      if (cb && cb.checked) {
+        const qtaInput = row.querySelector('input[type="number"]');
+        let qta = parseInt(qtaInput.value);
+        if (isNaN(qta) || qta < 1) qta = 1;
+        const obj = oggetti[idx];
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+      }
+    });
+    if (selezionati.length === 0) {
+      showMessage('Seleziona almeno un oggetto da rientrare', 'error');
+      return;
+    }
+
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      note: note,
+      oggetti: selezionati.map(o => ({ ...o, daTipo, daId }))
+    };
+    console.log('[DEBUG] Rientro payload:', payload);
+
+    const originalText = rientroBtn.innerText;
+    rientroBtn.disabled = true;
+    rientroBtn.innerHTML = '<span class="spinner"></span> Rientro in corso...';
+    try {
+      const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+      showMessage(res.message, res.success ? 'success' : 'error');
+      if (res.success) { await caricaOggetti(); }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      rientroBtn.disabled = false;
+      rientroBtn.innerText = originalText;
+    }
+  }
+
+  // ---------- LOGIN / LOGOUT ----------
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
+  // ---------- GESTIONE PERMESSI E INIZIALIZZAZIONE ----------
+  function setupExternalMode() {
+    const isAdmin = currentUser.ruolo === 'admin';
+    const canUseWarehouse = isAdmin || (currentUser.ruolo === 'promoter' && currentUser.livello === 1) || currentUser.ruolo === 'agente';
+    if (canUseWarehouse) {
+      radioMagazzino.disabled = false;
+      magazzinoGroup.style.display = 'block';
+    } else {
+      radioMagazzino.disabled = true;
+      radioMagazzino.checked = false;
+      radioCarico.checked = true;
+      magazzinoGroup.style.display = 'block';
+      showMessage('Il tuo ruolo non permette di prelevare dal magazzino. Verranno mostrati gli oggetti in carico.', 'info');
+    }
+    if (isAdmin) {
+      adminSourceSection.style.display = 'flex';
+      sourceTipo.disabled = false;
+      sourceId.disabled = false;
+      includeReferenced.disabled = false;
+      caricaSorgentiAdmin();
+      sourceTipo.addEventListener('change', () => {
+        console.log(`[DEBUG] sourceTipo changed to ${sourceTipo.value}`);
+        if (radioCarico.checked) caricaSorgentiAdmin();
+      });
+      sourceId.addEventListener('change', () => {
+        console.log(`[DEBUG] sourceId changed to ${sourceId.value}`);
+        if (radioCarico.checked) caricaOggettiInCarico();
+      });
+      includeReferenced.addEventListener('change', () => {
+        if (radioCarico.checked) caricaOggettiInCarico();
+      });
+    } else {
+      adminSourceSection.style.display = 'none';
+    }
+
+    function updateUIBasedOnMode() {
+      const isMagazzino = radioMagazzino.checked;
+      if (isMagazzino) {
+        magazzinoLabel.innerText = 'Magazzino *';
+        destinazioneRow.style.display = 'flex';
+        assegnaBtn.style.display = 'inline-block';
+        rientroBtn.style.display = 'none';
+        assegnaBtn.innerText = '📤 Assegna selezionati';
+      } else {
+        magazzinoLabel.innerText = 'Magazzino di rientro *';
+        destinazioneRow.style.display = 'flex';
+        assegnaBtn.style.display = 'inline-block';
+        rientroBtn.style.display = 'inline-block';
+        assegnaBtn.innerText = '🔄 Trasferisci selezionati';
+      }
+    }
+
+    radioMagazzino.addEventListener('change', () => {
+      console.log('[DEBUG] radioMagazzino changed, checked=', radioMagazzino.checked);
+      updateUIBasedOnMode();
+      caricaOggetti();
+    });
+    radioCarico.addEventListener('change', () => {
+      console.log('[DEBUG] radioCarico changed, checked=', radioCarico.checked);
+      updateUIBasedOnMode();
+      caricaOggetti();
+    });
+    updateUIBasedOnMode();
+  }
+
+  // ---------- INIZIALIZZAZIONE ----------
+  window.onload = async () => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    if (!token || !userStr) { window.location.href = 'Login.html'; return; }
+    try {
+      const user = JSON.parse(userStr);
+      if (!user || typeof user !== 'object') throw new Error('Invalid user');
+      if (!user.riferimento_id && user.RiferimentoID) {
+        user.riferimento_id = parseInt(user.RiferimentoID);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      currentUser = user;
+    } catch(e) {
+      console.error('Errore parsing utente', e);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'Login.html';
+      return;
+    }
+    const displayName = currentUser.nome_visualizzato || currentUser.username;
+    document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
+    document.getElementById('loginInfo').style.display = 'inline-flex';
+    document.getElementById('logoutBtn').style.display = 'inline-block';
+
+    await caricaAnagrafiche();
+    await caricaDestinazioni();   // carica iniziale
+    attachFilterEvents();
+    setupExternalMode();
+
+    await refreshFilterDatalists();
+    await caricaOggetti();
+  };
 </script>
 </body>
 </html>

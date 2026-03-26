@@ -1,13 +1,10 @@
 const express = require('express');
-const { verifyToken } = require('../auth');
-const pool = require('../db');
-
 const router = express.Router();
+const db = require('../db');
+const { verifyToken } = require('../auth');
 
-// Helper: genera codice articolo
+// ========== HELPER ==========
 function generateArticleCode(articleData, id) {
-  // In una implementazione reale, potresti leggere categorie/marche dal DB
-  // Qui facciamo una versione semplificata
   const categoriaNome = (articleData.categoriaNome || 'ART').substring(0, 3).toUpperCase();
   const marcaNome = (articleData.marcaNome || 'GEN').substring(0, 3).toUpperCase();
   let codice = `${categoriaNome}-${marcaNome}-${id.toString().padStart(4, '0')}`;
@@ -16,7 +13,6 @@ function generateArticleCode(articleData, id) {
   return codice;
 }
 
-// Helper: descrizione completa
 function buildDescrizioneCompleta(descrizione, lunghezza, durezza) {
   const pulisci = (v) => (v === null || v === undefined || v === '') ? '' : String(v).trim();
   const d = pulisci(descrizione);
@@ -28,20 +24,61 @@ function buildDescrizioneCompleta(descrizione, lunghezza, durezza) {
   return r;
 }
 
-// GET /api/articoli?magazzino=...&settore=...&categoria=...&marca=...&search=...
+// Helper per ottenere valori distinti con filtri multipli
+async function getDistinctValues(field, req, res) {
+  try {
+    const { magazzino, settore, categoria, marca, descrizione, sigla, lunghezza, durezza, codice_modello } = req.query;
+    let query = `SELECT DISTINCT ${field} FROM articoli WHERE ${field} IS NOT NULL AND ${field} != ''`;
+    const params = [];
+    if (magazzino) { query += ' AND magazzino = ?'; params.push(magazzino); }
+    if (settore) { query += ' AND settore = ?'; params.push(settore); }
+    if (categoria) { query += ' AND categoria = ?'; params.push(categoria); }
+    if (marca) { query += ' AND marca = ?'; params.push(marca); }
+    if (descrizione) { query += ' AND descrizione = ?'; params.push(descrizione); }
+    if (sigla) { query += ' AND sigla = ?'; params.push(sigla); }
+    if (lunghezza) { query += ' AND lunghezza = ?'; params.push(lunghezza); }
+    if (durezza) { query += ' AND durezza = ?'; params.push(durezza); }
+    if (codice_modello) { query += ' AND codice_modello = ?'; params.push(codice_modello); }
+    query += ` ORDER BY ${field}`;
+    const [rows] = await db.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error(`Errore GET /valori/${field}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+// ========== ENDPOINTS PER I DATALIST ==========
+router.get('/valori/descrizioni', verifyToken, async (req, res) => {
+  await getDistinctValues('descrizione', req, res);
+});
+router.get('/valori/sigle', verifyToken, async (req, res) => {
+  await getDistinctValues('sigla', req, res);
+});
+router.get('/valori/lunghezze', verifyToken, async (req, res) => {
+  await getDistinctValues('lunghezza', req, res);
+});
+router.get('/valori/durezze', verifyToken, async (req, res) => {
+  await getDistinctValues('durezza', req, res);
+});
+router.get('/valori/modelli', verifyToken, async (req, res) => {
+  await getDistinctValues('codice_modello', req, res);
+});
+
+// ========== CRUD ARTICOLI ==========
 router.get('/', verifyToken, async (req, res) => {
   try {
     let query = `
-      SELECT a.*, 
+      SELECT a.articolo_id AS id, a.*, 
              m.nome AS magazzino_nome,
              s.nome AS settore_nome,
              c.nome AS categoria_nome,
              mar.nome AS marca_nome
       FROM articoli a
-      LEFT JOIN magazzini m ON a.magazzino = m.id
-      LEFT JOIN settori s ON a.settore = s.id
-      LEFT JOIN categorie c ON a.categoria = c.id
-      LEFT JOIN marche mar ON a.marca = mar.id
+      LEFT JOIN magazzini m ON a.magazzino = m.magazzino_id
+      LEFT JOIN settori s ON a.settore = s.settore_id
+      LEFT JOIN categorie c ON a.categoria = c.categoria_id
+      LEFT JOIN marche mar ON a.marca = mar.marca_id
       WHERE 1=1
     `;
     const params = [];
@@ -65,13 +102,36 @@ router.get('/', verifyToken, async (req, res) => {
       query += ' AND a.stato = ?';
       params.push(req.query.stato);
     }
+    if (req.query.descrizione) {
+      query += ' AND a.descrizione LIKE ?';
+      params.push(`%${req.query.descrizione}%`);
+    }
+    if (req.query.sigla) {
+      query += ' AND a.sigla LIKE ?';
+      params.push(`%${req.query.sigla}%`);
+    }
+    if (req.query.codice_modello) {
+      query += ' AND a.codice_modello LIKE ?';
+      params.push(`%${req.query.codice_modello}%`);
+    }
+    if (req.query.lunghezza) {
+      query += ' AND a.lunghezza = ?';
+      params.push(req.query.lunghezza);
+    }
+    if (req.query.durezza) {
+      query += ' AND a.durezza = ?';
+      params.push(req.query.durezza);
+    }
+    if (req.query.min_giacenza) {
+      query += ' AND (a.quantita_totale - a.quantita_in_kit) >= ?';
+      params.push(req.query.min_giacenza);
+    }
     if (req.query.search) {
       query += ' AND (a.codice LIKE ? OR a.descrizione LIKE ? OR a.descrizione_completa LIKE ?)';
       const search = `%${req.query.search}%`;
       params.push(search, search, search);
     }
-    const [rows] = await pool.query(query, params);
-    // Calcola giacenza reale
+    const [rows] = await db.query(query, params);
     const articoli = rows.map(a => ({
       ...a,
       GIACENZA_REALE: (a.quantita_totale || 0) - (a.quantita_in_kit || 0)
@@ -83,10 +143,12 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/articoli/:id
 router.get('/:id', verifyToken, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM articoli WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query(
+      'SELECT articolo_id AS id, a.* FROM articoli a WHERE articolo_id = ?',
+      [req.params.id]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Articolo non trovato' });
     }
@@ -94,19 +156,18 @@ router.get('/:id', verifyToken, async (req, res) => {
     articolo.GIACENZA_REALE = (articolo.quantita_totale || 0) - (articolo.quantita_in_kit || 0);
     res.json(articolo);
   } catch (error) {
+    console.error('Errore GET /articoli/:id:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/articoli (crea o aggiorna quantità)
 router.post('/', verifyToken, async (req, res) => {
   const { id, codice, descrizione, magazzino, settore, categoria, marca,
           lunghezza, durezza, quantita, versione, stato, note, sigla, codiceModello } = req.body;
-  const connection = await pool.getConnection();
+  const connection = await db.getConnection();
   await connection.beginTransaction();
   try {
     const now = new Date();
-    // Controlla se esiste già un articolo con gli stessi attributi
     const [existing] = await connection.query(`
       SELECT * FROM articoli 
       WHERE magazzino = ? AND settore = ? AND categoria = ? AND marca = ? 
@@ -115,26 +176,24 @@ router.post('/', verifyToken, async (req, res) => {
     `, [magazzino, settore, categoria, marca, descrizione, lunghezza || '', durezza || '', sigla || null, sigla || null]);
     
     if (existing.length > 0) {
-      // Aggiorna quantità
       const art = existing[0];
       const nuovaQta = (art.quantita_totale || 0) + quantita;
       const descrizioneCompleta = buildDescrizioneCompleta(descrizione, lunghezza, durezza);
       await connection.query(`
         UPDATE articoli 
         SET quantita_totale = ?, descrizione_completa = ?, data_modifica = ?, note = ?
-        WHERE id = ?
-      `, [nuovaQta, descrizioneCompleta, now, note, art.id]);
+        WHERE articolo_id = ?
+      `, [nuovaQta, descrizioneCompleta, now, note, art.articolo_id]);
       await connection.commit();
-      return res.json({ success: true, message: `Quantità aggiornata: ${art.quantita_totale} → ${nuovaQta}`, id: art.id });
+      return res.json({ success: true, message: `Quantità aggiornata: ${art.quantita_totale} → ${nuovaQta}`, id: art.articolo_id });
     }
-    // Nuovo articolo: calcola prossimo ID e codice
-    const [[{ maxId }]] = await connection.query('SELECT MAX(id) as maxId FROM articoli');
+    const [[{ maxId }]] = await connection.query('SELECT MAX(articolo_id) as maxId FROM articoli');
     const newId = (maxId || 0) + 1;
     const codiceGenerato = codice || generateArticleCode({ categoriaNome: '', marcaNome: '', lunghezza, durezza }, newId);
     const descrizioneCompleta = buildDescrizioneCompleta(descrizione, lunghezza, durezza);
     await connection.query(`
       INSERT INTO articoli 
-      (id, codice, descrizione, descrizione_completa, magazzino, settore, categoria, marca, 
+      (articolo_id, codice, descrizione, descrizione_completa, magazzino, settore, categoria, marca, 
        lunghezza, durezza, quantita_totale, quantita_in_kit, versione, stato, 
        data_inserimento, data_modifica, note, quantita_obsoleta, sigla, codice_modello)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 0, ?, ?)
@@ -152,13 +211,13 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/articoli/:id (aggiorna campi)
 router.put('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const { descrizione, lunghezza, durezza, quantita_totale, versione, stato, note, sigla, codiceModello } = req.body;
-  const connection = await pool.getConnection();
+  const { descrizione, lunghezza, durezza, quantita_totale, versione, stato, note, sigla, codiceModello,
+          magazzino, settore, categoria, marca } = req.body;
+  const connection = await db.getConnection();
   try {
-    const [rows] = await connection.query('SELECT * FROM articoli WHERE id = ?', [id]);
+    const [rows] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Articolo non trovato' });
     }
@@ -168,9 +227,11 @@ router.put('/:id', verifyToken, async (req, res) => {
       UPDATE articoli SET 
         descrizione = ?, descrizione_completa = ?, lunghezza = ?, durezza = ?,
         quantita_totale = ?, versione = ?, stato = ?, data_modifica = ?, note = ?,
-        sigla = ?, codice_modello = ?
-      WHERE id = ?
-    `, [descrizione, descrizioneCompleta, lunghezza, durezza, quantita_totale, versione, stato, now, note, sigla, codiceModello, id]);
+        sigla = ?, codice_modello = ?,
+        magazzino = ?, settore = ?, categoria = ?, marca = ?
+      WHERE articolo_id = ?
+    `, [descrizione, descrizioneCompleta, lunghezza, durezza, quantita_totale, versione, stato, now, note,
+        sigla, codiceModello, magazzino, settore, categoria, marca, id]);
     await connection.commit();
     res.json({ success: true, message: 'Articolo aggiornato' });
   } catch (error) {
@@ -181,12 +242,11 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/articoli/:id
 router.delete('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const connection = await pool.getConnection();
+  const connection = await db.getConnection();
   try {
-    const [result] = await connection.query('DELETE FROM articoli WHERE id = ?', [id]);
+    const [result] = await connection.query('DELETE FROM articoli WHERE articolo_id = ?', [id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Articolo non trovato' });
     }

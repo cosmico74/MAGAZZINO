@@ -3,36 +3,54 @@ const path = require('path');
 const cors = require('cors');
 require('dotenv').config();
 
+const { login } = require('./auth');
+
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
-
-// Servi i file statici dalla cartella public
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Importa le route (verifica che ogni file esporti un router Express)
-const authRoutes = require('./routes/auth');
+// Rotta di health check (utile per Render)
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Rotta di login (NON protetta)
+app.post('/api/auth/login', login);
+
+// Importa e monta gli altri router
 const anagraficheRoutes = require('./routes/anagrafiche');
 const articoliRoutes = require('./routes/articoli');
 const kitRoutes = require('./routes/kit');
 const movimentiRoutes = require('./routes/movimenti');
 const soggettiRoutes = require('./routes/soggetti');
+const utentiRoutes = require('./routes/utenti');
+const assegnazioniRoutes = require('./routes/assegnazioni');
 
-// Debug: stampa il tipo di ogni modulo per identificare errori
-console.log('authRoutes type:', typeof authRoutes);
-console.log('anagraficheRoutes type:', typeof anagraficheRoutes);
-console.log('articoliRoutes type:', typeof articoliRoutes);
-console.log('kitRoutes type:', typeof kitRoutes);
-console.log('movimentiRoutes type:', typeof movimentiRoutes);
-console.log('soggettiRoutes type:', typeof soggettiRoutes);
+app.use('/api/anagrafiche', anagraficheRoutes);
+app.use('/api/articoli', articoliRoutes);
+app.use('/api/kit', kitRoutes);
+app.use('/api/movimenti', movimentiRoutes);
+app.use('/api/soggetti', soggettiRoutes);
+app.use('/api/utenti', utentiRoutes);
+app.use('/api/assegnazioni', assegnazioniRoutes);
 
-// Utilizza le route solo se sono funzioni middleware
-if (typeof authRoutes === 'function') app.use('/api/auth', authRoutes);
-if (typeof anagraficheRoutes === 'function') app.use('/api/anagrafiche', anagraficheRoutes);
-if (typeof articoliRoutes === 'function') app.use('/api/articoli', articoliRoutes);
-if (typeof kitRoutes === 'function') app.use('/api/kit', kitRoutes);
-if (typeof movimentiRoutes === 'function') app.use('/api/movimenti', movimentiRoutes);
-if (typeof soggettiRoutes === 'function') app.use('/api/soggetti', soggettiRoutes);
+// Gestione errori 404 per API
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint non trovato' });
+});
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Gestione errori generici
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ success: false, message: 'Errore interno del server' });
+});
+
+// Avvio server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server in esecuzione sulla porta ${PORT}`);
+});

@@ -1,172 +1,637 @@
-<!DOCTYPE html>//ok
-<html>
+<!DOCTYPE html>
+<html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inserimento Articolo</title>
+  <title>📦 Inserimento Articolo - Filtri incrociati</title>
   <style>
-    /* stili esistenti (invariati) */
-    body { font-family: Arial; padding: 20px; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; }
-    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    .btn { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .message { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.4;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+      padding: 30px;
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #1e2a3a;
+      border-left: 5px solid #1a73e8;
+      padding-left: 15px;
+    }
+    .top-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .double-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .full-row {
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 0; }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #2c3e50;
+      font-size: 0.9rem;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      background-color: #fff;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #1a73e8;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+    }
+    .btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn:hover { background: #0f5bb5; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+    .success { background-color: #e6fffa; border-left: 4px solid #38a169; color: #22543d; }
+    .error { background-color: #fff5f5; border-left: 4px solid #e53e3e; color: #742a2a; }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .assignment-group {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 15px;
+    }
+    .assignment-group h4 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1rem;
+      color: #2c3e50;
+    }
+    .inline-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .inline-checkbox input {
+      width: auto;
+    }
   </style>
-  <script>
-    // ========== LIBRERIA COMUNE ==========
-    (function() {
-      // ... inserisci qui il codice di common.js ...
-    })();
-
-    let magazzini = [], settori = [], categorie = [], marche = [];
-    let defaultValues = {};
-
-    window.onload = function() {
-      if (!window.restoreSession()) {
-        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
-        return;
-      }
-      caricaDatiIniziali();
-    };
-
-    function caricaDatiIniziali() {
-      callServer('getInitialData', {}, function(data) {
-        if (data.success) {
-          magazzini = data.magazzini;
-          settori = data.settori;
-          categorie = data.categorie;
-          marche = data.marche;
-          popolaSelect();
-        } else {
-          showMessage(data.message, 'error');
-        }
-      });
-      callServer('getDefaultValuesForArticleForm', {}, function(data) {
-        defaultValues = data;
-        // applica default ai campi se presenti
-        if (defaultValues.defaultMarcaId) document.getElementById('marca').value = defaultValues.defaultMarcaId;
-        if (defaultValues.defaultSettoreId) document.getElementById('settore').value = defaultValues.defaultSettoreId;
-        if (defaultValues.defaultCategoriaId) document.getElementById('categoria').value = defaultValues.defaultCategoriaId;
-        toggleLunghezzaDurezza();
-      });
-    }
-
-    function popolaSelect() {
-      const magazzinoSelect = document.getElementById('magazzino');
-      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      magazzini.forEach(m => magazzinoSelect.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
-
-      const settoreSelect = document.getElementById('settore');
-      settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
-      settori.forEach(s => settoreSelect.innerHTML += `<option value="${s.ID}">${s.NOME}</option>`);
-
-      const categoriaSelect = document.getElementById('categoria');
-      categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
-      categorie.forEach(c => categoriaSelect.innerHTML += `<option value="${c.ID}">${c.NOME}</option>`);
-      categoriaSelect.addEventListener('change', toggleLunghezzaDurezza);
-
-      const marcaSelect = document.getElementById('marca');
-      marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
-      marche.forEach(m => marcaSelect.innerHTML += `<option value="${m.ID}">${m.NOME}</option>`);
-    }
-
-    function toggleLunghezzaDurezza() {
-      const catId = document.getElementById('categoria').value;
-      const categoria = categorie.find(c => c.ID == catId);
-      const mostraLunghezza = categoria ? categoria.MOSTRA_LUNGHEZZA === 'SI' : false;
-      const mostraDurezza = categoria ? categoria.MOSTRA_DUREZZA === 'SI' : false;
-      document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
-      document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
-    }
-
-    function salvaArticolo() {
-      const dati = {
-        descrizione: document.getElementById('descrizione').value,
-        magazzino: document.getElementById('magazzino').value,
-        settore: document.getElementById('settore').value,
-        categoria: document.getElementById('categoria').value,
-        marca: document.getElementById('marca').value,
-        lunghezza: document.getElementById('lunghezza').value,
-        durezza: document.getElementById('durezza').value,
-        quantita: parseInt(document.getElementById('quantita').value),
-        versione: document.getElementById('versione').value,
-        note: document.getElementById('note').value,
-        sigla: document.getElementById('sigla').value,
-        codiceModello: document.getElementById('codiceModello').value
-      };
-      if (!dati.descrizione || !dati.magazzino || !dati.settore || !dati.categoria || !dati.marca || !dati.quantita) {
-        showMessage('Compila tutti i campi obbligatori', 'error');
-        return;
-      }
-      callServer('saveArticle', dati, function(res) {
-        if (res.success) {
-          showMessage(res.message, 'success');
-          // reset form (opzionale)
-          document.getElementById('descrizione').value = '';
-          document.getElementById('quantita').value = 1;
-          document.getElementById('note').value = '';
-          document.getElementById('sigla').value = '';
-          document.getElementById('codiceModello').value = '';
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    }
-  </script>
 </head>
 <body>
+<div class="container">
   <h2>📦 Inserimento Articolo</h2>
-  <div class="form-group">
-    <label>Descrizione *</label>
-    <input type="text" id="descrizione" required>
-  </div>
-  <div class="form-group">
-    <label>Magazzino *</label>
-    <select id="magazzino"></select>
-  </div>
-  <div class="form-group">
-    <label>Settore *</label>
-    <select id="settore"></select>
-  </div>
-  <div class="form-group">
-    <label>Categoria *</label>
-    <select id="categoria"></select>
-  </div>
-  <div class="form-group">
-    <label>Marca *</label>
-    <select id="marca"></select>
-  </div>
-  <div id="gruppoLunghezza" class="form-group">
-    <label>Lunghezza (cm)</label>
-    <input type="text" id="lunghezza">
-  </div>
-  <div id="gruppoDurezza" class="form-group">
-    <label>Durezza</label>
-    <input type="text" id="durezza">
-  </div>
-  <div class="form-group">
-    <label>Quantità *</label>
-    <input type="number" id="quantita" value="1" min="1">
-  </div>
-  <div class="form-group">
-    <label>Versione</label>
-    <input type="text" id="versione" value="1.0">
-  </div>
-  <div class="form-group">
-    <label>Sigla</label>
-    <input type="text" id="sigla">
-  </div>
-  <div class="form-group">
-    <label>Codice Modello</label>
-    <input type="text" id="codiceModello">
-  </div>
-  <div class="form-group">
-    <label>Note</label>
-    <textarea id="note" rows="3"></textarea>
-  </div>
-  <button class="btn" onclick="salvaArticolo()">💾 Salva Articolo</button>
+  <div id="messageArea"></div>
+
+  <form id="articleForm" onsubmit="return false;">
+    <!-- Quattro campi affiancati -->
+    <div class="top-row">
+      <div class="form-group">
+        <label>Magazzino *</label>
+        <select id="magazzino" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Settore *</label>
+        <select id="settore" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Categoria *</label>
+        <select id="categoria" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Marca *</label>
+        <select id="marca" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Descrizione in riga intera -->
+    <div class="full-row">
+      <div class="form-group">
+        <label>Descrizione *</label>
+        <input type="text" id="descrizione" list="descrizioneList" required autocomplete="off" placeholder="es. Cacciavite a stella">
+        <datalist id="descrizioneList"></datalist>
+      </div>
+    </div>
+
+    <!-- Codice Modello (sinistra) e Sigla (destra) affiancate -->
+    <div class="double-row">
+      <div class="form-group">
+        <label>Codice Modello</label>
+        <input type="text" id="codice_modello" list="codice_modelloList" autocomplete="off" placeholder="Modello fornitore">
+        <datalist id="codice_modelloList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Sigla</label>
+        <input type="text" id="sigla" list="siglaList" autocomplete="off" placeholder="Codice interno">
+        <datalist id="siglaList"></datalist>
+      </div>
+    </div>
+
+    <!-- Lunghezza e Durezza affiancate -->
+    <div class="double-row">
+      <div class="form-group" id="gruppoLunghezza">
+        <label>Lunghezza (cm)</label>
+        <input type="text" id="lunghezza" list="lunghezzaList" autocomplete="off" placeholder="es. 15">
+        <datalist id="lunghezzaList"></datalist>
+      </div>
+      <div class="form-group" id="gruppoDurezza">
+        <label>Durezza</label>
+        <input type="text" id="durezza" list="durezzaList" autocomplete="off" placeholder="es. HRC 50">
+        <datalist id="durezzaList"></datalist>
+      </div>
+    </div>
+
+    <div class="full-row">
+      <div class="form-group">
+        <label>Quantità *</label>
+        <input type="number" id="quantita" value="1" min="1" step="1" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="full-row">
+      <div class="form-group">
+        <label>Versione</label>
+        <input type="text" id="versione" value="1.0" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="full-row">
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="note" rows="3" placeholder="Eventuali note" autocomplete="off"></textarea>
+      </div>
+    </div>
+
+    <!-- Sezione ASSEGNAZIONE opzionale -->
+    <div class="full-row">
+      <div class="inline-checkbox">
+        <input type="checkbox" id="assegnaCheckbox">
+        <label for="assegnaCheckbox" style="margin-bottom:0;">📤 Assegna a destinatario</label>
+      </div>
+      <div id="assegnaSection" style="display:none;" class="assignment-group">
+        <h4>Dettagli assegnazione</h4>
+        <div class="double-row">
+          <div class="form-group">
+            <label>Destinazione</label>
+            <select id="destinazioneTipo">
+              <option value="PROMOTER">👤 Promoter</option>
+              <option value="NEGOZIO">🏪 Negozio</option>
+              <option value="CLIENTE">👥 Cliente</option>
+              <option value="AGENTE">🤝 Agente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Seleziona destinazione *</label>
+            <select id="destinazioneId">
+              <option value="">Seleziona...</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Note per l'assegnazione (opzionale)</label>
+          <input type="text" id="assegnaNote" placeholder="Note aggiuntive per l'uscita">
+        </div>
+        <div class="info-note" style="font-size:0.75rem; color:#6c757d;">
+          L'articolo verrà assegnato al soggetto scelto subito dopo la creazione.
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn" id="saveBtn" onclick="salvaArticolo()">💾 Salva Articolo</button>
+  </form>
+</div>
+
+<script>
+  // ========== GESTIONE SESSIONE E UTILITY ==========
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    return { 'Authorization': 'Bearer ' + token };
+  }
+
+  function showMessage(message, type = 'success') {
+    const msgDiv = document.getElementById('messageArea');
+    msgDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
+    setTimeout(() => {
+      if (msgDiv.firstChild) msgDiv.removeChild(msgDiv.firstChild);
+    }, 5000);
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+      ...options.headers
+    };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Errore ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+
+  function restoreSession() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    return true;
+  }
+
+  // ========== CARICAMENTO DATI DEI SELECT ==========
+  let categorieCompleto = [];
+  const magazzinoSelect = document.getElementById('magazzino');
+  const settoreSelect = document.getElementById('settore');
+  const categoriaSelect = document.getElementById('categoria');
+  const marcaSelect = document.getElementById('marca');
+
+  function setDefaultSelect(selectElement, testiValidi) {
+    if (!selectElement) return false;
+    for (let i = 0; i < selectElement.options.length; i++) {
+      const opt = selectElement.options[i];
+      const testoMin = opt.text.toLowerCase();
+      for (let valido of testiValidi) {
+        if (testoMin === valido.toLowerCase()) {
+          selectElement.value = opt.value;
+          console.log(`Default impostato per ${selectElement.id} -> ${opt.value} (${opt.text})`);
+          return true;
+        }
+      }
+    }
+    console.warn(`Default non trovato per ${selectElement.id} con testi:`, testiValidi);
+    return false;
+  }
+
+  async function caricaMagazzini() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/magazzini');
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      data.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.nome;
+        magazzinoSelect.appendChild(option);
+      });
+      setDefaultSelect(magazzinoSelect, ['race']);
+      await caricaSettori();
+    } catch (err) {
+      console.error(err);
+      magazzinoSelect.innerHTML = '<option value="">Errore caricamento magazzini</option>';
+      showMessage('Errore caricamento magazzini', 'error');
+    }
+  }
+
+  async function caricaSettori() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/settori');
+      settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
+      data.forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.id;
+        option.textContent = s.nome;
+        settoreSelect.appendChild(option);
+      });
+      setDefaultSelect(settoreSelect, ['sci alpino', 'alpino']);
+      await caricaCategorie();
+    } catch (err) {
+      console.error(err);
+      settoreSelect.innerHTML = '<option value="">Errore caricamento settori</option>';
+    }
+  }
+
+  async function caricaCategorie() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/categorie');
+      categorieCompleto = data;
+      categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
+      data.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.nome;
+        categoriaSelect.appendChild(option);
+      });
+      setDefaultSelect(categoriaSelect, ['sci']);
+      await caricaMarche();
+      toggleLunghezzaDurezza();
+    } catch (err) {
+      console.error(err);
+      categoriaSelect.innerHTML = '<option value="">Errore caricamento categorie</option>';
+    }
+  }
+
+  async function caricaMarche() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/marche');
+      marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
+      data.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.nome;
+        marcaSelect.appendChild(option);
+      });
+      setDefaultSelect(marcaSelect, ['kastle', 'Kastle']);
+    } catch (err) {
+      console.error(err);
+      marcaSelect.innerHTML = '<option value="">Errore caricamento marche</option>';
+    }
+  }
+
+  function toggleLunghezzaDurezza() {
+    const catId = categoriaSelect.value;
+    const categoria = categorieCompleto.find(c => c.id == catId);
+    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : false;
+    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : false;
+    document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
+    document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
+  }
+
+  // ========== FILTRI INCROCIATI PER DATALIST ==========
+  const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+  const endpointMap = {
+    descrizione: '/api/articoli/valori/descrizioni',
+    sigla: '/api/articoli/valori/sigle',
+    lunghezza: '/api/articoli/valori/lunghezze',
+    durezza: '/api/articoli/valori/durezze',
+    codice_modello: '/api/articoli/valori/modelli'
+  };
+
+  function getCurrentFilters() {
+    const filters = {};
+    for (let field of filterFields) {
+      let el;
+      if (field === 'magazzino') el = magazzinoSelect;
+      else if (field === 'settore') el = settoreSelect;
+      else if (field === 'categoria') el = categoriaSelect;
+      else if (field === 'marca') el = marcaSelect;
+      else el = document.getElementById(field);
+      if (el) filters[field] = el.value;
+    }
+    return filters;
+  }
+
+  async function aggiornaDatalist(campo, endpoint) {
+    const filters = getCurrentFilters();
+    delete filters[campo];
+    const params = new URLSearchParams();
+    for (let [key, value] of Object.entries(filters)) {
+      if (value && value !== '') params.append(key, value);
+    }
+    const url = `${endpoint}?${params.toString()}`;
+    try {
+      const data = await apiFetch(url);
+      const datalist = document.getElementById(`${campo}List`);
+      if (!datalist) return;
+      datalist.innerHTML = '';
+      data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[campo];
+        datalist.appendChild(option);
+      });
+      console.log(`Datalist ${campo} aggiornato con ${data.length} voci`);
+    } catch (err) {
+      console.error(`Errore aggiornamento datalist ${campo}:`, err);
+    }
+  }
+
+  async function refreshAllDatalists() {
+    for (let [campo, endpoint] of Object.entries(endpointMap)) {
+      await aggiornaDatalist(campo, endpoint);
+    }
+  }
+
+  function attachEvents() {
+    magazzinoSelect.addEventListener('change', () => {
+      console.log('Magazzino cambiato');
+      refreshAllDatalists();
+    });
+    settoreSelect.addEventListener('change', () => {
+      console.log('Settore cambiato');
+      refreshAllDatalists();
+    });
+    categoriaSelect.addEventListener('change', () => {
+      console.log('Categoria cambiata');
+      toggleLunghezzaDurezza();
+      refreshAllDatalists();
+    });
+    marcaSelect.addEventListener('change', () => {
+      console.log('Marca cambiata');
+      refreshAllDatalists();
+    });
+
+    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+    textFields.forEach(field => {
+      const input = document.getElementById(field);
+      if (input) {
+        input.addEventListener('change', () => {
+          console.log(`${field} cambiato:`, input.value);
+          refreshAllDatalists();
+        });
+      }
+    });
+  }
+
+  // ========== GESTIONE ASSEGNAZIONE OPZIONALE ==========
+  const assegnaCheckbox = document.getElementById('assegnaCheckbox');
+  const assegnaSection = document.getElementById('assegnaSection');
+  const destinazioneTipo = document.getElementById('destinazioneTipo');
+  const destinazioneId = document.getElementById('destinazioneId');
+  const assegnaNote = document.getElementById('assegnaNote');
+
+  assegnaCheckbox.addEventListener('change', () => {
+    assegnaSection.style.display = assegnaCheckbox.checked ? 'block' : 'none';
+    if (assegnaCheckbox.checked && destinazioneId.options.length <= 1) {
+      caricaDestinazioni();
+    }
+  });
+
+  async function caricaDestinazioni() {
+    const tipo = destinazioneTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destinazioneId.appendChild(new Option(testo, item.id));
+      });
+    } catch (err) {
+      console.error('Errore caricamento destinazioni:', err);
+      showMessage('Errore caricamento destinazioni', 'error');
+    }
+  }
+
+  destinazioneTipo.addEventListener('change', () => {
+    if (assegnaCheckbox.checked) caricaDestinazioni();
+  });
+
+  // ========== SALVATAGGIO ARTICOLO + ASSEGNAZIONE OPZIONALE ==========
+  async function salvaArticolo() {
+    const descrizione = document.getElementById('descrizione').value.trim();
+    const magazzino = magazzinoSelect.value;
+    const settore = settoreSelect.value;
+    const categoria = categoriaSelect.value;
+    const marca = marcaSelect.value;
+    const lunghezza = document.getElementById('lunghezza').value.trim();
+    const durezza = document.getElementById('durezza').value.trim();
+    const quantita = parseInt(document.getElementById('quantita').value);
+    const versione = document.getElementById('versione').value.trim();
+    const note = document.getElementById('note').value.trim();
+    const sigla = document.getElementById('sigla').value.trim();
+    const codiceModello = document.getElementById('codice_modello').value.trim();
+
+    if (!descrizione || !magazzino || !settore || !categoria || !marca || !quantita) {
+      showMessage('Compila tutti i campi obbligatori', 'error');
+      return;
+    }
+
+    const payload = {
+      descrizione,
+      magazzino: parseInt(magazzino),
+      settore: parseInt(settore),
+      categoria: parseInt(categoria),
+      marca: parseInt(marca),
+      lunghezza: lunghezza || '',
+      durezza: durezza || '',
+      quantita,
+      versione: versione || '1.0',
+      note: note || '',
+      sigla: sigla || null,
+      codiceModello: codiceModello || null
+    };
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio in corso...';
+
+    try {
+      // 1. Salva articolo (o aggiorna quantità)
+      const articleResult = await apiFetch('/api/articoli', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (!articleResult.success) {
+        throw new Error(articleResult.message);
+      }
+      const articleId = articleResult.id;
+      showMessage(articleResult.message, 'success');
+
+      // 2. Se richiesto, assegna l'articolo al destinatario
+      if (assegnaCheckbox.checked) {
+        const destinazioneTipoVal = destinazioneTipo.value;
+        const destinazioneIdVal = destinazioneId.value;
+        if (!destinazioneIdVal) {
+          showMessage('Articolo salvato, ma manca il destinatario per l\'assegnazione.', 'error');
+        } else {
+          const assignPayload = {
+            magazzinoId: parseInt(magazzino),
+            destinazioneTipo: destinazioneTipoVal,
+            destinazioneId: parseInt(destinazioneIdVal),
+            note: assegnaNote.value.trim() || note,
+            oggetti: [{
+              tipoOggetto: 'ARTICOLO',
+              oggettoId: articleId,
+              quantita: quantita
+            }]
+          };
+          const assignResult = await apiFetch('/api/assegnazioni/uscita/batch', {
+            method: 'POST',
+            body: JSON.stringify(assignPayload)
+          });
+          if (assignResult.success) {
+            showMessage(`Articolo assegnato a ${destinazioneTipoVal} con successo`, 'success');
+          } else {
+            showMessage(`Articolo salvato ma assegnazione fallita: ${assignResult.message}`, 'error');
+          }
+        }
+      }
+
+      // Reset form
+      document.getElementById('descrizione').value = '';
+      document.getElementById('sigla').value = '';
+      document.getElementById('lunghezza').value = '';
+      document.getElementById('durezza').value = '';
+      document.getElementById('codice_modello').value = '';
+      document.getElementById('quantita').value = 1;
+      document.getElementById('note').value = '';
+      // Opzionale: deseleziona checkbox assegnazione
+      assegnaCheckbox.checked = false;
+      assegnaSection.style.display = 'none';
+      // Ricarica datalist per aggiornare i suggerimenti
+      refreshAllDatalists();
+    } catch (err) {
+      console.error('Errore:', err);
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '💾 Salva Articolo';
+    }
+  }
+
+  // ========== INIZIALIZZAZIONE ==========
+  window.onload = async function() {
+    console.log('🚀 Pagina caricata, controllo sessione...');
+    if (!restoreSession()) {
+      document.body.innerHTML = '<div class="container" style="text-align:center"><h2>Accesso non autorizzato</h2><p>Devi effettuare il login.</p><a href="Login.html">Vai al login</a></div>';
+      return;
+    }
+    console.log('✅ Sessione valida, carico dati...');
+    await caricaMagazzini();
+    attachEvents();
+    setTimeout(async () => {
+      console.log('⏰ Forzo refresh iniziale datalist');
+      await refreshAllDatalists();
+    }, 500);
+    console.log('🏁 Inizializzazione completata');
+  };
+</script>
 </body>
 </html>

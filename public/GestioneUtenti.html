@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Utenti</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    h2 { border-left: 5px solid #1a73e8; padding-left: 15px; color: #1e2a3a; margin-top: 0; }
+    .btn {
+      background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;
+    }
+    .btn-success { background: #27ae60; }
+    .btn-warning { background: #f39c12; }
+    .btn-danger { background: #dc3545; }
+    .btn-secondary { background: #6c757d; }
+    .btn-small { padding: 4px 8px; font-size: 0.8rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f8f9fa; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      padding: 25px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.8rem; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px; }
+    .message { padding: 10px; margin-bottom: 15px; border-radius: 8px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .login-info {
+      background: #e8f0fe; padding: 5px 12px; border-radius: 20px; display: inline-flex;
+      align-items: center; gap: 10px; float: right;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div style="margin-bottom: 20px; text-align: right;">
+    <span id="loginInfo" class="login-info" style="display: none;"></span>
+    <button class="btn" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <h2>👥 Gestione Utenti</h2>
+  <div id="messageArea"></div>
+  <button class="btn btn-success" onclick="apriModaleNuovo()">➕ Nuovo Utente</button>
+  <button class="btn btn-secondary" onclick="caricaUtenti()">🔄 Aggiorna</button>
+  <div style="overflow-x:auto;">
+    <table id="tabellaUtenti">
+      <thead>
+         <th>ID</th><th>Username</th><th>Ruolo</th><th>Soggetto</th><th>Nome Visualizzato</th><th>Email</th><th>Azioni</th>
+      </thead>
+      <tbody></tbody>
+    表格
+  </div>
+</div>
+
+<div id="modalUtente" class="modal">
+  <div class="modal-content">
+    <h3 id="modalTitolo">Nuovo Utente</h3>
+    <input type="hidden" id="utenteId">
+    <div class="form-group"><label>Username *</label><input type="text" id="username"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="password" placeholder="Lascia vuoto per mantenere invariata"></div>
+    <div class="form-group"><label>Ruolo</label><select id="ruolo"><option value="admin">Admin</option><option value="promoter">Promoter</option><option value="negozio">Negozio</option><option value="cliente">Cliente</option><option value="agente">Agente</option></select></div>
+    <div class="form-group"><label>Soggetto di riferimento</label><select id="riferimentoId"><option value="">-- Nessuno --</option></select></div>
+    <div class="form-group"><label>Nome Visualizzato</label><input type="text" id="nomeVisualizzato"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="email"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="chiudiModale()">Annulla</button>
+      <button class="btn btn-success" onclick="salvaUtente()">💾 Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Errore ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 5000);
+  }
+  function restoreSession() {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) return true;
+    return false;
+  }
+  let utenti = [], soggetti = [];
+  async function caricaUtenti() {
+    try {
+      const res = await apiFetch('/api/utenti');
+      if (res.success) utenti = res.data;
+      else throw new Error(res.message);
+    } catch (err) { showMessage('Errore caricamento utenti: ' + err.message, 'error'); }
+    try {
+      const data = await apiFetch('/api/soggetti');
+      soggetti = Array.isArray(data) ? data : [];
+    } catch (err) { console.warn('Errore caricamento soggetti:', err); }
+    popolaTabella();
+  }
+  function popolaTabella() {
+    const tbody = document.querySelector('#tabellaUtenti tbody');
+    tbody.innerHTML = '';
+    utenti.forEach(u => {
+      const sog = soggetti.find(s => s.id == u.riferimento_id);
+      const sogNome = sog ? `${sog.nome} ${sog.cognome || ''}`.trim() : '';
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = u.id;
+      row.insertCell(1).innerText = u.username;
+      row.insertCell(2).innerText = u.ruolo;
+      row.insertCell(3).innerText = sogNome;
+      row.insertCell(4).innerText = u.nome_visualizzato || '';
+      row.insertCell(5).innerText = u.email || '';
+      const actions = row.insertCell(6);
+      actions.innerHTML = `<button class="btn btn-small" onclick="modificaUtente(${u.id})">✏️</button>
+                           <button class="btn btn-small btn-danger" onclick="eliminaUtente(${u.id})">🗑️</button>`;
+    });
+  }
+  function popolaSelectRiferimento() {
+    const ruolo = document.getElementById('ruolo').value;
+    const select = document.getElementById('riferimentoId');
+    select.innerHTML = '<option value="">-- Nessuno --</option>';
+    if (ruolo === 'admin') return;
+    const lista = soggetti.filter(s => s.tipo === ruolo.toUpperCase());
+    lista.forEach(s => {
+      let label = `${s.nome || ''} ${s.cognome || ''}`.trim() || s.id;
+      if (s.livello) label += ` (liv. ${s.livello})`;
+      select.appendChild(new Option(label, s.id));
+    });
+  }
+  function apriModaleNuovo() {
+    document.getElementById('modalTitolo').innerText = 'Nuovo Utente';
+    document.getElementById('utenteId').value = '';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('ruolo').value = 'promoter';
+    popolaSelectRiferimento();
+    document.getElementById('riferimentoId').value = '';
+    document.getElementById('nomeVisualizzato').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('modalUtente').style.display = 'flex';
+  }
+  function modificaUtente(id) {
+    const u = utenti.find(u => u.id == id);
+    if (!u) return;
+    document.getElementById('modalTitolo').innerText = 'Modifica Utente';
+    document.getElementById('utenteId').value = u.id;
+    document.getElementById('username').value = u.username;
+    document.getElementById('password').value = '';
+    document.getElementById('ruolo').value = u.ruolo;
+    popolaSelectRiferimento();
+    document.getElementById('riferimentoId').value = u.riferimento_id || '';
+    document.getElementById('nomeVisualizzato').value = u.nome_visualizzato || '';
+    document.getElementById('email').value = u.email || '';
+    document.getElementById('modalUtente').style.display = 'flex';
+  }
+  async function salvaUtente() {
+    const id = document.getElementById('utenteId').value;
+    const dati = {
+      username: document.getElementById('username').value.trim(),
+      password: document.getElementById('password').value,
+      ruolo: document.getElementById('ruolo').value,
+      riferimentoId: document.getElementById('riferimentoId').value || null,
+      nomeVisualizzato: document.getElementById('nomeVisualizzato').value.trim(),
+      email: document.getElementById('email').value.trim()
+    };
+    if (!dati.username) return showMessage('Username obbligatorio', 'error');
+    try {
+      if (id) {
+        await apiFetch(`/api/utenti/${id}`, { method: 'PUT', body: JSON.stringify(dati) });
+        showMessage('Utente aggiornato', 'success');
+      } else {
+        if (!dati.password) return showMessage('Password obbligatoria', 'error');
+        await apiFetch('/api/utenti', { method: 'POST', body: JSON.stringify(dati) });
+        showMessage('Utente creato', 'success');
+      }
+      chiudiModale();
+      caricaUtenti();
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+  async function eliminaUtente(id) {
+    if (!confirm('Eliminare questo utente?')) return;
+    try {
+      await apiFetch(`/api/utenti/${id}`, { method: 'DELETE' });
+      showMessage('Utente eliminato', 'success');
+      caricaUtenti();
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+  function chiudiModale() {
+    const modal = document.getElementById('modalUtente');
+    if (modal) modal.style.display = 'none';
+  }
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+  window.onload = async () => {
+    if (!restoreSession()) { window.location.href = 'Login.html'; return; }
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user.ruolo !== 'admin') {
+      document.querySelector('.container').innerHTML = '<div class="message error">Accesso negato: solo amministratori.</div>';
+      return;
+    }
+    document.getElementById('loginInfo').innerHTML = `👤 ${user.nome || user.username} (${user.ruolo})`;
+    document.getElementById('loginInfo').style.display = 'inline-flex';
+    document.getElementById('logoutBtn').style.display = 'inline-block';
+    await caricaUtenti();
+    document.getElementById('ruolo').addEventListener('change', popolaSelectRiferimento);
+  };
+</script>
+</body>
+</html>
