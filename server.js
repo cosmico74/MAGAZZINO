@@ -18,9 +18,9 @@ app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Rotta principale → pagina di login
+// Rotta principale → pagina di login/menu
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'Login.html'));
+  res.sendFile(path.join(__dirname, 'public', 'MenuPrincipale.html'));
 });
 
 // Serve i file statici dalla cartella public
@@ -35,7 +35,7 @@ const articoliRoutes = require('./routes/articoli');
 const kitRoutes = require('./routes/kit');
 const movimentiRoutes = require('./routes/movimenti');
 const soggettiRoutes = require('./routes/soggetti');
-const utentiRoutes = require('./routes/Utenti');      // nome file corretto (maiuscolo)
+const utentiRoutes = require('./routes/Utenti');
 const assegnazioniRoutes = require('./routes/assegnazioni');
 
 app.use('/api/anagrafiche', anagraficheRoutes);
