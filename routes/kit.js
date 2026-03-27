@@ -1,8 +1,9 @@
+const { registraUscitaTransazionale, registraRientroTransazionale } = require('./assegnazioni');
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../auth');
-const { registraUscitaTransazionale, registraRientroTransazionale } = require('./assegnazioni');
+
 
 // GET all kits (con informazioni su eventuale assegnazione corrente)
 router.get('/', verifyToken, async (req, res) => {
