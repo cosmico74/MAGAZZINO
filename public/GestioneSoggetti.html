@@ -72,6 +72,7 @@
 <div class="container">
   <div style="margin-bottom: 20px; text-align: right;">
     <span id="loginInfo" class="login-info" style="display: none;"></span>
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
     <button class="btn" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
   </div>
 
@@ -128,7 +129,16 @@
       <div id="referentiCheckbox" class="checkbox-group"></div>
     </div>
     <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
-    <div class="form-group" id="livelloGroup"><label>Livello (solo promoter)</label><select id="livello"><option value="1">1 (può assegnare a tutti)</option><option value="2">2 (può assegnare a negozi, clienti, agenti e promoter 3)</option><option value="3">3 (può assegnare solo a negozi e clienti)</option></select></div>
+    <!-- Campo livello sempre visibile per tutti i tipi -->
+    <div class="form-group" id="livelloGroup">
+      <label>Livello (1=alto, 3=basso, 0=nessuno)</label>
+      <select id="livello">
+        <option value="0">Nessun livello</option>
+        <option value="1">1 - Alto (può assegnare a tutti)</option>
+        <option value="2">2 - Medio (può assegnare a negozi, clienti, agenti e promoter 3)</option>
+        <option value="3">3 - Basso (può assegnare solo a negozi e clienti)</option>
+      </select>
+    </div>
     <div class="form-group"><label>Note</label><textarea id="note" rows="2"></textarea></div>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-secondary" onclick="chiudiModale()">Annulla</button>
@@ -248,9 +258,9 @@
     document.getElementById('cap').value = '';
     document.getElementById('regione').value = '';
     document.getElementById('attivo').value = 'SI';
-    document.getElementById('livello').value = '1';
+    document.getElementById('livello').value = '0'; // default: nessun livello
     document.getElementById('note').value = '';
-    toggleLivello();
+    // Il campo livello è sempre visibile
     await caricaSoggetti(); // assicura che soggetti sia aggiornato
     popolaReferentiCheckbox([]);
     document.getElementById('modalSoggetto').style.display = 'flex';
@@ -272,9 +282,8 @@
       document.getElementById('cap').value = s.cap || '';
       document.getElementById('regione').value = s.regione || '';
       document.getElementById('attivo').value = s.attivo === 1 ? 'SI' : 'NO';
-      document.getElementById('livello').value = s.livello || '1';
+      document.getElementById('livello').value = s.livello || '0';
       document.getElementById('note').value = s.note || '';
-      toggleLivello();
       await caricaSoggetti(); // aggiorna lista
       popolaReferentiCheckbox(s.referenti || []);
       document.getElementById('modalSoggetto').style.display = 'flex';
@@ -283,10 +292,9 @@
     }
   }
 
+  // Il campo livello è sempre visibile, non serve nasconderlo
   function toggleLivello() {
-    const tipo = document.getElementById('tipo').value;
-    const livelloGroup = document.getElementById('livelloGroup');
-    livelloGroup.style.display = tipo === 'PROMOTER' ? 'block' : 'none';
+    // Il campo livello rimane sempre visibile per tutti i tipi
   }
 
   async function salvaSoggetto() {
@@ -305,8 +313,8 @@
       cap: document.getElementById('cap').value,
       regione: document.getElementById('regione').value,
       referenti: referenti,
-      attivo: document.getElementById('attivo').value,
-      livello: document.getElementById('tipo').value === 'PROMOTER' ? document.getElementById('livello').value : null,
+      attivo: document.getElementById('attivo').value === 'SI' ? 1 : 0,
+      livello: parseInt(document.getElementById('livello').value) || null,
       note: document.getElementById('note').value
     };
     try {
