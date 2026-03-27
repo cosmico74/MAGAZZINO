@@ -28,7 +28,7 @@ const articoliRoutes = require('./routes/articoli');
 const kitRoutes = require('./routes/kit');
 const movimentiRoutes = require('./routes/movimenti');
 const soggettiRoutes = require('./routes/soggetti');
-const utentiRoutes = require('./routes/utenti');
+const utentiRoutes = require('./routes/Utenti');
 const assegnazioniRoutes = require('./routes/assegnazioni');
 
 app.use('/api/anagrafiche', anagraficheRoutes);
