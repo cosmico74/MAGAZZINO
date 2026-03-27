@@ -12,12 +12,19 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Rotta di health check (utile per Render)
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
+
+// Rotta principale → pagina di login
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'Login.html'));
+});
+
+// Serve i file statici dalla cartella public
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Rotta di login (NON protetta)
 app.post('/api/auth/login', login);
@@ -28,7 +35,7 @@ const articoliRoutes = require('./routes/articoli');
 const kitRoutes = require('./routes/kit');
 const movimentiRoutes = require('./routes/movimenti');
 const soggettiRoutes = require('./routes/soggetti');
-const utentiRoutes = require('./routes/Utenti');
+const utentiRoutes = require('./routes/Utenti');      // nome file corretto (maiuscolo)
 const assegnazioniRoutes = require('./routes/assegnazioni');
 
 app.use('/api/anagrafiche', anagraficheRoutes);
