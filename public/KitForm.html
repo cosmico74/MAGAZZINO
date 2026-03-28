@@ -31,6 +31,19 @@
       padding: 20px;
       overflow-y: auto;
     }
+    /* Barra superiore con pulsanti */
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .btn-secondary {
+      background: #6c757d;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
     h2 {
       margin-top: 0;
       margin-bottom: 15px;
@@ -90,7 +103,6 @@
     .btn:hover { background: #0f5bb5; }
     .btn-danger { background: #dc3545; }
     .btn-danger:hover { background: #bb2d3b; }
-    .btn-secondary { background: #6c757d; }
     .filter-section {
       background: #f8f9fa;
       border-radius: 10px;
@@ -195,7 +207,14 @@
   </style>
 </head>
 <body>
+  
 <div class="container">
+  <!-- BARRA SUPERIORE CON PULSANTI MENU E LOGOUT -->
+  <div class="top-bar">
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
+
   <div class="header-bar">
     <h2>📦 Composizione Kit</h2>
     <div class="external-checkbox">
@@ -738,7 +757,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '极<td colspan="11" class="text-center">Nessun kit trovato<\/td>倍';
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nessun kit trovato</td></tr>';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -1102,6 +1121,13 @@
     await refreshComponentDatalists();
     await refreshFilterDatalists();
     filtraKit();
+  }
+
+  // ---------- LOGOUT ----------
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
   }
 
   // ---------- INIZIALIZZAZIONE ----------
