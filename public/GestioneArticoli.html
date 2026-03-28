@@ -28,6 +28,13 @@
       border-left: 5px solid #1a73e8;
       padding-left: 15px;
     }
+    /* Barra superiore con pulsanti */
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
     .filter-section {
       background: #f8f9fa;
       border-radius: 12px;
@@ -169,6 +176,12 @@
 </head>
 <body>
 <div class="container">
+  <!-- BARRA SUPERIORE CON PULSANTI MENU E LOGOUT -->
+  <div class="top-bar">
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
+
   <h2>📋 Gestione Articoli</h2>
   <div id="messageArea"></div>
 
@@ -670,6 +683,13 @@
     document.getElementById('modalEdit').style.display = 'none';
   }
 
+  // ========== LOGOUT ==========
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
   // ========== INIZIALIZZAZIONE ==========
   window.onload = () => {
     const token = localStorage.getItem('token');
@@ -681,11 +701,6 @@
       caricaArticoli();
     });
   };
-  function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  window.location.href = 'Login.html';
-}
 </script>
 </body>
 </html>
