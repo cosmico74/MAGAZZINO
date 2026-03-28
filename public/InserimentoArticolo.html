@@ -21,6 +21,25 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       padding: 30px;
     }
+    /* Barra superiore con pulsanti */
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn-secondary {
+      background: #6c757d;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    .btn-info {
+      background: #17a2b8;
+    }
+    .btn-info:hover {
+      background: #138496;
+    }
     h2 {
       margin-top: 0;
       margin-bottom: 20px;
@@ -119,14 +138,83 @@
     .inline-checkbox input {
       width: auto;
     }
+    /* Modal per articoli in magazzino */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-content h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+    .modal-filter {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      align-items: flex-end;
+    }
+    .modal-filter .form-group {
+      flex: 1;
+    }
+    .modal-filter button {
+      width: auto;
+      padding: 8px 16px;
+      margin-top: 0;
+    }
+    .article-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .article-table th, .article-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    .article-table th {
+      background: #f8f9fa;
+    }
+    .close-modal {
+      float: right;
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .close-modal:hover {
+      background: #bb2d3b;
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px;">
+  <!-- BARRA SUPERIORE CON PULSANTI -->
+  <div class="top-bar">
     <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
     <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+    <button class="btn btn-info" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
   </div>
+
   <h2>📦 Inserimento Articolo</h2>
   <div id="messageArea"></div>
 
@@ -254,6 +342,36 @@
 
     <button type="button" class="btn" id="saveBtn" onclick="salvaArticolo()">💾 Salva Articolo</button>
   </form>
+</div>
+
+<!-- MODALE ARTICOLI IN MAGAZZINO -->
+<div id="modalArticoli" class="modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="chiudiModalArticoli()">✖️ Chiudi</button>
+    <h3>📦 Articoli in magazzino</h3>
+    <div id="modalMessage" style="margin-bottom: 10px;"></div>
+    <div class="modal-filter">
+      <div class="form-group">
+        <label>Filtra per categoria</label>
+        <select id="filtroCategoriaModal">
+          <option value="">Tutte</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="applicaFiltroCategoria()">🔍 Filtra</button>
+      </div>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="article-table" id="tabellaArticoliModal">
+        <thead>
+           <th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Qtà Totale</th><th>Giacenza Reale</th>
+        </thead>
+        <tbody>
+           <td colspan="6" class="text-center">Caricamento...<\/td>
+        </tbody>
+      表格
+    </div>
+  </div>
 </div>
 
 <script>
@@ -620,6 +738,104 @@
     }
   }
 
+  // ========== MODALE ARTICOLI IN MAGAZZINO ==========
+  let articoliCompleti = [];  // tutti gli articoli del magazzino corrente
+  let categorieMap = new Map(); // id -> nome categoria
+
+  async function mostraArticoliMagazzino() {
+    const magId = magazzinoSelect.value;
+    if (!magId) {
+      showMessage('Seleziona prima un magazzino', 'error');
+      return;
+    }
+    // Apri il modale e mostra loading
+    const modal = document.getElementById('modalArticoli');
+    modal.style.display = 'flex';
+    const tbody = document.querySelector('#tabellaArticoliModal tbody');
+    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...<\/td>';
+    document.getElementById('modalMessage').innerHTML = '';
+
+    try {
+      // Recupera tutti gli articoli di quel magazzino
+      const params = new URLSearchParams();
+      params.append('magazzino', magId);
+      const res = await apiFetch(`/api/articoli?${params.toString()}`);
+      if (res.success) {
+        articoliCompleti = res.data;
+        // Crea mappa categorie per nome (prendi da cache categorieCompleto già caricata)
+        categorieMap.clear();
+        categorieCompleto.forEach(c => categorieMap.set(c.id, c.nome));
+        // Popola filtro categorie (basato sugli articoli presenti)
+        const categorieUniche = new Set();
+        articoliCompleti.forEach(a => {
+          if (a.categoria) categorieUniche.add(a.categoria);
+        });
+        const filtroCat = document.getElementById('filtroCategoriaModal');
+        filtroCat.innerHTML = '<option value="">Tutte</option>';
+        for (let catId of categorieUniche) {
+          const nomeCat = categorieMap.get(catId) || catId;
+          filtroCat.appendChild(new Option(nomeCat, catId));
+        }
+        // Mostra tutti gli articoli inizialmente
+        applicaFiltroCategoria();
+      } else {
+        throw new Error('Errore nel caricamento degli articoli');
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`;
+      tbody.innerHTML = '<td colspan="6" class="text-center">Errore caricamento<\/td>';
+    }
+  }
+
+  function applicaFiltroCategoria() {
+    const catId = document.getElementById('filtroCategoriaModal').value;
+    let filtrati = [...articoliCompleti];
+    if (catId) {
+      filtrati = filtrati.filter(a => a.categoria == catId);
+    }
+    // Ordine: descrizione alfabetico, poi lunghezza numerica
+    filtrati.sort((a, b) => {
+      let descA = (a.descrizione || '').toLowerCase();
+      let descB = (b.descrizione || '').toLowerCase();
+      if (descA !== descB) return descA.localeCompare(descB);
+      let lungA = parseFloat(a.lunghezza) || 0;
+      let lungB = parseFloat(b.lunghezza) || 0;
+      return lungA - lungB;
+    });
+    renderTabellaArticoliModal(filtrati);
+  }
+
+  function renderTabellaArticoliModal(articoli) {
+    const tbody = document.querySelector('#tabellaArticoliModal tbody');
+    tbody.innerHTML = '';
+    if (articoli.length === 0) {
+      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun articolo trovato<\/td>';
+      return;
+    }
+    articoli.forEach(a => {
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = a.codice || '';
+      row.insertCell(1).innerText = a.descrizione_completa || a.descrizione || '';
+      row.insertCell(2).innerText = a.lunghezza || '';
+      row.insertCell(3).innerText = a.durezza || '';
+      row.insertCell(4).innerText = a.quantita_totale || 0;
+      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+      row.insertCell(5).innerText = giacenza;
+    });
+  }
+
+  function chiudiModalArticoli() {
+    document.getElementById('modalArticoli').style.display = 'none';
+  }
+
+  // ========== LOGOUT ==========
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
   // ========== INIZIALIZZAZIONE ==========
   window.onload = async function() {
     console.log('🚀 Pagina caricata, controllo sessione...');
@@ -636,11 +852,6 @@
     }, 500);
     console.log('🏁 Inizializzazione completata');
   };
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'Login.html';
-  }
 </script>
 </body>
 </html>
