@@ -108,22 +108,27 @@
 <div id="app"></div>
 
 <script>
-  async function apiCall(endpoint, method, data) {
-    const token = localStorage.getItem('token');
-    const response = await fetch(endpoint, {
-      method: method || 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: data ? JSON.stringify(data) : undefined
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Errore nella richiesta');
-    }
-    return response.json();
+async function apiCall(endpoint, method, data) {
+  const token = localStorage.getItem('token');
+  const response = await fetch(endpoint, {
+    method: method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: data ? JSON.stringify(data) : undefined
+  });
+  if (response.status === 401) {
+    // token non valido o scaduto
+    logout();
+    throw new Error('Sessione scaduta');
   }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Errore nella richiesta');
+  }
+  return response.json();
+}
 
   function logout() {
     localStorage.removeItem('user');
