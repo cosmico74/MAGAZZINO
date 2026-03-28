@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Gestione Magazzino</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .login-card h2 {
+      margin-bottom: 30px;
+      color: #2c3e50;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #2c3e50;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-login:hover {
+      background: #1557b0;
+    }
+    .error-message {
+      color: #e74c3c;
+      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <h2>🔐 Accesso al gestionale</h2>
+  <div class="form-group">
+    <label>Username</label>
+    <input type="text" id="loginUsername" placeholder="Inserisci username">
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="loginPassword" placeholder="Inserisci password">
+  </div>
+  <button class="btn-login" id="loginBtn">Accedi</button>
+  <div id="loginError" class="error-message"></div>
+</div>
+
+<script>
+  document.getElementById('loginBtn').addEventListener('click', doLogin);
+  document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorDiv = document.getElementById('loginError');
+
+    if (!username || !password) {
+      errorDiv.innerText = 'Inserisci username e password';
+      return;
+    }
+
+    const loginBtn = document.getElementById('loginBtn');
+    const originalText = loginBtn.innerText;
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner"></span> Accesso in corso...';
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'MenuPrincipale.html';
+      } else {
+        errorDiv.innerText = data.message || 'Credenziali errate';
+      }
+    } catch (err) {
+      console.error('Errore login:', err);
+      errorDiv.innerText = 'Errore di connessione al server';
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalText;
+    }
+  }
+</script>
+</body>
+</html>
