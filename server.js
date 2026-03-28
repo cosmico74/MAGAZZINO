@@ -20,7 +20,7 @@ app.get('/healthz', (req, res) => {
 
 // Rotta principale → pagina di login/menu
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'MenuPrincipale.html'));
+  res.sendFile(path.join(__dirname, 'public', 'Login.html'));
 });
 
 // Serve i file statici dalla cartella public

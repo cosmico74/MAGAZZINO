@@ -16,51 +16,6 @@
       max-width: 1400px;
       margin: 0 auto;
     }
-    .login-card {
-      background: white;
-      border-radius: 24px;
-      padding: 40px;
-      max-width: 400px;
-      margin: 0 auto;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-    }
-    .login-card h2 {
-      margin-bottom: 30px;
-      color: #2c3e50;
-      text-align: center;
-    }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      color: #2c3e50;
-    }
-    .form-group input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    .btn-login {
-      width: 100%;
-      padding: 12px;
-      background: #1a73e8;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .btn-login:hover { background: #1557b0; }
-    .error-message {
-      color: #e74c3c;
-      margin-top: 15px;
-      text-align: center;
-    }
     .header {
       background: rgba(255,255,255,0.95);
       border-radius: 16px;
@@ -138,6 +93,15 @@
       color: rgba(255,255,255,0.7);
       font-size: 12px;
     }
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 20px auto;
+      max-width: 500px;
+    }
   </style>
 </head>
 <body>
@@ -161,49 +125,17 @@
     return response.json();
   }
 
-  function showLoginForm() {
-    document.getElementById('app').innerHTML = `
-      <div class="login-card">
-        <h2>🔐 Accesso al gestionale</h2>
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="loginUsername" placeholder="Inserisci username">
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="loginPassword" placeholder="Inserisci password">
-        </div>
-        <button class="btn-login" onclick="doLogin()">Accedi</button>
-        <div id="loginError" class="error-message"></div>
-      </div>
-    `;
+  function logout() {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    window.location.href = 'Login.html';
   }
-
-  window.doLogin = async function() {
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
-    if (!username || !password) {
-      document.getElementById('loginError').innerText = 'Inserisci username e password';
-      return;
-    }
-    try {
-      const res = await apiCall('/api/auth/login', 'POST', { username, password });
-      if (res.success) {
-        localStorage.setItem('user', JSON.stringify(res.user));
-        localStorage.setItem('token', res.token);
-        await loadAndShowMenu();
-      } else {
-        document.getElementById('loginError').innerText = res.message || 'Credenziali errate';
-      }
-    } catch (err) {
-      document.getElementById('loginError').innerText = err.message;
-    }
-  };
 
   async function loadAndShowMenu() {
     const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      showLoginForm();
+    const token = localStorage.getItem('token');
+    if (!userStr || !token) {
+      window.location.href = 'Login.html';
       return;
     }
     const user = JSON.parse(userStr);
@@ -212,7 +144,7 @@
       showMenu(user, menuItems);
     } catch (err) {
       console.error('Errore menu:', err);
-      document.getElementById('app').innerHTML = `<div style="background:white; border-radius:16px; padding:20px; text-align:center; margin:20px;">❌ Impossibile caricare il menu: ${err.message}</div>`;
+      document.getElementById('app').innerHTML = `<div class="error-message">❌ Impossibile caricare il menu: ${err.message}</div>`;
     }
   }
 
@@ -249,17 +181,8 @@
     document.getElementById('app').innerHTML = html;
   }
 
-  function logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    showLoginForm();
-  }
-
-  if (localStorage.getItem('user') && localStorage.getItem('token')) {
-    loadAndShowMenu();
-  } else {
-    showLoginForm();
-  }
+  // Avvia
+  loadAndShowMenu();
 </script>
 </body>
 </html>
