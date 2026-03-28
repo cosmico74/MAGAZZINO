@@ -213,13 +213,15 @@
   <!-- BARRA SUPERIORE CON PULSANTI (stile GestioneArticoli) -->
   <div class="top-bar">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <div class="logo">
-      <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
-    </div>
+  <div class="logo">
+    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+  </div>
+  <div style="display: flex; gap: 10px;">
     <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
     <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
     <button class="btn btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
   </div>
+</div>
 
   <h2>📦 Inserimento Articolo</h2>
   <div id="messageArea"></div>
