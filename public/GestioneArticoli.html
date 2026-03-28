@@ -681,6 +681,11 @@
       caricaArticoli();
     });
   };
+  function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = 'Login.html';
+}
 </script>
 </body>
 </html>

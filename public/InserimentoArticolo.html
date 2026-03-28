@@ -123,6 +123,10 @@
 </head>
 <body>
 <div class="container">
+  <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px;">
+    <button class="btn btn-secondary" onclick="window.location.href='Login.html'">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
   <h2>📦 Inserimento Articolo</h2>
   <div id="messageArea"></div>
 
@@ -632,6 +636,11 @@
     }, 500);
     console.log('🏁 Inizializzazione completata');
   };
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
 </script>
 </body>
 </html>
