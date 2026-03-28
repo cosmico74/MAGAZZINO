@@ -21,24 +21,12 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       padding: 30px;
     }
-    /* Barra superiore con pulsanti */
+    /* Barra superiore con pulsanti (stile GestioneArticoli) */
     .top-bar {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
       margin-bottom: 20px;
-    }
-    .btn-secondary {
-      background: #6c757d;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
-    }
-    .btn-info {
-      background: #17a2b8;
-    }
-    .btn-info:hover {
-      background: #138496;
     }
     h2 {
       margin-top: 0;
@@ -88,15 +76,28 @@
       background: #1a73e8;
       color: white;
       border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
       cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
+      font-size: 0.9rem;
+      transition: background 0.2s;
     }
     .btn:hover { background: #0f5bb5; }
+    .btn-secondary {
+      background: #6c757d;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    /* Pulsante per il form principale */
+    .btn-primary {
+      background: #1a73e8;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
     .message {
       padding: 12px 16px;
       border-radius: 8px;
@@ -138,7 +139,7 @@
     .inline-checkbox input {
       width: auto;
     }
-    /* Modal per articoli in magazzino */
+    /* Modale articoli in magazzino */
     .modal {
       display: none;
       position: fixed;
@@ -208,11 +209,11 @@
 </head>
 <body>
 <div class="container">
-  <!-- BARRA SUPERIORE CON PULSANTI -->
+  <!-- BARRA SUPERIORE CON PULSANTI (stile GestioneArticoli) -->
   <div class="top-bar">
     <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
     <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-    <button class="btn btn-info" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
+    <button class="btn btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
   </div>
 
   <h2>📦 Inserimento Articolo</h2>
@@ -340,7 +341,7 @@
       </div>
     </div>
 
-    <button type="button" class="btn" id="saveBtn" onclick="salvaArticolo()">💾 Salva Articolo</button>
+    <button type="button" class="btn btn-primary" id="saveBtn" onclick="salvaArticolo()">💾 Salva Articolo</button>
   </form>
 </div>
 
@@ -739,8 +740,8 @@
   }
 
   // ========== MODALE ARTICOLI IN MAGAZZINO ==========
-  let articoliCompleti = [];  // tutti gli articoli del magazzino corrente
-  let categorieMap = new Map(); // id -> nome categoria
+  let articoliCompleti = [];
+  let categorieMap = new Map();
 
   async function mostraArticoliMagazzino() {
     const magId = magazzinoSelect.value;
@@ -748,7 +749,6 @@
       showMessage('Seleziona prima un magazzino', 'error');
       return;
     }
-    // Apri il modale e mostra loading
     const modal = document.getElementById('modalArticoli');
     modal.style.display = 'flex';
     const tbody = document.querySelector('#tabellaArticoliModal tbody');
@@ -756,13 +756,12 @@
     document.getElementById('modalMessage').innerHTML = '';
 
     try {
-      // Recupera tutti gli articoli di quel magazzino
       const params = new URLSearchParams();
       params.append('magazzino', magId);
       const res = await apiFetch(`/api/articoli?${params.toString()}`);
       if (res.success) {
         articoliCompleti = res.data;
-        // Crea mappa categorie per nome (prendi da cache categorieCompleto già caricata)
+        // Mappa categorie
         categorieMap.clear();
         categorieCompleto.forEach(c => categorieMap.set(c.id, c.nome));
         // Popola filtro categorie (basato sugli articoli presenti)
@@ -776,7 +775,6 @@
           const nomeCat = categorieMap.get(catId) || catId;
           filtroCat.appendChild(new Option(nomeCat, catId));
         }
-        // Mostra tutti gli articoli inizialmente
         applicaFiltroCategoria();
       } else {
         throw new Error('Errore nel caricamento degli articoli');
@@ -794,7 +792,7 @@
     if (catId) {
       filtrati = filtrati.filter(a => a.categoria == catId);
     }
-    // Ordine: descrizione alfabetico, poi lunghezza numerica
+    // Ordine: descrizione alfabetico, poi lunghezza crescente
     filtrati.sort((a, b) => {
       let descA = (a.descrizione || '').toLowerCase();
       let descB = (b.descrizione || '').toLowerCase();
