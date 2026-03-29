@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📦 Assegnazioni e Rientri</title>
@@ -178,11 +179,17 @@
 </head>
 <body>
 <div class="container">
-  <div class="header-bar">
-    <span id="loginInfo" class="login-info" style="display: none;"></span>
-     <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-    <button class="btn btn-secondary" id="logoutBtn" style="display: none;" onclick="logout()">🚪 Logout</button>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <div class="logo">
+    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
   </div>
+  <div style="display: flex; gap: 10px;">
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+    <button class="btn btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
+  </div>
+</div>
+</div>
 
   <h2>📦 Assegnazioni e Rientri</h2>
   <div id="messageArea"></div>
