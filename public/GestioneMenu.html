@@ -114,8 +114,8 @@
 
   async function caricaMenu() {
     try {
-      const data = await apiFetch('/api/anagrafiche/menu-items');  // nuova API (vedi backend)
-      renderTable(data);
+      const items = await apiFetch('/api/anagrafiche/menu-items');
+      renderTable(items);
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     }
@@ -126,7 +126,7 @@
     tbody.innerHTML = '';
     items.forEach(item => {
       const row = tbody.insertRow();
-      row.insertCell(0).innerText = item.id;
+      row.insertCell(0).innerText = item.id;   // id = settore_id
       row.insertCell(1).innerText = item.titolo;
       row.insertCell(2).innerText = item.url;
       row.insertCell(3).innerHTML = `<input type="number" id="ordine_${item.id}" value="${item.ordine || 0}" style="width:70px">`;
@@ -167,5 +167,3 @@
     caricaMenu();
   };
 </script>
-</body>
-</html>
