@@ -132,4 +132,26 @@ router.get('/menu', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/anagrafiche/menu-items
+router.get('/menu-items', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, titolo, url, ordine, ruoli, livelli FROM menu_items ORDER BY ordine');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/anagrafiche/menu-items/:id
+router.put('/menu-items/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { ordine, ruoli, livelli } = req.body;
+  try {
+    await pool.query('UPDATE menu_items SET ordine = ?, ruoli = ?, livelli = ? WHERE id = ?', [ordine, ruoli, livelli, id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

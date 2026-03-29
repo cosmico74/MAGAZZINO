@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Menu - Amministrazione</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    h2 {
+      margin-top: 0;
+      border-left: 5px solid #1a73e8;
+      padding-left: 15px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn-secondary {
+      background: #6c757d;
+    }
+    .btn-success {
+      background: #27ae60;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f8f9fa;
+    }
+    input, select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+    }
+    .message {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="toolbar">
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
+  <h2>⚙️ Gestione Voci di Menu</h2>
+  <div id="messageArea"></div>
+  <div style="overflow-x: auto;">
+    <table id="menuTable">
+      <thead>
+         <th>ID</th><th>Titolo</th><th>URL</th><th>Ordine</th><th>Ruoli (admin,agente,promoter)</th><th>Livelli (1,2,3)</th><th>Azioni</th>
+      </thead>
+      <tbody></tbody>
+    表格
+  </div>
+</div>
+
+<script>
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 4000);
+  }
+
+  async function caricaMenu() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/menu-items');  // nuova API (vedi backend)
+      renderTable(data);
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function renderTable(items) {
+    const tbody = document.querySelector('#menuTable tbody');
+    tbody.innerHTML = '';
+    items.forEach(item => {
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = item.id;
+      row.insertCell(1).innerText = item.titolo;
+      row.insertCell(2).innerText = item.url;
+      row.insertCell(3).innerHTML = `<input type="number" id="ordine_${item.id}" value="${item.ordine || 0}" style="width:70px">`;
+      row.insertCell(4).innerHTML = `<input type="text" id="ruoli_${item.id}" value="${item.ruoli || ''}" placeholder="es. admin,promoter">`;
+      row.insertCell(5).innerHTML = `<input type="text" id="livelli_${item.id}" value="${item.livelli || ''}" placeholder="es. 1,2,3">`;
+      const actions = row.insertCell(6);
+      actions.innerHTML = `<button class="btn btn-success" onclick="salvaModifica(${item.id})">💾 Salva</button>`;
+    });
+  }
+
+  async function salvaModifica(id) {
+    const ordine = document.getElementById(`ordine_${id}`).value;
+    const ruoli = document.getElementById(`ruoli_${id}`).value;
+    const livelli = document.getElementById(`livelli_${id}`).value;
+    try {
+      await apiFetch(`/api/anagrafiche/menu-items/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ordine, ruoli, livelli })
+      });
+      showMessage('Salvato!', 'success');
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
+  window.onload = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.ruolo !== 'admin') {
+      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2></div>';
+      return;
+    }
+    caricaMenu();
+  };
+</script>
+</body>
+</html>
