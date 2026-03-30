@@ -72,31 +72,40 @@ router.get('/marche', verifyToken, async (req, res) => {
 router.get('/menu', verifyToken, async (req, res) => {
   try {
     const [userRows] = await pool.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
-    if (userRows.length === 0) return res.status(404).json({ success: false, message: 'Utente non trovato' });
+    if (userRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utente non trovato' });
+    }
     const user = userRows[0];
     const ruolo = user.ruolo;
     let livello = null;
     if (user.riferimento_id) {
       const [sog] = await pool.query('SELECT livello FROM soggetti WHERE id = ?', [user.riferimento_id]);
       if (sog.length) livello = sog[0].livello;
+    } else if (ruolo === 'promoter') {
+      // Se è promoter ma senza riferimento, assegna livello 1 per default (o 0 per non vedere nulla)
+      livello = 1;  // oppure 0 se vuoi che non veda nulla finché non viene associato
     }
 
-    // IMPORTANTE: uso l'alias 'settore_id AS id' per compatibilità con il frontend
     const [menuRows] = await pool.query('SELECT settore_id AS id, titolo, descrizione, icona, url, ordine, ruoli, livelli FROM menu_items ORDER BY ordine');
 
     const allowed = menuRows.filter(item => {
       if (!item.ruoli) return false;
       const ruoliAmmessi = item.ruoli.split(',').map(r => r.trim());
       if (!ruoliAmmessi.includes(ruolo)) return false;
+
+      // Filtro per livello (solo per promoter)
       if (ruolo === 'promoter' && item.livelli && item.livelli.trim() !== '') {
         const livelliAmmessi = item.livelli.split(',').map(l => parseInt(l.trim()));
-        if (livelliAmmessi.length > 0 && !livelliAmmessi.includes(livello)) return false;
+        // Se l'utente non ha livello (null) o il suo livello non è tra quelli ammessi, escludi
+        if (livello === null || !livelliAmmessi.includes(livello)) {
+          return false;
+        }
       }
       return true;
     });
 
     const menuData = allowed.map(item => ({
-      id: item.id,            // ora 'id' esiste perché abbiamo fatto l'alias
+      id: item.id,
       titolo: item.titolo,
       descrizione: item.descrizione,
       icona: item.icona,

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📊 Report Assegnazioni e Movimenti</title>
@@ -137,11 +138,14 @@
 </head>
 <body>
 <div class="container">
-  <div class="header-bar" style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>📊 Report Assegnazioni e Movimenti</h1>
-    <div>
-      <button class="btn btn-print" onclick="window.print()">🖨️ Stampa / Salva PDF</button>
-      <button class="btn btn-secondary" onclick="window.location.href='Login.html'">◀ Torna al menu</button>
+  <!-- Barra superiore con logo e pulsanti (senza il terzo pulsante non definito) -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div class="logo">
+      <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+      <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
     </div>
   </div>
 
@@ -307,8 +311,6 @@
     return res.success ? res.oggetti : [];
   }
 
-  // Ottiene i movimenti in cui il soggetto è stato mittente (RIENTRO con da_magazzino = "TIPO-ID") 
-  // o USCITA con provenienza_tipo/Id compilati
   async function getMovimentiMittente() {
     const tipo = soggettoTipo.value;
     const id = soggettoId.value;
@@ -316,7 +318,7 @@
 
     const movimenti = [];
 
-    // 1. Rientri dal soggetto (da_magazzino = "PROMOTER-1")
+    // Rientri dal soggetto
     const paramsRientro = new URLSearchParams();
     paramsRientro.append('tipo', 'RIENTRO');
     paramsRientro.append('da_magazzino', `${tipo}-${id}`);
@@ -324,11 +326,9 @@
     if (filtroTipo.value) paramsRientro.append('tipo_oggetto', filtroTipo.value);
     const urlRientro = `/api/movimenti?${paramsRientro.toString()}`;
     const resRientro = await apiFetch(urlRientro);
-    if (resRientro.success) {
-      movimenti.push(...resRientro.data);
-    }
+    if (resRientro.success) movimenti.push(...resRientro.data);
 
-    // 2. Uscite con provenienza compilata
+    // Uscite con provenienza
     const paramsUscita = new URLSearchParams();
     paramsUscita.append('tipo', 'USCITA');
     paramsUscita.append('provenienza_tipo', tipo);
@@ -337,21 +337,15 @@
     if (filtroTipo.value) paramsUscita.append('tipo_oggetto', filtroTipo.value);
     const urlUscita = `/api/movimenti?${paramsUscita.toString()}`;
     const resUscita = await apiFetch(urlUscita);
-    if (resUscita.success) {
-      movimenti.push(...resUscita.data);
-    }
+    if (resUscita.success) movimenti.push(...resUscita.data);
 
-    // Rimuovi duplicati (per ID)
     const seen = new Set();
     const unici = movimenti.filter(m => {
       if (seen.has(m.id)) return false;
       seen.add(m.id);
       return true;
     });
-
-    // Ordina per data decrescente
     unici.sort((a,b) => new Date(b.data) - new Date(a.data));
-
     return unici;
   }
 
@@ -485,6 +479,12 @@
     caricaReport();
   }
 
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
+
   window.onload = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -499,6 +499,7 @@
       window.location.href = 'Login.html';
       return;
     }
+    // Aggiungi info utente (opzionale)
     const loginInfo = document.createElement('div');
     loginInfo.className = 'toolbar';
     loginInfo.style.justifyContent = 'flex-end';
