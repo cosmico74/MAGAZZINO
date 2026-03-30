@@ -198,6 +198,27 @@
       border-radius: 10px;
       margin-top: 6px;
     }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 15px;
+    }
   </style>
 </head>
 <body>
@@ -317,7 +338,7 @@
     </div>
   </div>
 
-  <!-- TABELLA KIT (senza pulsante Modifica) -->
+  <!-- TABELLA KIT -->
   <div class="table-wrapper">
     <table id="tabellaKit">
       <thead>
@@ -326,6 +347,33 @@
       </thead>
       <tbody></tbody>
     表格
+  </div>
+</div>
+
+<!-- MODALE MODIFICA -->
+<div id="modalEditKit" class="modal">
+  <div class="modal-content">
+    <h3>✏️ Modifica Kit</h3>
+    <form id="editKitForm" onsubmit="return false;" autocomplete="off">
+      <input type="hidden" id="editKitId">
+      <div class="form-row">
+        <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" autocomplete="off" required></select></div>
+        <div class="form-group"><label>Quantità</label><input type="number" id="editKitQuantita" min="1" step="1" autocomplete="off" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" autocomplete="off" required><datalist id="editSciList"></datalist></div>
+        <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" autocomplete="off" required><datalist id="editAttacchiList"></datalist></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList" autocomplete="off"><datalist id="editSkistopperList"></datalist></div>
+        <div class="form-group"></div>
+      </div>
+      <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
+      <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+        <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
+        <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -419,9 +467,12 @@
       popolaSelect(filtroMar, marche);
 
       const kitMag = document.getElementById('kitMagazzino');
+      const editKitMag = document.getElementById('editKitMagazzino');
       if (kitMag) kitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
+      if (editKitMag) editKitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
       magazzini.forEach(m => {
         if (kitMag) kitMag.appendChild(new Option(m.nome, m.id));
+        if (editKitMag) editKitMag.appendChild(new Option(m.nome, m.id));
       });
 
       await setDefaultMagazzino();
@@ -570,7 +621,10 @@
     await Promise.all([
       popolaDatalistTipo('sci', 'sciList'),
       popolaDatalistTipo('attacchi', 'attacchiList'),
-      popolaDatalistTipo('skistopper', 'skistopperList')
+      popolaDatalistTipo('skistopper', 'skistopperList'),
+      popolaDatalistTipo('sci', 'editSciList'),
+      popolaDatalistTipo('attacchi', 'editAttacchiList'),
+      popolaDatalistTipo('skistopper', 'editSkistopperList')
     ]);
     if (externalCheckbox.checked && sourceId.value) {
       await getKitsAssegnati(sourceTipo.value, sourceId.value);
@@ -732,7 +786,8 @@
       row.insertCell(8).innerText = k.quantita;
       row.insertCell(9).innerText = assegnato;
       const actions = row.insertCell(10);
-      actions.innerHTML = `<button class="btn btn-danger" onclick="eliminaKit(${k.id})">🗑️ Elimina</button>`;
+      actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})">✏️ Modifica</button>
+                           <button class="btn btn-danger" onclick="eliminaKit(${k.id})">🗑️ Elimina</button>`;
     });
   }
 
@@ -948,6 +1003,90 @@
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     }
+  }
+
+  // ---------- MODIFICA KIT ----------
+  let currentEditId = null;
+
+  async function modificaKit(id) {
+    try {
+      const kit = await apiFetch(`/api/kit/${id}`);
+      currentEditId = id;
+      document.getElementById('editKitId').value = kit.id;
+      document.getElementById('editKitMagazzino').value = kit.magazzino;
+      document.getElementById('editKitQuantita').value = kit.quantita;
+      document.getElementById('editKitNote').value = kit.note || '';
+
+      const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
+      const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
+      document.getElementById('editKitSci').value = formatArticleDisplay(sci);
+      document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
+      if (kit.id_skistopper) {
+        const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
+        document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
+      } else {
+        document.getElementById('editKitSkistopper').value = '';
+      }
+      document.getElementById('modalEditKit').style.display = 'flex';
+    } catch (err) {
+      showMessage('Errore caricamento kit: ' + err.message, 'error');
+    }
+  }
+
+  async function salvaModificaKit() {
+    const id = currentEditId;
+    const magazzino = document.getElementById('editKitMagazzino').value;
+    const quantita = parseInt(document.getElementById('editKitQuantita').value);
+    const sciInput = document.getElementById('editKitSci').value;
+    const attacchiInput = document.getElementById('editKitAttacchi').value;
+    const skistopperInput = document.getElementById('editKitSkistopper').value;
+    const note = document.getElementById('editKitNote').value.trim();
+
+    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
+      showMessage('Compila tutti i campi obbligatori', 'error');
+      return;
+    }
+
+    const idSci = getArticleIdFromInput(sciInput, 'editSciList');
+    const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
+    let idSkistopper = null;
+    if (skistopperInput) {
+      idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
+    }
+
+    if (!idSci || !idAttacchi) {
+      showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
+      return;
+    }
+
+    const payload = {
+      magazzino: parseInt(magazzino),
+      quantita: quantita,
+      id_sci: parseInt(idSci),
+      id_attacchi: parseInt(idAttacchi),
+      id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
+      sigla: null,
+      note: note || null
+    };
+
+    try {
+      const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage('Kit aggiornato', 'success');
+        chiudiModaleKit();
+        await caricaKit();
+        await refreshComponentDatalists();
+        await refreshFilterDatalists();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function chiudiModaleKit() {
+    document.getElementById('modalEditKit').style.display = 'none';
   }
 
   // ---------- GESTIONE FILTRI GLOBALI ----------
