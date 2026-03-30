@@ -222,7 +222,7 @@
   </div>
   <div id="messageArea"></div>
 
-  <!-- FORM CREAZIONE KIT (in alto) -->
+  <!-- FORM CREAZIONE KIT -->
   <h3>➕ Nuovo Kit</h3>
   <div id="assegnazioneSection" style="display:none;" class="assignment-group">
     <div class="form-row">
@@ -317,7 +317,7 @@
     </div>
   </div>
 
-  <!-- TABELLA KIT -->
+  <!-- TABELLA KIT (senza pulsante Modifica) -->
   <div class="table-wrapper">
     <table id="tabellaKit">
       <thead>
@@ -329,37 +329,8 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA -->
-<div id="modalEditKit" class="modal">
-  <div class="modal-content">
-    <h3>✏️ Modifica Kit</h3>
-    <form id="editKitForm" onsubmit="return false;" autocomplete="off">
-      <input type="hidden" id="editKitId">
-      <div class="form-row">
-        <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" autocomplete="off" required></select></div>
-        <div class="form-group"><label>Quantità</label><input type="number" id="editKitQuantita" min="1" step="1" autocomplete="off" required></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" autocomplete="off" required><datalist id="editSciList"></datalist></div>
-        <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" autocomplete="off" required><datalist id="editAttacchiList"></datalist></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList" autocomplete="off"><datalist id="editSkistopperList"></datalist></div>
-        <div class="form-group"></div>
-      </div>
-      <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
-      <div class="modal-buttons">
-        <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
-        <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-
-
 <script>
-  // ---------- UTILITY ----------
+  // ========== UTILITY ==========
   function getAuthHeader() {
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
@@ -392,7 +363,7 @@
   let canUseWarehouse = false;
 
   // Cache per oggetti assegnati (articoli e kit)
-  let cachedAssignedKits = null;        // array di ID kit assegnati al soggetto corrente
+  let cachedAssignedKits = null;
   let lastSourceKey = null;
 
   // Elementi filtro
@@ -448,12 +419,9 @@
       popolaSelect(filtroMar, marche);
 
       const kitMag = document.getElementById('kitMagazzino');
-      const editKitMag = document.getElementById('editKitMagazzino');
       if (kitMag) kitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
-      if (editKitMag) editKitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
       magazzini.forEach(m => {
         if (kitMag) kitMag.appendChild(new Option(m.nome, m.id));
-        if (editKitMag) editKitMag.appendChild(new Option(m.nome, m.id));
       });
 
       await setDefaultMagazzino();
@@ -602,22 +570,18 @@
     await Promise.all([
       popolaDatalistTipo('sci', 'sciList'),
       popolaDatalistTipo('attacchi', 'attacchiList'),
-      popolaDatalistTipo('skistopper', 'skistopperList'),
-      popolaDatalistTipo('sci', 'editSciList'),
-      popolaDatalistTipo('attacchi', 'editAttacchiList'),
-      popolaDatalistTipo('skistopper', 'editSkistopperList')
+      popolaDatalistTipo('skistopper', 'skistopperList')
     ]);
-    // Aggiorna la cache dei kit assegnati se in modalità esterna
     if (externalCheckbox.checked && sourceId.value) {
       await getKitsAssegnati(sourceTipo.value, sourceId.value);
     } else {
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    filtraKit(); // riapplica il filtro alla tabella
+    filtraKit();
   }
 
-  // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) - limitati a SCI ----------
+  // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
   const filterFieldMap = {
     descrizioni: 'descrizione',
     sigle: 'sigla',
@@ -689,7 +653,6 @@
           }
         }
       }
-      // Aggiorna cache kit assegnati se necessario
       if (externalCheckbox.checked && sourceId.value) {
         await getKitsAssegnati(sourceTipo.value, sourceId.value);
       }
@@ -732,15 +695,10 @@
 
       if (!baseMatch) return false;
 
-      // Filtro basato sulla modalità esterna
       if (externalCheckbox.checked && sourceId.value) {
-        // Mostra solo i kit assegnati al soggetto sorgente (e referenti)
         if (!kit.assegnato_a) return false;
-        const kitKey = `${kit.assegnato_a.tipo}|${kit.assegnato_a.id}`;
-        // Utilizza la cache dei kit assegnati (contiene solo gli ID dei kit assegnati)
         return cachedAssignedKits ? cachedAssignedKits.includes(kit.id) : false;
       } else {
-        // Modalità normale: mostra solo i kit non assegnati (in magazzino)
         return !kit.assegnato_a;
       }
     });
@@ -753,7 +711,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nessun kit trovato</td></tr>';
+      tbody.innerHTML = '极<td colspan="11" class="text-center">Nessun kit trovato<\/td>倍';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -774,8 +732,7 @@
       row.insertCell(8).innerText = k.quantita;
       row.insertCell(9).innerText = assegnato;
       const actions = row.insertCell(10);
-      actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})">✏️ Modifica</button>
-                           <button class="btn btn-danger" onclick="eliminaKit(${k.id})">🗑️ Elimina</button>`;
+      actions.innerHTML = `<button class="btn btn-danger" onclick="eliminaKit(${k.id})">🗑️ Elimina</button>`;
     });
   }
 
@@ -791,7 +748,7 @@
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
       if (externalCheckbox.checked) {
-        await refreshComponentDatalists(); // aggiorna datalist e cache kit
+        await refreshComponentDatalists();
       }
     } catch (err) {
       showMessage('Errore caricamento sorgenti: ' + err.message, 'error');
@@ -862,7 +819,7 @@
           assegnazioneSection.style.display = 'none';
           cachedAssignedKits = null;
           lastSourceKey = null;
-          refreshComponentDatalists(); // ricarica in modalità magazzino
+          refreshComponentDatalists();
         }
       });
 
@@ -991,90 +948,6 @@
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     }
-  }
-
-  // ---------- MODIFICA ----------
-  let currentEditId = null;
-
-  async function modificaKit(id) {
-    try {
-      const kit = await apiFetch(`/api/kit/${id}`);
-      currentEditId = id;
-      document.getElementById('editKitId').value = kit.id;
-      document.getElementById('editKitMagazzino').value = kit.magazzino;
-      document.getElementById('editKitQuantita').value = kit.quantita;
-      document.getElementById('editKitNote').value = kit.note || '';
-
-      const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
-      const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
-      document.getElementById('editKitSci').value = formatArticleDisplay(sci);
-      document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
-      if (kit.id_skistopper) {
-        const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
-        document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
-      } else {
-        document.getElementById('editKitSkistopper').value = '';
-      }
-      document.getElementById('modalEditKit').style.display = 'flex';
-    } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
-    }
-  }
-
-  async function salvaModificaKit() {
-    const id = currentEditId;
-    const magazzino = document.getElementById('editKitMagazzino').value;
-    const quantita = parseInt(document.getElementById('editKitQuantita').value);
-    const sciInput = document.getElementById('editKitSci').value;
-    const attacchiInput = document.getElementById('editKitAttacchi').value;
-    const skistopperInput = document.getElementById('editKitSkistopper').value;
-    const note = document.getElementById('editKitNote').value.trim();
-
-    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
-    }
-
-    const idSci = getArticleIdFromInput(sciInput, 'editSciList');
-    const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
-    let idSkistopper = null;
-    if (skistopperInput) {
-      idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
-    }
-
-    if (!idSci || !idAttacchi) {
-      showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
-      return;
-    }
-
-    const payload = {
-      magazzino: parseInt(magazzino),
-      quantita: quantita,
-      id_sci: parseInt(idSci),
-      id_attacchi: parseInt(idAttacchi),
-      id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
-      sigla: null,
-      note: note || null
-    };
-
-    try {
-      const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage('Kit aggiornato', 'success');
-        chiudiModaleKit();
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    }
-  }
-
-  function chiudiModaleKit() {
-    document.getElementById('modalEditKit').style.display = 'none';
   }
 
   // ---------- GESTIONE FILTRI GLOBALI ----------
