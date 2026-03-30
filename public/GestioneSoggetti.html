@@ -237,7 +237,7 @@
       // Mostra l'utente associato se presente (campo restituito dalla GET singola, ma non nell'elenco)
       // Per l'elenco possiamo fare una seconda chiamata o aggiungere un campo. Per semplicità, mostriamo solo se già presente in soggetti (non lo è di default)
       // Decido di non mostrare l'utente nell'elenco per non appesantire; lo mostrerò nel modale di modifica.
-      row.insertCell(9).innerText = s.utenteAssociato ? `Utente ID ${s.utenteAssociato}` : '-';
+      row.insertCell(9).innerText = s.utenteAssociato ? s.utenteAssociato.username : '-';
       const actions = row.insertCell(10);
       actions.innerHTML = `<button class="btn btn-small" onclick="modificaSoggetto(${s.id})">✏️</button>
                            <button class="btn btn-small btn-danger" onclick="eliminaSoggetto(${s.id})">🗑️</button>`;
