@@ -43,7 +43,7 @@
       background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;
     }
     .modal-content {
-      background: white; border-radius: 16px; width: 90%; max-width: 600px; padding: 25px;
+      background: white; border-radius: 16px; width: 90%; max-width: 700px; padding: 25px;
       max-height: 90vh; overflow-y: auto;
     }
     .form-group { margin-bottom: 15px; }
@@ -104,7 +104,7 @@
     <table id="tabellaSoggetti">
       <thead>
          <th>ID</th><th>Tipo</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th>
-         <th>Attivo</th><th>Livello</th><th>Referenti</th><th>Azioni</th>
+         <th>Attivo</th><th>Livello</th><th>Referenti</th><th>Utente associato</th><th>Azioni</th>
       </thead>
       <tbody></tbody>
     表格
@@ -129,7 +129,6 @@
       <div id="referentiCheckbox" class="checkbox-group"></div>
     </div>
     <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
-    <!-- Campo livello sempre visibile per tutti i tipi -->
     <div class="form-group" id="livelloGroup">
       <label>Livello (1=alto, 3=basso, 0=nessuno)</label>
       <select id="livello">
@@ -140,6 +139,21 @@
       </select>
     </div>
     <div class="form-group"><label>Note</label><textarea id="note" rows="2"></textarea></div>
+
+    <!-- Sezione utente associato -->
+    <div class="form-group">
+      <label>Utente associato</label>
+      <select id="utenteAssociato">
+        <option value="">-- Nessuno --</option>
+      </select>
+      <small>Seleziona un utente già esistente (non ancora associato a un soggetto) oppure lascia vuoto per creare un nuovo utente (solo per promoter).</small>
+    </div>
+    <div class="form-group" id="passwordGroup" style="display: none;">
+      <label>Password per nuovo utente (opzionale)</label>
+      <input type="password" id="nuovaPassword" placeholder="Lascia vuoto per generare automaticamente">
+      <small>Se non inserisci una password, ne verrà generata una casuale.</small>
+    </div>
+
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-secondary" onclick="chiudiModale()">Annulla</button>
       <button class="btn btn-success" onclick="salvaSoggetto()">💾 Salva</button>
@@ -183,7 +197,7 @@
   let currentUser = null;
   let soggetti = [];
 
-  // ========== CARICAMENTO ==========
+  // ========== CARICAMENTO SOGGETTI ==========
   async function caricaSoggetti() {
     try {
       const data = await apiFetch('/api/soggetti');
@@ -220,31 +234,34 @@
       row.insertCell(6).innerText = s.attivo === 1 ? 'SI' : 'NO';
       row.insertCell(7).innerText = s.livello || '';
       row.insertCell(8).innerText = refNomi || '-';
-      const actions = row.insertCell(9);
+      // Mostra l'utente associato se presente (campo restituito dalla GET singola, ma non nell'elenco)
+      // Per l'elenco possiamo fare una seconda chiamata o aggiungere un campo. Per semplicità, mostriamo solo se già presente in soggetti (non lo è di default)
+      // Decido di non mostrare l'utente nell'elenco per non appesantire; lo mostrerò nel modale di modifica.
+      row.insertCell(9).innerText = s.utenteAssociato ? `Utente ID ${s.utenteAssociato}` : '-';
+      const actions = row.insertCell(10);
       actions.innerHTML = `<button class="btn btn-small" onclick="modificaSoggetto(${s.id})">✏️</button>
                            <button class="btn btn-small btn-danger" onclick="eliminaSoggetto(${s.id})">🗑️</button>`;
     }
   }
 
-  // Popola la sezione checkbox dei referenti
-  function popolaReferentiCheckbox(currentReferentiIds = []) {
-    const container = document.getElementById('referentiCheckbox');
-    container.innerHTML = '';
-    const currentId = document.getElementById('soggettoId').value;
-    for (const s of soggetti) {
-      if (currentId && s.id == currentId) continue; // non può essere referente di se stesso
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = s.id;
-      cb.checked = currentReferentiIds.includes(s.id);
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(` ${s.tipo} - ${s.nome || ''} ${s.cognome || ''}`.trim()));
-      if (s.livello) label.appendChild(document.createTextNode(` (liv. ${s.livello})`));
-      container.appendChild(label);
+  // ========== CARICAMENTO UTENTI LIBERI ==========
+  async function caricaUtentiLiberi() {
+    try {
+      const res = await apiFetch('/api/utenti');
+      if (res.success) {
+        const utenti = res.data.filter(u => !u.riferimento_id); // solo quelli non ancora associati a un soggetto
+        const select = document.getElementById('utenteAssociato');
+        select.innerHTML = '<option value="">-- Nessuno --</option>';
+        utenti.forEach(u => {
+          select.appendChild(new Option(`${u.username} (${u.ruolo})`, u.id));
+        });
+      }
+    } catch (err) {
+      console.error('Errore caricamento utenti:', err);
     }
   }
 
+  // ========== GESTIONE MODALE ==========
   async function apriModaleNuovo() {
     document.getElementById('modalTitolo').innerText = 'Nuovo Soggetto';
     document.getElementById('soggettoId').value = '';
@@ -258,10 +275,14 @@
     document.getElementById('cap').value = '';
     document.getElementById('regione').value = '';
     document.getElementById('attivo').value = 'SI';
-    document.getElementById('livello').value = '0'; // default: nessun livello
+    document.getElementById('livello').value = '0';
     document.getElementById('note').value = '';
-    // Il campo livello è sempre visibile
-    await caricaSoggetti(); // assicura che soggetti sia aggiornato
+    document.getElementById('nuovaPassword').value = '';
+    document.getElementById('passwordGroup').style.display = 'block'; // mostriamo sempre per nuovo, ma poi eventualmente nascondiamo se si sceglie un utente esistente
+    await caricaUtentiLiberi();
+    document.getElementById('utenteAssociato').value = '';
+    togglePasswordField(); // aggiorna visibilità
+    await caricaSoggetti(); // per referenti
     popolaReferentiCheckbox([]);
     document.getElementById('modalSoggetto').style.display = 'flex';
   }
@@ -284,7 +305,28 @@
       document.getElementById('attivo').value = s.attivo === 1 ? 'SI' : 'NO';
       document.getElementById('livello').value = s.livello || '0';
       document.getElementById('note').value = s.note || '';
-      await caricaSoggetti(); // aggiorna lista
+      // Carica utenti liberi e imposta il valore selezionato
+      await caricaUtentiLiberi();
+      const selectUtente = document.getElementById('utenteAssociato');
+      if (s.utenteAssociato) {
+        // Aggiungiamo temporaneamente l'utente già associato se non è nella lista (perché è già associato)
+        let optionExists = false;
+        for (let i = 0; i < selectUtente.options.length; i++) {
+          if (selectUtente.options[i].value == s.utenteAssociato) {
+            optionExists = true;
+            break;
+          }
+        }
+        if (!optionExists && s.utenteAssociato) {
+          // Aggiungi opzione con l'utente già associato
+          selectUtente.appendChild(new Option(`${s.utenteUsername || `Utente ID ${s.utenteAssociato}`} (già associato)`, s.utenteAssociato));
+        }
+        selectUtente.value = s.utenteAssociato;
+      } else {
+        selectUtente.value = '';
+      }
+      document.getElementById('passwordGroup').style.display = 'none'; // in modifica non si può creare nuovo utente
+      await caricaSoggetti(); // aggiorna lista referenti
       popolaReferentiCheckbox(s.referenti || []);
       document.getElementById('modalSoggetto').style.display = 'flex';
     } catch (err) {
@@ -292,9 +334,30 @@
     }
   }
 
-  // Il campo livello è sempre visibile, non serve nasconderlo
-  function toggleLivello() {
-    // Il campo livello rimane sempre visibile per tutti i tipi
+  function popolaReferentiCheckbox(currentReferentiIds = []) {
+    const container = document.getElementById('referentiCheckbox');
+    container.innerHTML = '';
+    const currentId = document.getElementById('soggettoId').value;
+    for (const s of soggetti) {
+      if (currentId && s.id == currentId) continue; // non può essere referente di se stesso
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = s.id;
+      cb.checked = currentReferentiIds.includes(s.id);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(` ${s.tipo} - ${s.nome || ''} ${s.cognome || ''}`.trim()));
+      if (s.livello) label.appendChild(document.createTextNode(` (liv. ${s.livello})`));
+      container.appendChild(label);
+    }
+  }
+
+  function togglePasswordField() {
+    const tipo = document.getElementById('tipo').value;
+    const utenteSelezionato = document.getElementById('utenteAssociato').value;
+    const isPromoter = tipo === 'PROMOTER';
+    const shouldShow = isPromoter && !utenteSelezionato;  // solo per promoter e se non è stato scelto un utente esistente
+    document.getElementById('passwordGroup').style.display = shouldShow ? 'block' : 'none';
   }
 
   async function salvaSoggetto() {
@@ -315,15 +378,21 @@
       referenti: referenti,
       attivo: document.getElementById('attivo').value === 'SI' ? 1 : 0,
       livello: parseInt(document.getElementById('livello').value) || null,
-      note: document.getElementById('note').value
+      note: document.getElementById('note').value,
+      utenteAssociato: document.getElementById('utenteAssociato').value || null,
+      nuovaPassword: document.getElementById('nuovaPassword').value || null
     };
     try {
       if (id) {
         await apiFetch(`/api/soggetti/${id}`, { method: 'PUT', body: JSON.stringify(dati) });
         showMessage('Soggetto aggiornato', 'success');
       } else {
-        await apiFetch('/api/soggetti', { method: 'POST', body: JSON.stringify(dati) });
-        showMessage('Soggetto creato', 'success');
+        const result = await apiFetch('/api/soggetti', { method: 'POST', body: JSON.stringify(dati) });
+        if (result.utenteCreato) {
+          showMessage(`Soggetto creato. Utente "${result.utenteCreato.username}" creato con password: ${result.utenteCreato.password}`, 'info');
+        } else {
+          showMessage('Soggetto creato', 'success');
+        }
       }
       chiudiModale();
       caricaSoggetti();
@@ -333,7 +402,7 @@
   }
 
   async function eliminaSoggetto(id) {
-    if (!confirm('Eliminare questo soggetto?')) return;
+    if (!confirm('Eliminare questo soggetto? L\'utente associato (se esiste) rimarrà senza riferimento.')) return;
     try {
       await apiFetch(`/api/soggetti/${id}`, { method: 'DELETE' });
       showMessage('Soggetto eliminato', 'success');
@@ -358,6 +427,10 @@
     window.location.href = 'Login.html';
   }
 
+  // Event listeners
+  document.getElementById('tipo').addEventListener('change', togglePasswordField);
+  document.getElementById('utenteAssociato').addEventListener('change', togglePasswordField);
+
   window.onload = async () => {
     if (!restoreSession()) {
       window.location.href = 'Login.html';
@@ -373,8 +446,6 @@
     await caricaSoggetti();
     document.getElementById('filtroTipo').addEventListener('change', applicaFiltri);
     document.getElementById('filtroTesto').addEventListener('input', applicaFiltri);
-    document.getElementById('tipo').addEventListener('change', toggleLivello);
-    // Chiudi modale se clicchi fuori
     window.onclick = function(event) {
       const modal = document.getElementById('modalSoggetto');
       if (event.target === modal) chiudiModale();
