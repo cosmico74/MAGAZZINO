@@ -85,9 +85,11 @@
     h3 { font-size: 1.1rem; margin: 8px 0 5px; }
     .form-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-bottom: 6px;
+    }
+    .form-row-4col {
+      grid-template-columns: repeat(4, 1fr);
     }
     .form-group { margin-bottom: 6px; }
     label {
@@ -124,9 +126,14 @@
     }
     .filter-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
       margin-bottom: 5px;
+    }
+    .filter-row-3col {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .filter-row-5col {
+      grid-template-columns: repeat(5, 1fr);
     }
     .filter-group label {
       display: block;
@@ -246,7 +253,7 @@
   <!-- FORM CREAZIONE KIT -->
   <h3>➕ Nuovo Kit</h3>
   <div id="assegnazioneSection" style="display:none;" class="assignment-group">
-    <div class="form-row">
+    <div class="form-row form-row-4col">
       <div class="form-group">
         <label>Sorgente (da cui prelevare i componenti)</label>
         <select id="sourceTipo">
@@ -276,16 +283,16 @@
   </div>
 
   <form id="kitForm" onsubmit="return false;" autocomplete="off">
-    <div class="form-row">
+    <div class="form-row form-row-4col">
       <div class="form-group"><label>Magazzino di destinazione *</label><select id="kitMagazzino" autocomplete="off" required></select></div>
-      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" autocomplete="off" required></div>
-    </div>
-    <div class="form-row">
       <div class="form-group"><label>Sci *</label><input type="text" id="kitSci" list="sciList" autocomplete="off" required placeholder="Cerca sci..."><datalist id="sciList"></datalist></div>
       <div class="form-group"><label>Attacchi *</label><input type="text" id="kitAttacchi" list="attacchiList" autocomplete="off" required placeholder="Cerca attacchi..."><datalist id="attacchiList"></datalist></div>
+      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" autocomplete="off" required></div>
     </div>
-    <div class="form-row">
+    <div class="form-row form-row-4col">
       <div class="form-group"><label>Skistopper</label><input type="text" id="kitSkistopper" list="skistopperList" autocomplete="off" placeholder="Cerca skistopper..."><datalist id="skistopperList"></datalist></div>
+      <div class="form-group"></div>
+      <div class="form-group"></div>
       <div class="form-group"></div>
     </div>
     <div class="form-group"><label>Note</label><textarea id="kitNote" rows="2" autocomplete="off"></textarea></div>
@@ -297,13 +304,12 @@
 
   <!-- FILTRI E AGGIORNAMENTO TABELLA -->
   <div class="filter-section">
-    <div class="filter-row">
+    <div class="filter-row filter-row-3col">
       <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino" autocomplete="off"><option value="">Tutti</option></select></div>
       <div class="filter-group"><label>Settore</label><select id="filtroSettore" autocomplete="off"><option value="">Tutti</option></select></div>
       <div class="filter-group"><label>Marca</label><select id="filtroMarca" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"></div>
     </div>
-    <div class="filter-row">
+    <div class="filter-row filter-row-5col">
       <div class="filter-group">
         <label>Descrizione articolo</label>
         <input type="text" id="filtroDescrizione" list="filtroDescrizioneList" autocomplete="off" placeholder="Contiene...">
@@ -356,16 +362,16 @@
     <h3>✏️ Modifica Kit</h3>
     <form id="editKitForm" onsubmit="return false;" autocomplete="off">
       <input type="hidden" id="editKitId">
-      <div class="form-row">
+      <div class="form-row form-row-4col">
         <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" autocomplete="off" required></select></div>
-        <div class="form-group"><label>Quantità</label><input type="number" id="editKitQuantita" min="1" step="1" autocomplete="off" required></div>
-      </div>
-      <div class="form-row">
         <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" autocomplete="off" required><datalist id="editSciList"></datalist></div>
         <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" autocomplete="off" required><datalist id="editAttacchiList"></datalist></div>
+        <div class="form-group"><label>Quantità</label><input type="number" id="editKitQuantita" min="1" step="1" autocomplete="off" required></div>
       </div>
-      <div class="form-row">
+      <div class="form-row form-row-4col">
         <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList" autocomplete="off"><datalist id="editSkistopperList"></datalist></div>
+        <div class="form-group"></div>
+        <div class="form-group"></div>
         <div class="form-group"></div>
       </div>
       <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
@@ -376,6 +382,8 @@
     </form>
   </div>
 </div>
+
+
 
 <script>
   // ========== UTILITY ==========
