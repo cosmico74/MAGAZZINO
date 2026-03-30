@@ -17,7 +17,7 @@
       background: #f0f2f5;
       display: flex;
       flex-direction: column;
-      padding: 20px;
+      padding: 10px 20px; /* ridotto padding top/bottom */
     }
     .container {
       flex: 1;
@@ -29,7 +29,7 @@
       background: white;
       border-radius: 16px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-      padding: 20px;
+      padding: 5px 15px 10px 15px;
       overflow-y: auto;
     }
     /* Barra superiore con pulsanti */
@@ -37,7 +37,7 @@
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 5px;
     }
     .btn-secondary {
       background: #6c757d;
@@ -48,7 +48,7 @@
     h2 {
       margin-top: 0;
       margin-bottom: 15px;
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       border-left: 5px solid #1a73e8;
       padding-left: 15px;
       color: #1e2a3a;
@@ -58,7 +58,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 3px;
     }
     .external-checkbox {
       display: flex;
@@ -73,11 +73,11 @@
       width: auto;
       margin: 0;
     }
-    h3 { font-size: 1.2rem; margin: 15px 0 10px; }
+    h3 { font-size: 1.1rem; margin: 8px 0 4px; }
     .table-wrapper {
       flex: 1;
       overflow-y: auto;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
       min-height: 200px;
     }
     table {
@@ -96,10 +96,10 @@
       background: #1a73e8;
       color: white;
       border: none;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
     }
     .btn:hover { background: #0f5bb5; }
     .btn-danger { background: #dc3545; }
@@ -107,8 +107,8 @@
     .filter-section {
       background: #f8f9fa;
       border-radius: 10px;
-      padding: 10px 12px;
-      margin: 15px 0;
+      padding: 5px 8px;
+      margin: 5px 0;
     }
     .filter-row {
       display: grid;
@@ -134,7 +134,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 15px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .form-group { margin-bottom: 10px; }
     label {
@@ -210,17 +210,16 @@
 <body>
   
 <div class="container">
-  <!-- BARRA SUPERIORE CON PULSANTI MENU E LOGOUT -->
-  <<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0; line-height: 1;">
   <div class="logo">
-    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 16px;">
+    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 18px;">
   </div>
   <div style="display: flex; gap: 6px;">
-    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'" style="padding: 2px 6px; font-size: 0.7rem;">🏠 Menu</button>
+    <button class="btn btn-secondary" onclick="logout()" style="padding: 2px 6px; font-size: 0.7rem;">🚪 Logout</button>
   </div>
 </div>
-  </div>
+</div>
 
   <div class="header-bar">
     <h2>📦 Composizione Kit</h2>
