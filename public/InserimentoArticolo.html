@@ -386,39 +386,9 @@
          <th data-sort="giacenza">Giacenza Reale</th>
       </thead>
       <tbody></tbody>
-    表格
   </div>
 </div>
 
-<!-- MODALE ARTICOLI IN MAGAZZINO -->
-<div id="modalArticoli" class="modal" style="display: none;">
-  <div class="modal-content">
-    <button class="close-modal" onclick="chiudiModalArticoli()">✖️ Chiudi</button>
-    <h3>📦 Articoli in magazzino</h3>
-    <div id="modalMessage" style="margin-bottom: 10px;"></div>
-    <div class="filter-row-2col" style="margin-bottom: 10px;">
-      <div class="form-group">
-        <label>Filtra per categoria</label>
-        <select id="filtroCategoriaModal">
-          <option value="">Tutte</option>
-        </select>
-      </div>
-      <div>
-        <button class="btn btn-secondary" onclick="applicaFiltroCategoria()">🔍 Filtra</button>
-      </div>
-    </div>
-    <div style="overflow-x: auto;">
-      <table class="article-table">
-        <thead>
-           <th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Qtà Totale</th><th>Giacenza Reale</th>
-        </thead>
-        <tbody id="tabellaArticoliModalBody">
-          <td colspan="6" class="text-center">Caricamento...<\/td>
-        </tbody>
-      表格
-    </div>
-  </div>
-</div>
 
 <script>
   // ========== GESTIONE SESSIONE E UTILITY ==========
