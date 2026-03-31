@@ -125,36 +125,10 @@
       font-size: 0.8rem;
       width: 100%;
     }
-    .filter-section {
-      background: #f8f9fa;
-      border-radius: 10px;
-      padding: 6px 10px;
-      margin: 10px 0;
-    }
-    .filter-row-8col {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 8px;
-      margin-bottom: 5px;
-    }
-    .filter-group label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 2px;
-      font-size: 0.65rem;
-      color: #2c3e50;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 3px 5px;
-      border: 1px solid #cbd5e0;
-      border-radius: 4px;
-      font-size: 0.7rem;
-    }
-    .toolbar {
+    .filter-toolbar {
       display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
+      gap: 8px;
+      margin: 10px 0 8px;
       justify-content: flex-start;
     }
     .table-wrapper {
@@ -162,20 +136,25 @@
       overflow-y: auto;
       margin-bottom: 10px;
       min-height: 200px;
+      position: relative;
     }
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.75rem;
     }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 5px;
-      text-align: left;
-    }
     th {
       background: #f8f9fa;
       font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border: 1px solid #ddd;
+      padding: 5px;
+    }
+    td {
+      border: 1px solid #ddd;
+      padding: 5px;
     }
     .message {
       padding: 6px;
@@ -403,31 +382,21 @@
     </div>
   </form>
 
-  <!-- FILTRI ESISTENTI (riutilizzati per la tabella) -->
-  <div class="filter-section">
-    <div class="filter-row-8col">
-      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" placeholder="Contiene..."></div>
-      <div class="filter-group"><label>Codice Modello</label><input type="text" id="filtroCodiceModello" placeholder="Contiene..."></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
-    </div>
-    <div class="toolbar">
-      <button class="btn" onclick="applicaFiltri()">🔍 Filtra</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-    </div>
+  <!-- Barra strumenti per filtrare la tabella -->
+  <div class="filter-toolbar">
+    <button class="btn" onclick="filtraTabella()">🔍 Filtra tabella</button>
+    <button class="btn btn-secondary" onclick="resetFiltriTabella()">🔄 Reset filtri</button>
   </div>
 
-  <!-- TABELLA ARTICOLI -->
+  <!-- Tabella articoli filtrata -->
   <div class="table-wrapper">
-    <table id="tabellaArticoliFiltrati">
+    <table id="tabellaArticoli">
       <thead>
          <th>ID</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Qtà Totale</th><th>Giacenza Reale</th>
       </thead>
-      <tbody></tbody>
+      <tbody>
+         <td colspan="8" class="text-center">Caricamento...<\/td>
+      </tbody>
     表格
   </div>
 </div>
@@ -463,7 +432,7 @@
 </div>
 
 <script>
-  // ========== UTILITY ==========
+  // ========== GESTIONE SESSIONE E UTILITY ==========
   function getAuthHeader() {
     const token = localStorage.getItem('token');
     if (!token) return null;
@@ -498,7 +467,7 @@
     return true;
   }
 
-  // ========== CARICAMENTO DATI DEI SELECT (form) ==========
+  // ========== CARICAMENTO DATI DEI SELECT ==========
   let categorieCompleto = [];
   const magazzinoSelect = document.getElementById('magazzino');
   const settoreSelect = document.getElementById('settore');
@@ -605,7 +574,7 @@
     document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
   }
 
-  // ========== FILTRI INCROCIATI PER DATALIST (form) ==========
+  // ========== FILTRI INCROCIATI PER DATALIST ==========
   const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
   const endpointMap = {
     descrizione: '/api/articoli/valori/descrizioni',
@@ -800,6 +769,7 @@
         }
       }
 
+      // Reset form
       document.getElementById('descrizione').value = '';
       document.getElementById('sigla').value = '';
       document.getElementById('lunghezza').value = '';
@@ -819,86 +789,65 @@
     }
   }
 
-  // ========== TABELLA ARTICOLI CON FILTRI ESISTENTI ==========
-  const filtroMag = document.getElementById('filtroMagazzino');
-  const filtroSet = document.getElementById('filtroSettore');
-  const filtroMar = document.getElementById('filtroMarca');
-  const filtroDesc = document.getElementById('filtroDescrizione');
-  const filtroSigla = document.getElementById('filtroSigla');
-  const filtroCodMod = document.getElementById('filtroCodiceModello');
-  const filtroLung = document.getElementById('filtroLunghezza');
-  const filtroDur = document.getElementById('filtroDurezza');
-
-  let articoliFiltrati = [];
-
-  async function caricaArticoliFiltrati() {
+  // ========== TABELLA ARTICOLI FILTRATA (usa i campi del form) ==========
+  async function filtraTabella() {
     try {
       const params = new URLSearchParams();
-      if (filtroMag.value) params.append('magazzino', filtroMag.value);
-      if (filtroSet.value) params.append('settore', filtroSet.value);
-      if (filtroMar.value) params.append('marca', filtroMar.value);
-      if (filtroDesc.value) params.append('descrizione', filtroDesc.value);
-      if (filtroSigla.value) params.append('sigla', filtroSigla.value);
-      if (filtroCodMod.value) params.append('codice_modello', filtroCodMod.value);
-      if (filtroLung.value) params.append('lunghezza', filtroLung.value);
-      if (filtroDur.value) params.append('durezza', filtroDur.value);
+      if (magazzinoSelect.value) params.append('magazzino', magazzinoSelect.value);
+      if (settoreSelect.value) params.append('settore', settoreSelect.value);
+      if (marcaSelect.value) params.append('marca', marcaSelect.value);
+      if (document.getElementById('descrizione').value.trim())
+        params.append('descrizione', document.getElementById('descrizione').value.trim());
+      if (document.getElementById('sigla').value.trim())
+        params.append('sigla', document.getElementById('sigla').value.trim());
+      if (document.getElementById('codice_modello').value.trim())
+        params.append('codice_modello', document.getElementById('codice_modello').value.trim());
+      if (document.getElementById('lunghezza').value.trim())
+        params.append('lunghezza', document.getElementById('lunghezza').value.trim());
+      if (document.getElementById('durezza').value.trim())
+        params.append('durezza', document.getElementById('durezza').value.trim());
+
       const res = await apiFetch(`/api/articoli?${params.toString()}`);
+      const tbody = document.querySelector('#tabellaArticoli tbody');
       if (res.success) {
-        articoliFiltrati = res.data;
-        renderTabellaFiltrata();
+        const articoli = res.data;
+        tbody.innerHTML = '';
+        if (articoli.length === 0) {
+          tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato<\/td>';
+          return;
+        }
+        articoli.forEach(a => {
+          const row = tbody.insertRow();
+          row.insertCell(0).innerText = a.id;
+          row.insertCell(1).innerText = a.codice;
+          row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
+          row.insertCell(3).innerText = a.lunghezza || '';
+          row.insertCell(4).innerText = a.durezza || '';
+          row.insertCell(5).innerText = a.sigla || '';
+          row.insertCell(6).innerText = a.quantita_totale || 0;
+          const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+          row.insertCell(7).innerText = giacenza;
+        });
       } else {
-        showMessage('Errore caricamento articoli', 'error');
+        throw new Error(res.message);
       }
     } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
+      showMessage('Errore caricamento articoli: ' + err.message, 'error');
+      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore<\/td>';
     }
   }
 
-  function renderTabellaFiltrata() {
-    const tbody = document.querySelector('#tabellaArticoliFiltrati tbody');
-    tbody.innerHTML = '';
-    if (articoliFiltrati.length === 0) {
-      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato<\/td>';
-      return;
-    }
-    articoliFiltrati.forEach(a => {
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = a.id;
-      row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
-      row.insertCell(3).innerText = a.lunghezza || '';
-      row.insertCell(4).innerText = a.durezza || '';
-      row.insertCell(5).innerText = a.sigla || '';
-      row.insertCell(6).innerText = a.quantita_totale || 0;
-      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-      row.insertCell(7).innerText = giacenza;
-    });
-  }
-
-  let debounceTimer;
-  function handleFilterChange() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => caricaArticoliFiltrati(), 300);
-  }
-
-  function attachFilterEvents() {
-    const inputs = [filtroDesc, filtroSigla, filtroCodMod, filtroLung, filtroDur];
-    inputs.forEach(el => el.addEventListener('input', handleFilterChange));
-    const selects = [filtroMag, filtroSet, filtroMar];
-    selects.forEach(el => el.addEventListener('change', handleFilterChange));
-  }
-
-  function applicaFiltri() { caricaArticoliFiltrati(); }
-  function resetFiltri() {
-    filtroMag.value = '';
-    filtroSet.value = '';
-    filtroMar.value = '';
-    filtroDesc.value = '';
-    filtroSigla.value = '';
-    filtroCodMod.value = '';
-    filtroLung.value = '';
-    filtroDur.value = '';
-    caricaArticoliFiltrati();
+  function resetFiltriTabella() {
+    magazzinoSelect.value = '';
+    settoreSelect.value = '';
+    categoriaSelect.value = '';
+    marcaSelect.value = '';
+    document.getElementById('descrizione').value = '';
+    document.getElementById('sigla').value = '';
+    document.getElementById('codice_modello').value = '';
+    document.getElementById('lunghezza').value = '';
+    document.getElementById('durezza').value = '';
+    filtraTabella();
   }
 
   // ========== MODALE ARTICOLI IN MAGAZZINO ==========
@@ -964,18 +913,8 @@
     }
     await caricaMagazzini();
     attachEvents();
-
-    // Popola i select dei filtri (magazzino, settore, marca)
-    const magazzini = await apiFetch('/api/anagrafiche/magazzini');
-    const settori = await apiFetch('/api/anagrafiche/settori');
-    const marche = await apiFetch('/api/anagrafiche/marche');
-    filtroMag.innerHTML = '<option value="">Tutti</option>'; magazzini.forEach(m => filtroMag.appendChild(new Option(m.nome, m.id)));
-    filtroSet.innerHTML = '<option value="">Tutti</option>'; settori.forEach(s => filtroSet.appendChild(new Option(s.nome, s.id)));
-    filtroMar.innerHTML = '<option value="">Tutti</option>'; marche.forEach(m => filtroMar.appendChild(new Option(m.nome, m.id)));
-
-    attachFilterEvents();
-    await caricaArticoliFiltrati();
-    // Datalist iniziali per il form
+    // Carica la tabella con tutti gli articoli (nessun filtro iniziale)
+    await filtraTabella();
     setTimeout(async () => {
       await refreshAllDatalists();
     }, 500);
