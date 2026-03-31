@@ -295,15 +295,21 @@
     <div class="form-row-4col">
       <div class="form-group">
         <label>Magazzino *</label>
-        <select id="magazzino" required></select>
+        <select id="magazzino" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Settore *</label>
-        <select id="settore" required></select>
+        <select id="settore" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Categoria *</label>
-        <select id="categoria" required></select>
+        <select id="categoria" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
       </div>
       <div class="form-group" style="display: flex; justify-content: flex-start; align-items: center;">
         <div class="inline-checkbox">
@@ -481,19 +487,114 @@
 
   function restoreSession() { return !!localStorage.getItem('token'); }
 
-  // ========== CARICAMENTO DATI FORM ==========
+  // ========== CARICAMENTO DATI DEI SELECT (form) ==========
   let categorieCompleto = [];
   const magazzinoSelect = document.getElementById('magazzino');
   const settoreSelect = document.getElementById('settore');
   const categoriaSelect = document.getElementById('categoria');
   const marcaSelect = document.getElementById('marca');
 
-  async function caricaMagazzini() { /* ... stessa logica originale ... */ }
-  async function caricaSettori() { /* ... */ }
-  async function caricaCategorie() { /* ... */ }
-  async function caricaMarche() { /* ... */ }
+  function setDefaultSelect(selectElement, testiValidi) {
+    if (!selectElement) return false;
+    for (let i = 0; i < selectElement.options.length; i++) {
+      const opt = selectElement.options[i];
+      const testoMin = opt.text.toLowerCase();
+      for (let valido of testiValidi) {
+        if (testoMin === valido.toLowerCase()) {
+          selectElement.value = opt.value;
+          console.log(`Default impostato per ${selectElement.id} -> ${opt.value} (${opt.text})`);
+          return true;
+        }
+      }
+    }
+    console.warn(`Default non trovato per ${selectElement.id} con testi:`, testiValidi);
+    return false;
+  }
 
-  // ========== DATALIST INCROCIATI ==========
+  async function caricaMagazzini() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/magazzini');
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      data.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.nome;
+        magazzinoSelect.appendChild(option);
+      });
+      setDefaultSelect(magazzinoSelect, ['race']);
+      await caricaSettori();
+    } catch (err) {
+      console.error(err);
+      magazzinoSelect.innerHTML = '<option value="">Errore caricamento magazzini</option>';
+      showMessage('Errore caricamento magazzini', 'error');
+    }
+  }
+
+  async function caricaSettori() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/settori');
+      settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
+      data.forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.id;
+        option.textContent = s.nome;
+        settoreSelect.appendChild(option);
+      });
+      setDefaultSelect(settoreSelect, ['sci alpino', 'alpino']);
+      await caricaCategorie();
+    } catch (err) {
+      console.error(err);
+      settoreSelect.innerHTML = '<option value="">Errore caricamento settori</option>';
+    }
+  }
+
+  async function caricaCategorie() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/categorie');
+      categorieCompleto = data;
+      categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
+      data.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.nome;
+        categoriaSelect.appendChild(option);
+      });
+      setDefaultSelect(categoriaSelect, ['sci']);
+      await caricaMarche();
+      toggleLunghezzaDurezza();
+    } catch (err) {
+      console.error(err);
+      categoriaSelect.innerHTML = '<option value="">Errore caricamento categorie</option>';
+    }
+  }
+
+  async function caricaMarche() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/marche');
+      marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
+      data.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.nome;
+        marcaSelect.appendChild(option);
+      });
+      setDefaultSelect(marcaSelect, ['kastle', 'Kastle']);
+    } catch (err) {
+      console.error(err);
+      marcaSelect.innerHTML = '<option value="">Errore caricamento marche</option>';
+    }
+  }
+
+  function toggleLunghezzaDurezza() {
+    const catId = categoriaSelect.value;
+    const categoria = categorieCompleto.find(c => c.id == catId);
+    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : false;
+    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : false;
+    document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
+    document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
+  }
+
+  // ========== FILTRI INCROCIATI PER DATALIST ==========
   const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
   const endpointMap = {
     descrizione: '/api/articoli/valori/descrizioni',
@@ -503,8 +604,80 @@
     codice_modello: '/api/articoli/valori/modelli'
   };
 
-  // ... tutte le funzioni esistenti (getCurrentFilters, aggiornaDatalist, refreshAllDatalists, attachEvents, toggleLunghezzaDurezza)
-  // Per brevità le ometto, ma nel file finale vanno inserite esattamente come nell'originale.
+  function getCurrentFilters() {
+    const filters = {};
+    for (let field of filterFields) {
+      let el;
+      if (field === 'magazzino') el = magazzinoSelect;
+      else if (field === 'settore') el = settoreSelect;
+      else if (field === 'categoria') el = categoriaSelect;
+      else if (field === 'marca') el = marcaSelect;
+      else el = document.getElementById(field);
+      if (el) filters[field] = el.value;
+    }
+    return filters;
+  }
+
+  async function aggiornaDatalist(campo, endpoint) {
+    const filters = getCurrentFilters();
+    delete filters[campo];
+    const params = new URLSearchParams();
+    for (let [key, value] of Object.entries(filters)) {
+      if (value && value !== '') params.append(key, value);
+    }
+    const url = `${endpoint}?${params.toString()}`;
+    try {
+      const data = await apiFetch(url);
+      const datalist = document.getElementById(`${campo}List`);
+      if (!datalist) return;
+      datalist.innerHTML = '';
+      data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[campo];
+        datalist.appendChild(option);
+      });
+      console.log(`Datalist ${campo} aggiornato con ${data.length} voci`);
+    } catch (err) {
+      console.error(`Errore aggiornamento datalist ${campo}:`, err);
+    }
+  }
+
+  async function refreshAllDatalists() {
+    for (let [campo, endpoint] of Object.entries(endpointMap)) {
+      await aggiornaDatalist(campo, endpoint);
+    }
+  }
+
+  function attachEvents() {
+    magazzinoSelect.addEventListener('change', () => {
+      console.log('Magazzino cambiato');
+      refreshAllDatalists();
+    });
+    settoreSelect.addEventListener('change', () => {
+      console.log('Settore cambiato');
+      refreshAllDatalists();
+    });
+    categoriaSelect.addEventListener('change', () => {
+      console.log('Categoria cambiata');
+      toggleLunghezzaDurezza();
+      refreshAllDatalists();
+    });
+    marcaSelect.addEventListener('change', () => {
+      console.log('Marca cambiata');
+      refreshAllDatalists();
+    });
+
+    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+    textFields.forEach(field => {
+      const input = document.getElementById(field);
+      if (input) {
+        input.addEventListener('change', () => {
+          console.log(`${field} cambiato:`, input.value);
+          refreshAllDatalists();
+        });
+      }
+    });
+  }
 
   // ========== GESTIONE ASSEGNAZIONE OPZIONALE ==========
   const assegnaCheckbox = document.getElementById('assegnaCheckbox');
@@ -515,14 +688,130 @@
 
   assegnaCheckbox.addEventListener('change', () => {
     assegnaSection.style.display = assegnaCheckbox.checked ? 'block' : 'none';
-    if (assegnaCheckbox.checked && destinazioneId.options.length <= 1) caricaDestinazioni();
+    if (assegnaCheckbox.checked && destinazioneId.options.length <= 1) {
+      caricaDestinazioni();
+    }
   });
 
-  async function caricaDestinazioni() { /* ... originale ... */ }
-  destinazioneTipo.addEventListener('change', () => { if (assegnaCheckbox.checked) caricaDestinazioni(); });
+  async function caricaDestinazioni() {
+    const tipo = destinazioneTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destinazioneId.appendChild(new Option(testo, item.id));
+      });
+    } catch (err) {
+      console.error('Errore caricamento destinazioni:', err);
+      showMessage('Errore caricamento destinazioni', 'error');
+    }
+  }
 
-  // ========== SALVATAGGIO ==========
-  async function salvaArticolo() { /* ... originale ... */ }
+  destinazioneTipo.addEventListener('change', () => {
+    if (assegnaCheckbox.checked) caricaDestinazioni();
+  });
+
+  // ========== SALVATAGGIO ARTICOLO + ASSEGNAZIONE OPZIONALE ==========
+  async function salvaArticolo() {
+    const descrizione = document.getElementById('descrizione').value.trim();
+    const magazzino = magazzinoSelect.value;
+    const settore = settoreSelect.value;
+    const categoria = categoriaSelect.value;
+    const marca = marcaSelect.value;
+    const lunghezza = document.getElementById('lunghezza').value.trim();
+    const durezza = document.getElementById('durezza').value.trim();
+    const quantita = parseInt(document.getElementById('quantita').value);
+    const versione = document.getElementById('versione').value.trim();
+    const note = document.getElementById('note').value.trim();
+    const sigla = document.getElementById('sigla').value.trim();
+    const codiceModello = document.getElementById('codice_modello').value.trim();
+
+    if (!descrizione || !magazzino || !settore || !categoria || !marca || !quantita) {
+      showMessage('Compila tutti i campi obbligatori', 'error');
+      return;
+    }
+
+    const payload = {
+      descrizione,
+      magazzino: parseInt(magazzino),
+      settore: parseInt(settore),
+      categoria: parseInt(categoria),
+      marca: parseInt(marca),
+      lunghezza: lunghezza || '',
+      durezza: durezza || '',
+      quantita,
+      versione: versione || '1.0',
+      note: note || '',
+      sigla: sigla || null,
+      codiceModello: codiceModello || null
+    };
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio in corso...';
+
+    try {
+      // 1. Salva articolo (o aggiorna quantità)
+      const articleResult = await apiFetch('/api/articoli', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (!articleResult.success) {
+        throw new Error(articleResult.message);
+      }
+      const articleId = articleResult.id;
+      showMessage(articleResult.message, 'success');
+
+      // 2. Se richiesto, assegna l'articolo al destinatario
+      if (assegnaCheckbox.checked) {
+        const destinazioneTipoVal = destinazioneTipo.value;
+        const destinazioneIdVal = destinazioneId.value;
+        if (!destinazioneIdVal) {
+          showMessage('Articolo salvato, ma manca il destinatario per l\'assegnazione.', 'error');
+        } else {
+          const assignPayload = {
+            magazzinoId: parseInt(magazzino),
+            destinazioneTipo: destinazioneTipoVal,
+            destinazioneId: parseInt(destinazioneIdVal),
+            note: assegnaNote.value.trim() || note,
+            oggetti: [{
+              tipoOggetto: 'ARTICOLO',
+              oggettoId: articleId,
+              quantita: quantita
+            }]
+          };
+          const assignResult = await apiFetch('/api/assegnazioni/uscita/batch', {
+            method: 'POST',
+            body: JSON.stringify(assignPayload)
+          });
+          if (assignResult.success) {
+            showMessage(`Articolo assegnato a ${destinazioneTipoVal} con successo`, 'success');
+          } else {
+            showMessage(`Articolo salvato ma assegnazione fallita: ${assignResult.message}`, 'error');
+          }
+        }
+      }
+
+      // Reset form
+      document.getElementById('descrizione').value = '';
+      document.getElementById('sigla').value = '';
+      document.getElementById('lunghezza').value = '';
+      document.getElementById('durezza').value = '';
+      document.getElementById('codice_modello').value = '';
+      document.getElementById('quantita').value = 1;
+      document.getElementById('note').value = '';
+      assegnaCheckbox.checked = false;
+      assegnaSection.style.display = 'none';
+      refreshAllDatalists();
+    } catch (err) {
+      console.error('Errore:', err);
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '💾 Salva Articolo';
+    }
+  }
 
   // ========== TABELLA ARTICOLI CON FILTRI ==========
   let articoliFiltrati = [];
@@ -653,17 +942,41 @@
   // ========== INIZIALIZZAZIONE ==========
   window.onload = async () => {
     if (!restoreSession()) { window.location.href = 'Login.html'; return; }
-    await caricaMagazzini(); // e tutte le altre cariche anagrafiche
-    attachEvents(); // per i datalist del form
-    attachFilterEvents();
-    // Popola select filtri (magazzino, settore, marca) con le stesse liste
+    await caricaMagazzini();   // carica i select del form
+    attachEvents();            // per i datalist incrociati
+    // Popola i select dei filtri (magazzino, settore, marca)
     const magazzini = await apiFetch('/api/anagrafiche/magazzini');
     const settori = await apiFetch('/api/anagrafiche/settori');
     const marche = await apiFetch('/api/anagrafiche/marche');
     filtroMag.innerHTML = '<option value="">Tutti</option>'; magazzini.forEach(m => filtroMag.appendChild(new Option(m.nome, m.id)));
     filtroSet.innerHTML = '<option value="">Tutti</option>'; settori.forEach(s => filtroSet.appendChild(new Option(s.nome, s.id)));
     filtroMar.innerHTML = '<option value="">Tutti</option>'; marche.forEach(m => filtroMar.appendChild(new Option(m.nome, m.id)));
+    attachFilterEvents();
     await caricaArticoli();
+    // Datalist dei filtri (per i campi testo)
+    const filterEndpointMap = {
+      descrizioni: '/api/articoli/valori/descrizioni',
+      sigle: '/api/articoli/valori/sigle',
+      modelli: '/api/articoli/valori/modelli',
+      lunghezze: '/api/articoli/valori/lunghezze',
+      durezze: '/api/articoli/valori/durezze'
+    };
+    const popolaFilterDatalist = async (field, datalistId, endpoint) => {
+      try {
+        const res = await apiFetch(endpoint);
+        const datalist = document.getElementById(datalistId);
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        res.forEach(item => {
+          const option = document.createElement('option');
+          option.value = item[field];
+          datalist.appendChild(option);
+        });
+      } catch(e) { console.error(`Errore caricamento ${field}`, e); }
+    };
+    for (const [field, endpoint] of Object.entries(filterEndpointMap)) {
+      await popolaFilterDatalist(field, `filtro${field.charAt(0).toUpperCase() + field.slice(1)}List`, endpoint);
+    }
   };
 </script>
 </body>
