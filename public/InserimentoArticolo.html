@@ -125,12 +125,6 @@
       font-size: 0.8rem;
       width: 100%;
     }
-    .filter-toolbar {
-      display: flex;
-      gap: 8px;
-      margin: 10px 0 8px;
-      justify-content: flex-start;
-    }
     .table-wrapper {
       flex: 1;
       overflow-y: auto;
@@ -382,21 +376,13 @@
     </div>
   </form>
 
-  <!-- Barra strumenti per filtrare la tabella -->
-  <div class="filter-toolbar">
-    <button class="btn" onclick="filtraTabella()">🔍 Filtra tabella</button>
-    <button class="btn btn-secondary" onclick="resetFiltriTabella()">🔄 Reset filtri</button>
-  </div>
-
-  <!-- Tabella articoli filtrata -->
+  <!-- Tabella articoli filtrata (auto-aggiornante) -->
   <div class="table-wrapper">
     <table id="tabellaArticoli">
       <thead>
          <th>ID</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Qtà Totale</th><th>Giacenza Reale</th>
       </thead>
-      <tbody>
-         <td colspan="8" class="text-center">Caricamento...<\/td>
-      </tbody>
+      <tbody></tbody>
     表格
   </div>
 </div>
@@ -632,28 +618,33 @@
     magazzinoSelect.addEventListener('change', () => {
       console.log('Magazzino cambiato');
       refreshAllDatalists();
+      aggiornaTabellaDebounced();
     });
     settoreSelect.addEventListener('change', () => {
       console.log('Settore cambiato');
       refreshAllDatalists();
+      aggiornaTabellaDebounced();
     });
     categoriaSelect.addEventListener('change', () => {
       console.log('Categoria cambiata');
       toggleLunghezzaDurezza();
       refreshAllDatalists();
+      // La categoria non filtra la tabella direttamente (non c'è filtro categoria nella tabella)
     });
     marcaSelect.addEventListener('change', () => {
       console.log('Marca cambiata');
       refreshAllDatalists();
+      aggiornaTabellaDebounced();
     });
 
     const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
     textFields.forEach(field => {
       const input = document.getElementById(field);
       if (input) {
-        input.addEventListener('change', () => {
+        input.addEventListener('input', () => {
           console.log(`${field} cambiato:`, input.value);
           refreshAllDatalists();
+          aggiornaTabellaDebounced();
         });
       }
     });
@@ -780,6 +771,7 @@
       assegnaCheckbox.checked = false;
       assegnaSection.style.display = 'none';
       refreshAllDatalists();
+      aggiornaTabellaDebounced(); // aggiorna la tabella dopo il salvataggio
     } catch (err) {
       console.error('Errore:', err);
       showMessage('Errore: ' + err.message, 'error');
@@ -789,8 +781,9 @@
     }
   }
 
-  // ========== TABELLA ARTICOLI FILTRATA (usa i campi del form) ==========
-  async function filtraTabella() {
+  // ========== TABELLA ARTICOLI AUTO-AGGIORNANTE ==========
+  let debounceTimer;
+  async function aggiornaTabella() {
     try {
       const params = new URLSearchParams();
       if (magazzinoSelect.value) params.append('magazzino', magazzinoSelect.value);
@@ -837,17 +830,9 @@
     }
   }
 
-  function resetFiltriTabella() {
-    magazzinoSelect.value = '';
-    settoreSelect.value = '';
-    categoriaSelect.value = '';
-    marcaSelect.value = '';
-    document.getElementById('descrizione').value = '';
-    document.getElementById('sigla').value = '';
-    document.getElementById('codice_modello').value = '';
-    document.getElementById('lunghezza').value = '';
-    document.getElementById('durezza').value = '';
-    filtraTabella();
+  function aggiornaTabellaDebounced() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => aggiornaTabella(), 300);
   }
 
   // ========== MODALE ARTICOLI IN MAGAZZINO ==========
@@ -913,8 +898,7 @@
     }
     await caricaMagazzini();
     attachEvents();
-    // Carica la tabella con tutti gli articoli (nessun filtro iniziale)
-    await filtraTabella();
+    await aggiornaTabella(); // carica tabella iniziale
     setTimeout(async () => {
       await refreshAllDatalists();
     }, 500);
