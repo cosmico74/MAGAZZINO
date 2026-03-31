@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Inserimento Articolo - Filtri incrociati</title>
+  <title>📦 Inserimento Articolo - Magazzino</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -46,7 +46,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      max-width: 1400px;
+      max-width: 1000px;
       width: 100%;
       margin: 0 auto;
       background: white;
@@ -124,58 +124,6 @@
       padding: 6px 12px;
       font-size: 0.8rem;
       width: 100%;
-    }
-    .filter-section {
-      background: #f8f9fa;
-      border-radius: 10px;
-      padding: 6px 10px;
-      margin: 10px 0;
-    }
-    .filter-row-5col {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      margin-bottom: 5px;
-    }
-    .filter-group label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 2px;
-      font-size: 0.65rem;
-      color: #2c3e50;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 3px 5px;
-      border: 1px solid #cbd5e0;
-      border-radius: 4px;
-      font-size: 0.7rem;
-    }
-    .toolbar {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      justify-content: flex-start;
-    }
-    .table-wrapper {
-      flex: 1;
-      overflow-y: auto;
-      margin-bottom: 10px;
-      min-height: 180px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.75rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 5px;
-      text-align: left;
-    }
-    th {
-      background: #f8f9fa;
-      font-weight: 600;
     }
     .message {
       padding: 6px;
@@ -290,7 +238,7 @@
   <div id="messageArea"></div>
 
   <form id="articleForm" onsubmit="return false;">
-    <!-- Riga 1: Magazzino, Settore, Categoria, Marca + checkbox -->
+    <!-- Riga 1: Magazzino, Settore, Categoria, Marca + checkbox a sinistra -->
     <div class="form-row-4col">
       <div class="form-group">
         <label>Magazzino *</label>
@@ -307,12 +255,6 @@
       <div class="form-group">
         <label>Categoria *</label>
         <select id="categoria" required>
-          <option value="">⏳ Caricamento...</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Marca *</label>
-        <select id="marca" required>
           <option value="">⏳ Caricamento...</option>
         </select>
       </div>
@@ -402,38 +344,6 @@
       <div class="info-note">L'articolo verrà assegnato al soggetto scelto subito dopo la creazione.</div>
     </div>
   </form>
-
-  <!-- FILTRI e TABELLA ARTICOLI -->
-  <div class="filter-section">
-    <div class="filter-row-5col">
-      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="filtroSettore" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Marca</label><select id="filtroMarca" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="filtroDescrizioneList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroDescrizioneList"></datalist></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="filtroSiglaList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroSiglaList"></datalist></div>
-    </div>
-    <div class="filter-row-5col">
-      <div class="filter-group"><label>Codice Modello</label><input type="text" id="filtroCodiceModello" list="filtroCodiceModelloList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroCodiceModelloList"></datalist></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="filtroLunghezzaList" autocomplete="off" placeholder="Esatta"><datalist id="filtroLunghezzaList"></datalist></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="filtroDurezzaList" autocomplete="off" placeholder="Esatta"><datalist id="filtroDurezzaList"></datalist></div>
-      <div class="filter-group"></div>
-      <div class="filter-group"></div>
-    </div>
-    <div class="toolbar">
-      <button class="btn" onclick="filtraArticoli()">🔍 Filtra articoli</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-      <button class="btn" onclick="caricaArticoli()">🔄 Aggiorna tabella</button>
-    </div>
-  </div>
-
-  <div class="table-wrapper">
-    <table id="tabellaArticoli">
-      <thead>
-         <th>ID</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Qtà Totale</th><th>Giacenza Reale</th>
-      </thead>
-      <tbody></tbody>
-    表格
-  </div>
 </div>
 
 <!-- MODALE ARTICOLI IN MAGAZZINO -->
@@ -443,7 +353,7 @@
     <h3>📦 Articoli in magazzino</h3>
     <div id="modalMessage" style="margin-bottom: 10px;"></div>
     <div class="filter-row-2col" style="margin-bottom: 10px;">
-      <div class="filter-group">
+      <div class="form-group">
         <label>Filtra per categoria</label>
         <select id="filtroCategoriaModal">
           <option value="">Tutte</option>
@@ -828,77 +738,6 @@
     }
   }
 
-  // ========== TABELLA ARTICOLI CON FILTRI ==========
-  let articoliFiltrati = [];
-  const filtroMag = document.getElementById('filtroMagazzino');
-  const filtroSet = document.getElementById('filtroSettore');
-  const filtroMar = document.getElementById('filtroMarca');
-  const filtroDesc = document.getElementById('filtroDescrizione');
-  const filtroSigla = document.getElementById('filtroSigla');
-  const filtroCodMod = document.getElementById('filtroCodiceModello');
-  const filtroLung = document.getElementById('filtroLunghezza');
-  const filtroDur = document.getElementById('filtroDurezza');
-
-  async function caricaArticoli() {
-    try {
-      const params = new URLSearchParams();
-      if (filtroMag.value) params.append('magazzino', filtroMag.value);
-      if (filtroSet.value) params.append('settore', filtroSet.value);
-      if (filtroMar.value) params.append('marca', filtroMar.value);
-      if (filtroDesc.value) params.append('descrizione', filtroDesc.value);
-      if (filtroSigla.value) params.append('sigla', filtroSigla.value);
-      if (filtroCodMod.value) params.append('codice_modello', filtroCodMod.value);
-      if (filtroLung.value) params.append('lunghezza', filtroLung.value);
-      if (filtroDur.value) params.append('durezza', filtroDur.value);
-      const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      if (res.success) {
-        articoliFiltrati = res.data;
-        renderTabellaArticoli();
-      } else showMessage('Errore caricamento articoli', 'error');
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
-  }
-
-  function renderTabellaArticoli() {
-    const tbody = document.querySelector('#tabellaArticoli tbody');
-    tbody.innerHTML = '';
-    if (articoliFiltrati.length === 0) {
-      tbody.innerHTML = '<td colspan="7" class="text-center">Nessun articolo trovato<\/td>';
-      return;
-    }
-    articoliFiltrati.forEach(a => {
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = a.id;
-      row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
-      row.insertCell(3).innerText = a.lunghezza || '';
-      row.insertCell(4).innerText = a.durezza || '';
-      row.insertCell(5).innerText = a.quantita_totale;
-      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-      row.insertCell(6).innerText = giacenza;
-    });
-  }
-
-  let debounceTimer;
-  function handleFilterChange() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => { caricaArticoli(); }, 300);
-  }
-
-  function attachFilterEvents() {
-    [filtroMag, filtroSet, filtroMar, filtroDesc, filtroSigla, filtroCodMod, filtroLung, filtroDur].forEach(el => {
-      if (el) el.addEventListener('input', handleFilterChange);
-      if (el && el.tagName === 'SELECT') el.addEventListener('change', handleFilterChange);
-    });
-  }
-
-  function filtraArticoli() { caricaArticoli(); }
-  function resetFiltri() {
-    filtroMag.value = ''; filtroSet.value = ''; filtroMar.value = '';
-    filtroDesc.value = ''; filtroSigla.value = ''; filtroCodMod.value = '';
-    filtroLung.value = ''; filtroDur.value = '';
-    caricaArticoli();
-  }
-
   // ========== MODALE ARTICOLI IN MAGAZZINO ==========
   let articoliMagazzino = [];
   async function mostraArticoliMagazzino() {
@@ -962,42 +801,10 @@
     }
     await caricaMagazzini();
     attachEvents();
-
-    // Popola i select dei filtri
-    const magazzini = await apiFetch('/api/anagrafiche/magazzini');
-    const settori = await apiFetch('/api/anagrafiche/settori');
-    const marche = await apiFetch('/api/anagrafiche/marche');
-    filtroMag.innerHTML = '<option value="">Tutti</option>'; magazzini.forEach(m => filtroMag.appendChild(new Option(m.nome, m.id)));
-    filtroSet.innerHTML = '<option value="">Tutti</option>'; settori.forEach(s => filtroSet.appendChild(new Option(s.nome, s.id)));
-    filtroMar.innerHTML = '<option value="">Tutti</option>'; marche.forEach(m => filtroMar.appendChild(new Option(m.nome, m.id)));
-
-    attachFilterEvents();
-    await caricaArticoli();
-
-    // Datalist per i campi filtro (descrizione, sigla, modello, lunghezza, durezza)
-    const filterEndpointMap = {
-      descrizioni: '/api/articoli/valori/descrizioni',
-      sigle: '/api/articoli/valori/sigle',
-      modelli: '/api/articoli/valori/modelli',
-      lunghezze: '/api/articoli/valori/lunghezze',
-      durezze: '/api/articoli/valori/durezze'
-    };
-    const popolaFilterDatalist = async (field, datalistId, endpoint) => {
-      try {
-        const res = await apiFetch(endpoint);
-        const datalist = document.getElementById(datalistId);
-        if (!datalist) return;
-        datalist.innerHTML = '';
-        res.forEach(item => {
-          const option = document.createElement('option');
-          option.value = item[field];
-          datalist.appendChild(option);
-        });
-      } catch(e) { console.error(`Errore caricamento ${field}`, e); }
-    };
-    for (const [field, endpoint] of Object.entries(filterEndpointMap)) {
-      await popolaFilterDatalist(field, `filtro${field.charAt(0).toUpperCase() + field.slice(1)}List`, endpoint);
-    }
+    // Dopo il caricamento, refresh iniziale datalist
+    setTimeout(async () => {
+      await refreshAllDatalists();
+    }, 500);
   };
 </script>
 </body>
