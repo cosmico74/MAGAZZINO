@@ -145,6 +145,11 @@
       z-index: 10;
       border: 1px solid #ddd;
       padding: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover {
+      background: #e9ecef;
     }
     td {
       border: 1px solid #ddd;
@@ -376,18 +381,25 @@
     </div>
   </form>
 
-  <!-- Tabella articoli filtrata (auto-aggiornante) -->
+  <!-- Tabella articoli filtrata (auto-aggiornante, ordinabile) -->
   <div class="table-wrapper">
     <table id="tabellaArticoli">
       <thead>
-         <th>ID</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Qtà Totale</th><th>Giacenza Reale</th>
+         <th data-sort="id">ID</th>
+         <th data-sort="codice">Codice</th>
+         <th data-sort="descrizione">Descrizione</th>
+         <th data-sort="lunghezza">Lunghezza</th>
+         <th data-sort="durezza">Durezza</th>
+         <th data-sort="sigla">Sigla</th>
+         <th data-sort="quantita_totale">Qtà Totale</th>
+         <th data-sort="giacenza">Giacenza Reale</th>
       </thead>
       <tbody></tbody>
     表格
   </div>
 </div>
 
-<!-- MODALE ARTICOLI IN MAGAZZINO (inizialmente nascosta) -->
+<!-- MODALE ARTICOLI IN MAGAZZINO (posizionata fuori dal container) -->
 <div id="modalArticoli" class="modal" style="display: none;">
   <div class="modal-content">
     <button class="close-modal" onclick="chiudiModalArticoli()">✖️ Chiudi</button>
@@ -405,12 +417,12 @@
       </div>
     </div>
     <div style="overflow-x: auto;">
-      <table class="article-table" id="tabellaArticoliModal">
+      <table class="article-table">
         <thead>
            <th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Qtà Totale</th><th>Giacenza Reale</th>
         </thead>
-        <tbody>
-           <td colspan="6" class="text-center">Caricamento...<\/td>
+        <tbody id="tabellaArticoliModalBody">
+          <td colspan="6" class="text-center">Caricamento...</td>
         </tbody>
       表格
     </div>
@@ -629,7 +641,6 @@
       console.log('Categoria cambiata');
       toggleLunghezzaDurezza();
       refreshAllDatalists();
-      // La categoria non filtra la tabella direttamente (non c'è filtro categoria nella tabella)
     });
     marcaSelect.addEventListener('change', () => {
       console.log('Marca cambiata');
@@ -781,8 +792,64 @@
     }
   }
 
-  // ========== TABELLA ARTICOLI AUTO-AGGIORNANTE ==========
-  let debounceTimer;
+  // ========== TABELLA ARTICOLI CON ORDINAMENTO ==========
+  let articoliCorrente = [];  // ultimi dati caricati
+  let sortColumn = 'descrizione';  // colonna di ordinamento predefinita
+  let sortAsc = true;  // true = crescente
+
+  function compare(a, b, column) {
+    let valA = a[column];
+    let valB = b[column];
+    if (column === 'lunghezza') {
+      valA = parseFloat(valA) || 0;
+      valB = parseFloat(valB) || 0;
+    } else if (column === 'quantita_totale' || column === 'giacenza') {
+      valA = Number(valA) || 0;
+      valB = Number(valB) || 0;
+    } else {
+      valA = (valA || '').toString().toLowerCase();
+      valB = (valB || '').toString().toLowerCase();
+    }
+    if (valA < valB) return -1;
+    if (valA > valB) return 1;
+    return 0;
+  }
+
+  function ordinaArticoli(articoli) {
+    return [...articoli].sort((a, b) => {
+      let result = compare(a, b, sortColumn);
+      if (!sortAsc) result = -result;
+      if (result === 0 && sortColumn !== 'descrizione') {
+        let descCompare = compare(a, b, 'descrizione');
+        if (descCompare !== 0) return descCompare;
+        let lenCompare = compare(a, b, 'lunghezza');
+        if (lenCompare !== 0) return lenCompare;
+      }
+      return result;
+    });
+  }
+
+  function renderTabella(articoli) {
+    const tbody = document.querySelector('#tabellaArticoli tbody');
+    tbody.innerHTML = '';
+    if (!articoli.length) {
+      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato</td>';
+      return;
+    }
+    articoli.forEach(a => {
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = a.id;
+      row.insertCell(1).innerText = a.codice;
+      row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
+      row.insertCell(3).innerText = a.lunghezza || '';
+      row.insertCell(4).innerText = a.durezza || '';
+      row.insertCell(5).innerText = a.sigla || '';
+      row.insertCell(6).innerText = a.quantita_totale || 0;
+      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+      row.insertCell(7).innerText = giacenza;
+    });
+  }
+
   async function aggiornaTabella() {
     try {
       const params = new URLSearchParams();
@@ -801,38 +868,44 @@
         params.append('durezza', document.getElementById('durezza').value.trim());
 
       const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      const tbody = document.querySelector('#tabellaArticoli tbody');
       if (res.success) {
-        const articoli = res.data;
-        tbody.innerHTML = '';
-        if (articoli.length === 0) {
-          tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato<\/td>';
-          return;
-        }
-        articoli.forEach(a => {
-          const row = tbody.insertRow();
-          row.insertCell(0).innerText = a.id;
-          row.insertCell(1).innerText = a.codice;
-          row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
-          row.insertCell(3).innerText = a.lunghezza || '';
-          row.insertCell(4).innerText = a.durezza || '';
-          row.insertCell(5).innerText = a.sigla || '';
-          row.insertCell(6).innerText = a.quantita_totale || 0;
-          const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-          row.insertCell(7).innerText = giacenza;
-        });
+        articoliCorrente = res.data;
+        const ordinati = ordinaArticoli(articoliCorrente);
+        renderTabella(ordinati);
       } else {
         throw new Error(res.message);
       }
     } catch (err) {
       showMessage('Errore caricamento articoli: ' + err.message, 'error');
-      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore<\/td>';
+      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore</td>';
     }
   }
 
+  let debounceTimer;
   function aggiornaTabellaDebounced() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => aggiornaTabella(), 300);
+  }
+
+  function handleSort(column) {
+    if (sortColumn === column) {
+      sortAsc = !sortAsc;
+    } else {
+      sortColumn = column;
+      sortAsc = true;
+    }
+    const ordinati = ordinaArticoli(articoliCorrente);
+    renderTabella(ordinati);
+  }
+
+  function attachSortListeners() {
+    const headers = document.querySelectorAll('#tabellaArticoli th');
+    headers.forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.getAttribute('data-sort');
+        if (column) handleSort(column);
+      });
+    });
   }
 
   // ========== MODALE ARTICOLI IN MAGAZZINO ==========
@@ -842,8 +915,8 @@
     if (!magId) { showMessage('Seleziona prima un magazzino', 'error'); return; }
     const modal = document.getElementById('modalArticoli');
     modal.style.display = 'flex';
-    const tbody = document.querySelector('#tabellaArticoliModal tbody');
-    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...<\/td>';
+    const tbody = document.getElementById('tabellaArticoliModalBody');
+    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...</td>';
     try {
       const res = await apiFetch(`/api/articoli?magazzino=${magId}`);
       if (res.success) {
@@ -857,7 +930,7 @@
         }
         applicaFiltroCategoria();
       } else throw new Error('Errore caricamento');
-    } catch (err) { document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`; tbody.innerHTML = '<td colspan="6" class="text-center">Errore<\/td>'; }
+    } catch (err) { document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`; tbody.innerHTML = '<td colspan="6" class="text-center">Errore</td>'; }
   }
 
   function applicaFiltroCategoria() {
@@ -868,7 +941,7 @@
       if (descA !== descB) return descA.localeCompare(descB);
       return (parseFloat(a.lunghezza) || 0) - (parseFloat(b.lunghezza) || 0);
     });
-    const tbody = document.querySelector('#tabellaArticoliModal tbody');
+    const tbody = document.getElementById('tabellaArticoliModalBody');
     tbody.innerHTML = '';
     filtrati.forEach(a => {
       const row = tbody.insertRow();
@@ -899,6 +972,7 @@
     await caricaMagazzini();
     attachEvents();
     await aggiornaTabella(); // carica tabella iniziale
+    attachSortListeners();
     setTimeout(async () => {
       await refreshAllDatalists();
     }, 500);
