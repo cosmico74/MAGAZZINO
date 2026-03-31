@@ -7,104 +7,168 @@
   <title>📋 Gestione Articoli - Magazzino</title>
   <style>
     * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f0f2f5;
-      margin: 0;
-      padding: 20px;
-      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+    .compact-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0;
+      line-height: 1;
+      background: white;
+      border-radius: 0 0 12px 12px;
+      padding: 4px 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .btn-secondary {
+      background: #6c757d;
+      border: none;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
     }
     .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       max-width: 1400px;
+      width: 100%;
       margin: 0 auto;
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-      padding: 30px;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      padding: 2px 20px 20px 20px;
+      overflow-y: auto;
     }
     h2 {
-      margin-top: 0;
-      margin-bottom: 20px;
-      color: #1e2a3a;
+      margin: 5px 0 8px 0;
+      font-size: 1.3rem;
       border-left: 5px solid #1a73e8;
-      padding-left: 15px;
-    }
-    /* Barra superiore con pulsanti */
-    .top-bar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-bottom: 20px;
+      padding-left: 12px;
+      color: #1e2a3a;
     }
     .filter-section {
       background: #f8f9fa;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 20px;
+      border-radius: 10px;
+      padding: 6px 10px;
+      margin: 10px 0;
     }
     .filter-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    .filter-row:last-child {
-      margin-bottom: 0;
+      gap: 8px;
+      margin-bottom: 5px;
     }
     .filter-group label {
       display: block;
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
+      font-size: 0.65rem;
       color: #2c3e50;
-      font-size: 0.85rem;
     }
     .filter-group input, .filter-group select {
       width: 100%;
-      padding: 8px 10px;
+      padding: 3px 5px;
       border: 1px solid #cbd5e0;
-      border-radius: 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
     }
     .toolbar {
-      margin-bottom: 20px;
       display: flex;
-      gap: 10px;
-      justify-content: space-between;
-      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      justify-content: flex-start;
     }
     .btn {
       background: #1a73e8;
       color: white;
       border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
       cursor: pointer;
-      font-size: 0.9rem;
-      transition: background 0.2s;
+      font-size: 0.7rem;
     }
-    .btn:hover { background: #0f5bb5; }
-    .btn-danger { background: #dc3545; }
-    .btn-danger:hover { background: #bb2d3b; }
-    .btn-secondary { background: #6c757d; }
-    .btn-secondary:hover { background: #5a6268; }
+    .btn:hover {
+      background: #0f5bb5;
+    }
+    .btn-danger {
+      background: #dc3545;
+    }
+    .btn-danger:hover {
+      background: #bb2d3b;
+    }
+    .table-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      min-height: 200px;
+      position: relative;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
+      font-size: 0.75rem;
     }
     th {
       background: #f8f9fa;
       font-weight: 600;
       position: sticky;
       top: 0;
+      z-index: 10;
+      border: 1px solid #ddd;
+      padding: 5px;
+      cursor: pointer;
+      user-select: none;
     }
-    .table-wrapper {
-      overflow-x: auto;
-      max-height: 70vh;
+    th:hover {
+      background: #e9ecef;
+    }
+    td {
+      border: 1px solid #ddd;
+      padding: 5px;
+    }
+    .message {
+      padding: 6px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
     .modal {
       display: none;
@@ -120,145 +184,101 @@
     }
     .modal-content {
       background: white;
-      border-radius: 16px;
+      border-radius: 12px;
       width: 90%;
       max-width: 800px;
       max-height: 90vh;
       overflow-y: auto;
-      padding: 25px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
-    .modal-content h3 {
-      margin-top: 0;
-      margin-bottom: 20px;
+      padding: 15px;
     }
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     .form-group label {
       display: block;
       font-weight: 600;
-      margin-bottom: 5px;
-      color: #2c3e50;
+      margin-bottom: 2px;
+      font-size: 0.7rem;
     }
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 15px;
+      gap: 12px;
+      margin-bottom: 10px;
     }
     input, select, textarea {
       width: 100%;
-      padding: 8px 12px;
+      padding: 4px 6px;
       border: 1px solid #cbd5e0;
-      border-radius: 8px;
-      font-size: 0.9rem;
-    }
-    input:focus, select:focus, textarea:focus {
-      border-color: #1a73e8;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+      border-radius: 6px;
+      font-size: 0.75rem;
     }
     .modal-buttons {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-top: 20px;
+      margin-top: 15px;
     }
-    .message {
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-    }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
-    .loading { background: #e2e3e5; color: #383d41; }
   </style>
 </head>
 <body>
-<div class="container">
-  <!-- BARRA SUPERIORE CON PULSANTI MENU E LOGOUT -->
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+
+<div class="compact-bar">
   <div class="logo">
-    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;">
   </div>
-  <div style="display: flex; gap: 10px;">
-    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-    <button class="btn btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
+  <div style="display: flex; gap: 6px;">
+    <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
   </div>
 </div>
 
+<div class="container">
   <h2>📋 Gestione Articoli</h2>
   <div id="messageArea"></div>
 
   <!-- Sezione filtri -->
   <div class="filter-section">
     <div class="filter-row">
-      <div class="filter-group">
-        <label>Magazzino</label>
-        <select id="filtroMagazzino">
-          <option value="">Tutti</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Settore</label>
-        <select id="filtroSettore">
-          <option value="">Tutti</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Categoria</label>
-        <select id="filtroCategoria">
-          <option value="">Tutti</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Marca</label>
-        <select id="filtroMarca">
-          <option value="">Tutti</option>
-        </select>
-      </div>
+      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Categoria</label><select id="filtroCategoria"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
     </div>
     <div class="filter-row">
-      <div class="filter-group">
-        <label>Descrizione</label>
-        <input type="text" id="filtroDescrizione" placeholder="Filtra per descrizione" autocomplete="off">
-      </div>
-      <div class="filter-group">
-        <label>Sigla</label>
-        <input type="text" id="filtroSigla" placeholder="Filtra per sigla" autocomplete="off">
-      </div>
-      <div class="filter-group">
-        <label>Codice Modello</label>
-        <input type="text" id="filtroCodiceModello" placeholder="Filtra per modello" autocomplete="off">
-      </div>
-      <div class="filter-group">
-        <label>Lunghezza</label>
-        <input type="text" id="filtroLunghezza" placeholder="es. 15" autocomplete="off">
-      </div>
-      <div class="filter-group">
-        <label>Durezza</label>
-        <input type="text" id="filtroDurezza" placeholder="es. HRC 50" autocomplete="off">
-      </div>
+      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
+      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" placeholder="Contiene..."></div>
+      <div class="filter-group"><label>Codice Modello</label><input type="text" id="filtroCodiceModello" placeholder="Contiene..."></div>
+      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
+      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
     </div>
-  </div>
-
-  <div class="toolbar">
-    <div>
+    <div class="toolbar">
       <button class="btn" onclick="filtraArticoli()">🔍 Filtra</button>
       <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-      <button class="btn" onclick="caricaArticoli()">🔄 Aggiorna</button>
     </div>
   </div>
 
+  <!-- Tabella articoli -->
   <div class="table-wrapper">
     <table id="tabellaArticoli">
       <thead>
-         <th>ID</th><th>Codice</th><th>Descrizione</th><th>Descrizione Completa</th><th>Magazzino</th><th>Categoria</th><th>Marca</th>
-         <th>Lunghezza</th><th>Durezza</th><th>Qtà Tot</th><th>In Kit</th><th>Giacenza</th><th>Stato</th><th>Azioni</th>
+         <th data-sort="id">ID</th>
+         <th data-sort="codice">Codice</th>
+         <th data-sort="descrizione">Descrizione</th>
+         <th data-sort="descrizione_completa">Descrizione Completa</th>
+         <th data-sort="magazzino_nome">Magazzino</th>
+         <th data-sort="categoria_nome">Categoria</th>
+         <th data-sort="marca_nome">Marca</th>
+         <th data-sort="lunghezza">Lunghezza</th>
+         <th data-sort="durezza">Durezza</th>
+         <th data-sort="quantita_totale">Qtà Tot</th>
+         <th data-sort="quantita_in_kit">In Kit</th>
+         <th data-sort="giacenza">Giacenza</th>
+         <th data-sort="stato">Stato</th>
+         <th>Azioni</th>
       </thead>
       <tbody></tbody>
+    表格
   </div>
 </div>
 
@@ -268,68 +288,23 @@
     <h3>✏️ Modifica Articolo</h3>
     <form id="editForm" onsubmit="return false;">
       <input type="hidden" id="editId">
-
       <div class="form-row">
-        <div class="form-group">
-          <label>Magazzino *</label>
-          <select id="editMagazzino" required></select>
-        </div>
-        <div class="form-group">
-          <label>Settore *</label>
-          <select id="editSettore" required></select>
-        </div>
-        <div class="form-group">
-          <label>Categoria *</label>
-          <select id="editCategoria" required></select>
-        </div>
-        <div class="form-group">
-          <label>Marca *</label>
-          <select id="editMarca" required></select>
-        </div>
+        <div class="form-group"><label>Magazzino *</label><select id="editMagazzino" required></select></div>
+        <div class="form-group"><label>Settore *</label><select id="editSettore" required></select></div>
+        <div class="form-group"><label>Categoria *</label><select id="editCategoria" required></select></div>
+        <div class="form-group"><label>Marca *</label><select id="editMarca" required></select></div>
       </div>
-
-      <div class="form-group">
-        <label>Descrizione *</label>
-        <input type="text" id="editDescrizione" list="editDescrizioneList" required autocomplete="off">
-        <datalist id="editDescrizioneList"></datalist>
-      </div>
-
+      <div class="form-group"><label>Descrizione *</label><input type="text" id="editDescrizione" list="editDescrizioneList" required autocomplete="off"><datalist id="editDescrizioneList"></datalist></div>
       <div class="form-row">
-        <div class="form-group">
-          <label>Codice Modello</label>
-          <input type="text" id="editCodiceModello" list="editModelloList" autocomplete="off">
-          <datalist id="editModelloList"></datalist>
-        </div>
-        <div class="form-group">
-          <label>Sigla</label>
-          <input type="text" id="editSigla" list="editSiglaList" autocomplete="off">
-          <datalist id="editSiglaList"></datalist>
-        </div>
+        <div class="form-group"><label>Codice Modello</label><input type="text" id="editCodiceModello" list="editModelloList" autocomplete="off"><datalist id="editModelloList"></datalist></div>
+        <div class="form-group"><label>Sigla</label><input type="text" id="editSigla" list="editSiglaList" autocomplete="off"><datalist id="editSiglaList"></datalist></div>
       </div>
-
       <div class="form-row">
-        <div class="form-group" id="editGruppoLunghezza">
-          <label>Lunghezza (cm)</label>
-          <input type="text" id="editLunghezza" list="editLunghezzaList" autocomplete="off">
-          <datalist id="editLunghezzaList"></datalist>
-        </div>
-        <div class="form-group" id="editGruppoDurezza">
-          <label>Durezza</label>
-          <input type="text" id="editDurezza" list="editDurezzaList" autocomplete="off">
-          <datalist id="editDurezzaList"></datalist>
-        </div>
+        <div class="form-group" id="editGruppoLunghezza"><label>Lunghezza (cm)</label><input type="text" id="editLunghezza" list="editLunghezzaList" autocomplete="off"><datalist id="editLunghezzaList"></datalist></div>
+        <div class="form-group" id="editGruppoDurezza"><label>Durezza</label><input type="text" id="editDurezza" list="editDurezzaList" autocomplete="off"><datalist id="editDurezzaList"></datalist></div>
       </div>
-
-      <div class="form-group">
-        <label>Quantità Totale *</label>
-        <input type="number" id="editQuantita" required step="1" min="0">
-      </div>
-
-      <div class="form-group">
-        <label>Note</label>
-        <textarea id="editNote" rows="3"></textarea>
-      </div>
-
+      <div class="form-group"><label>Quantità Totale *</label><input type="number" id="editQuantita" required step="1" min="0"></div>
+      <div class="form-group"><label>Note</label><textarea id="editNote" rows="2"></textarea></div>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModifica()">💾 Salva</button>
         <button type="button" class="btn btn-danger" onclick="chiudiModale()">Annulla</button>
@@ -348,17 +323,11 @@
   function showMessage(message, type) {
     const msgDiv = document.getElementById('messageArea');
     msgDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
-    setTimeout(() => {
-      if (msgDiv.firstChild) msgDiv.removeChild(msgDiv.firstChild);
-    }, 4000);
+    setTimeout(() => { if (msgDiv.firstChild) msgDiv.removeChild(msgDiv.firstChild); }, 4000);
   }
 
   async function apiFetch(endpoint, options = {}) {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-      ...options.headers
-    };
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
     const response = await fetch(endpoint, { ...options, headers });
     if (!response.ok) {
       const errorText = await response.text();
@@ -370,6 +339,9 @@
   // ========== GLOBALS ==========
   let magazzini = [], settori = [], categorie = [], marche = [];
   let categorieCompleto = [];
+  let articoliCorrente = [];
+  let sortColumn = 'descrizione';
+  let sortAsc = true;
 
   // Elementi filtro
   const filtroMagazzino = document.getElementById('filtroMagazzino');
@@ -410,23 +382,21 @@
 
   // ========== CARICAMENTO ARTICOLI CON FILTRI ==========
   async function caricaArticoli() {
-    const params = new URLSearchParams();
-    if (filtroMagazzino.value) params.append('magazzino', filtroMagazzino.value);
-    if (filtroSettore.value) params.append('settore', filtroSettore.value);
-    if (filtroCategoria.value) params.append('categoria', filtroCategoria.value);
-    if (filtroMarca.value) params.append('marca', filtroMarca.value);
-    if (filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
-    if (filtroSigla.value) params.append('sigla', filtroSigla.value);
-    if (filtroCodiceModello.value) params.append('codice_modello', filtroCodiceModello.value);
-    if (filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
-    if (filtroDurezza.value) params.append('durezza', filtroDurezza.value);
-    const url = `/api/articoli?${params.toString()}`;
     try {
-      const res = await apiFetch(url);
+      const params = new URLSearchParams();
+      if (filtroMagazzino.value) params.append('magazzino', filtroMagazzino.value);
+      if (filtroSettore.value) params.append('settore', filtroSettore.value);
+      if (filtroCategoria.value) params.append('categoria', filtroCategoria.value);
+      if (filtroMarca.value) params.append('marca', filtroMarca.value);
+      if (filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
+      if (filtroSigla.value) params.append('sigla', filtroSigla.value);
+      if (filtroCodiceModello.value) params.append('codice_modello', filtroCodiceModello.value);
+      if (filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
+      if (filtroDurezza.value) params.append('durezza', filtroDurezza.value);
+      const res = await apiFetch(`/api/articoli?${params.toString()}`);
       if (res.success) {
-        const articoli = res.data;
-        if (magazzini.length === 0) await caricaAnagraficheFiltri();
-        popolaTabella(articoli);
+        articoliCorrente = res.data;
+        renderTabella();
       } else {
         showMessage('Errore caricamento articoli', 'error');
       }
@@ -435,10 +405,60 @@
     }
   }
 
-  function popolaTabella(articoli) {
+  // ========== ORDINAMENTO ==========
+  function compare(a, b, column) {
+    let valA = a[column];
+    let valB = b[column];
+    if (column === 'lunghezza') {
+      valA = parseFloat(valA) || 0;
+      valB = parseFloat(valB) || 0;
+    } else if (column === 'quantita_totale' || column === 'quantita_in_kit' || column === 'giacenza') {
+      valA = Number(valA) || 0;
+      valB = Number(valB) || 0;
+    } else {
+      valA = (valA || '').toString().toLowerCase();
+      valB = (valB || '').toString().toLowerCase();
+    }
+    if (valA < valB) return -1;
+    if (valA > valB) return 1;
+    return 0;
+  }
+
+  function ordinaArticoli() {
+    articoliCorrente.sort((a, b) => {
+      let result = compare(a, b, sortColumn);
+      if (!sortAsc) result = -result;
+      if (result === 0 && sortColumn !== 'descrizione') {
+        let descCompare = compare(a, b, 'descrizione');
+        if (descCompare !== 0) return descCompare;
+        let lenCompare = compare(a, b, 'lunghezza');
+        if (lenCompare !== 0) return lenCompare;
+      }
+      return result;
+    });
+  }
+
+  function aggiornaIndicatoriOrdine() {
+    const headers = document.querySelectorAll('#tabellaArticoli th');
+    headers.forEach(th => {
+      const column = th.getAttribute('data-sort');
+      if (column === sortColumn) {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '') + (sortAsc ? ' ↑' : ' ↓');
+      } else {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '');
+      }
+    });
+  }
+
+  function renderTabella() {
+    ordinaArticoli();
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
-    articoli.forEach(a => {
+    if (articoliCorrente.length === 0) {
+      tbody.innerHTML = '<td colspan="14" class="text-center">Nessun articolo trovato<\/td>';
+      return;
+    }
+    articoliCorrente.forEach(a => {
       const mag = magazzini.find(m => m.id == a.magazzino)?.nome || a.magazzino;
       const cat = categorie.find(c => c.id == a.categoria)?.nome || a.categoria;
       const mar = marche.find(m => m.id == a.marca)?.nome || a.marca;
@@ -460,12 +480,44 @@
       actions.innerHTML = `<button class="btn" onclick="modificaArticolo(${a.id})">✏️ Modifica</button>
                            <button class="btn btn-danger" onclick="eliminaArticolo(${a.id})">🗑️ Elimina</button>`;
     });
+    aggiornaIndicatoriOrdine();
   }
 
-  function filtraArticoli() {
-    caricaArticoli();
+  function handleSort(column) {
+    if (sortColumn === column) {
+      sortAsc = !sortAsc;
+    } else {
+      sortColumn = column;
+      sortAsc = true;
+    }
+    renderTabella();
   }
 
+  function attachSortListeners() {
+    const headers = document.querySelectorAll('#tabellaArticoli th');
+    headers.forEach(th => {
+      const column = th.getAttribute('data-sort');
+      if (column) {
+        th.addEventListener('click', () => handleSort(column));
+      }
+    });
+  }
+
+  // ========== AUTO-AGGIORNAMENTO AL VARIARE DEI FILTRI ==========
+  let debounceTimer;
+  function handleFilterChange() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => caricaArticoli(), 300);
+  }
+
+  function attachFilterEvents() {
+    const inputs = [filtroDescrizione, filtroSigla, filtroCodiceModello, filtroLunghezza, filtroDurezza];
+    inputs.forEach(el => el.addEventListener('input', handleFilterChange));
+    const selects = [filtroMagazzino, filtroSettore, filtroCategoria, filtroMarca];
+    selects.forEach(el => el.addEventListener('change', handleFilterChange));
+  }
+
+  function filtraArticoli() { caricaArticoli(); }
   function resetFiltri() {
     filtroMagazzino.value = '';
     filtroSettore.value = '';
@@ -479,7 +531,7 @@
     caricaArticoli();
   }
 
-  // ========== ELIMINAZIONE ==========
+  // ========== CRUD ==========
   async function eliminaArticolo(id) {
     if (!confirm('Eliminare questo articolo? Operazione irreversibile.')) return;
     try {
@@ -535,14 +587,12 @@
     try {
       const articolo = await apiFetch(`/api/articoli/${id}`);
       currentEditId = id;
-
       await caricaSelectsModale();
 
       document.getElementById('editMagazzino').value = articolo.magazzino;
       document.getElementById('editSettore').value = articolo.settore;
       document.getElementById('editCategoria').value = articolo.categoria;
       document.getElementById('editMarca').value = articolo.marca;
-
       document.getElementById('editDescrizione').value = articolo.descrizione || '';
       document.getElementById('editSigla').value = articolo.sigla || '';
       document.getElementById('editLunghezza').value = articolo.lunghezza || '';
@@ -669,10 +719,7 @@
     dati.marca = parseInt(document.getElementById('editMarca').value);
 
     try {
-      const result = await apiFetch(`/api/articoli/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(dati)
-      });
+      const result = await apiFetch(`/api/articoli/${id}`, { method: 'PUT', body: JSON.stringify(dati) });
       if (result.success) {
         showMessage('Articolo aggiornato con successo', 'success');
         chiudiModale();
@@ -697,970 +744,16 @@
   }
 
   // ========== INIZIALIZZAZIONE ==========
-  window.onload = () => {
+  window.onload = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
       return;
     }
-    caricaAnagraficheFiltri().then(() => {
-      caricaArticoli();
-    });
-  };
-</script>
-</body>
-</html> puoi farmela come inserimento articoli, intendo dimensioni loglo, spazi e funzionamento della tabella, grazie:<!DOCTYPE html>
-<html lang="it">
-<head>
-  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Inserimento Articolo - Magazzino</title>
-  <style>
-    * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
-      display: flex;
-      flex-direction: column;
-      padding: 0;
-    }
-    .compact-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0;
-      line-height: 1;
-      background: white;
-      border-radius: 0 0 12px 12px;
-      padding: 4px 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    }
-    .btn-secondary {
-      background: #6c757d;
-      border: none;
-      padding: 2px 8px;
-      font-size: 0.7rem;
-      border-radius: 4px;
-      cursor: pointer;
-      color: white;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
-    }
-    .container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      max-width: 1400px;
-      width: 100%;
-      margin: 0 auto;
-      background: white;
-      border-radius: 16px 16px 0 0;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-      padding: 2px 20px 20px 20px;
-      overflow-y: auto;
-    }
-    h2 {
-      margin: 5px 0 8px 0;
-      font-size: 1.3rem;
-      border-left: 5px solid #1a73e8;
-      padding-left: 12px;
-      color: #1e2a3a;
-    }
-    .form-row-5col {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-      margin-bottom: 6px;
-      align-items: center;
-    }
-    .form-row-3col {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 6px;
-    }
-    .form-row-4col-slim {
-      display: grid;
-      grid-template-columns: 1fr 1fr auto auto;
-      gap: 12px;
-      margin-bottom: 6px;
-    }
-    .form-row-2col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 6px;
-    }
-    .form-group {
-      margin-bottom: 0;
-    }
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 2px;
-      color: #2c3e50;
-      font-size: 0.7rem;
-    }
-    input, select, textarea {
-      width: 100%;
-      padding: 4px 6px;
-      border: 1px solid #cbd5e0;
-      border-radius: 6px;
-      font-size: 0.75rem;
-    }
-    .quantity-input {
-      width: 80px;
-    }
-    .btn {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      padding: 3px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.7rem;
-    }
-    .btn:hover {
-      background: #0f5bb5;
-    }
-    .btn-primary {
-      background: #1a73e8;
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      width: 100%;
-    }
-    .table-wrapper {
-      flex: 1;
-      overflow-y: auto;
-      margin-bottom: 10px;
-      min-height: 200px;
-      position: relative;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.75rem;
-    }
-    th {
-      background: #f8f9fa;
-      font-weight: 600;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      border: 1px solid #ddd;
-      padding: 5px;
-      cursor: pointer;
-      user-select: none;
-    }
-    th:hover {
-      background: #e9ecef;
-    }
-    td {
-      border: 1px solid #ddd;
-      padding: 5px;
-    }
-    .message {
-      padding: 6px;
-      margin-bottom: 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-    }
-    .success {
-      background: #d4edda;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid #e2e8f0;
-      border-top-color: #1a73e8;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      margin-right: 4px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .assignment-group {
-      background: #f8f9fa;
-      padding: 8px 10px;
-      border-radius: 10px;
-      margin-top: 6px;
-    }
-    .inline-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin: 0;
-    }
-    .inline-checkbox input {
-      width: auto;
-      margin: 0;
-    }
-    .info-note {
-      font-size: 0.65rem;
-      color: #6c757d;
-      margin-top: 2px;
-      text-align: right;
-    }
-    .text-center {
-      text-align: center;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: white;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 1000px;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: 15px;
-    }
-    .close-modal {
-      float: right;
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 2px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.7rem;
-    }
-  </style>
-</head>
-<body>
-
-<div class="compact-bar">
-  <div class="logo">
-    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;">
-  </div>
-  <div style="display: flex; gap: 6px;">
-    <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-    <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
-    <button class="btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
-  </div>
-</div>
-
-<div class="container">
-  <h2>📦 Inserimento Articolo</h2>
-  <div id="messageArea"></div>
-
-  <form id="articleForm" onsubmit="return false;">
-    <!-- Riga 1: Magazzino, Settore, Categoria, Marca + checkbox -->
-    <div class="form-row-5col">
-      <div class="form-group">
-        <label>Magazzino *</label>
-        <select id="magazzino" required>
-          <option value="">⏳ Caricamento...</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Settore *</label>
-        <select id="settore" required>
-          <option value="">⏳ Caricamento...</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Categoria *</label>
-        <select id="categoria" required>
-          <option value="">⏳ Caricamento...</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Marca *</label>
-        <select id="marca" required>
-          <option value="">⏳ Caricamento...</option>
-        </select>
-      </div>
-      <div class="form-group" style="display: flex; justify-content: flex-start; align-items: center;">
-        <div class="inline-checkbox">
-          <input type="checkbox" id="assegnaCheckbox">
-          <label for="assegnaCheckbox" style="margin-bottom:0;">📤 Assegna a destinatario</label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Riga 2: Descrizione (larga), Codice Modello, Sigla -->
-    <div class="form-row-3col">
-      <div class="form-group">
-        <label>Descrizione *</label>
-        <input type="text" id="descrizione" list="descrizioneList" required autocomplete="off" placeholder="es. Cacciavite a stella">
-        <datalist id="descrizioneList"></datalist>
-      </div>
-      <div class="form-group">
-        <label>Codice Modello</label>
-        <input type="text" id="codice_modello" list="codice_modelloList" autocomplete="off" placeholder="Modello fornitore">
-        <datalist id="codice_modelloList"></datalist>
-      </div>
-      <div class="form-group">
-        <label>Sigla</label>
-        <input type="text" id="sigla" list="siglaList" autocomplete="off" placeholder="Codice interno">
-        <datalist id="siglaList"></datalist>
-      </div>
-    </div>
-
-    <!-- Riga 3: Lunghezza, Durezza, Quantità, Versione -->
-    <div class="form-row-4col-slim">
-      <div class="form-group" id="gruppoLunghezza">
-        <label>Lunghezza (cm)</label>
-        <input type="text" id="lunghezza" list="lunghezzaList" autocomplete="off" placeholder="es. 15">
-        <datalist id="lunghezzaList"></datalist>
-      </div>
-      <div class="form-group" id="gruppoDurezza">
-        <label>Durezza</label>
-        <input type="text" id="durezza" list="durezzaList" autocomplete="off" placeholder="es. HRC 50">
-        <datalist id="durezzaList"></datalist>
-      </div>
-      <div class="form-group">
-        <label>Quantità *</label>
-        <input type="number" id="quantita" value="1" min="1" step="1" class="quantity-input" autocomplete="off" required>
-      </div>
-      <div class="form-group">
-        <label>Versione</label>
-        <input type="text" id="versione" value="1.0" autocomplete="off">
-      </div>
-    </div>
-
-    <!-- Riga 4: Note e pulsante Salva -->
-    <div class="form-row-2col">
-      <div class="form-group">
-        <label>Note</label>
-        <textarea id="note" rows="2" autocomplete="off" placeholder="Eventuali note"></textarea>
-      </div>
-      <div class="form-group" style="display: flex; align-items: flex-end;">
-        <button type="button" class="btn btn-primary" id="saveBtn" onclick="salvaArticolo()" style="width:100%;">💾 Salva Articolo</button>
-      </div>
-    </div>
-
-    <!-- Sezione assegnazione (collassabile) -->
-    <div id="assegnaSection" style="display:none;" class="assignment-group">
-      <div class="form-row-2col">
-        <div class="form-group">
-          <label>Destinazione</label>
-          <select id="destinazioneTipo">
-            <option value="PROMOTER">👤 Promoter</option>
-            <option value="NEGOZIO">🏪 Negozio</option>
-            <option value="CLIENTE">👥 Cliente</option>
-            <option value="AGENTE">🤝 Agente</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Seleziona destinazione *</label>
-          <select id="destinazioneId">
-            <option value="">Seleziona...</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Note per l'assegnazione (opzionale)</label>
-        <input type="text" id="assegnaNote" placeholder="Note aggiuntive per l'uscita">
-      </div>
-      <div class="info-note">L'articolo verrà assegnato al soggetto scelto subito dopo la creazione.</div>
-    </div>
-  </form>
-
-  <!-- Tabella articoli filtrata (auto-aggiornante, ordinabile) -->
-  <div class="table-wrapper">
-    <table id="tabellaArticoli">
-      <thead>
-         <th data-sort="id">ID</th>
-         <th data-sort="codice">Codice</th>
-         <th data-sort="descrizione">Descrizione</th>
-         <th data-sort="lunghezza">Lunghezza</th>
-         <th data-sort="durezza">Durezza</th>
-         <th data-sort="sigla">Sigla</th>
-         <th data-sort="quantita_totale">Qtà Totale</th>
-         <th data-sort="giacenza">Giacenza Reale</th>
-      </thead>
-      <tbody></tbody>
-  </div>
-</div>
-
-
-<script>
-  // ========== GESTIONE SESSIONE E UTILITY ==========
-  function getAuthHeader() {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-    return { 'Authorization': 'Bearer ' + token };
-  }
-
-  function showMessage(message, type = 'success') {
-    const msgDiv = document.getElementById('messageArea');
-    msgDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
-    setTimeout(() => {
-      if (msgDiv.firstChild) msgDiv.removeChild(msgDiv.firstChild);
-    }, 5000);
-  }
-
-  async function apiFetch(endpoint, options = {}) {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-      ...options.headers
-    };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Errore ${response.status}: ${errorText}`);
-    }
-    return response.json();
-  }
-
-  function restoreSession() {
-    const token = localStorage.getItem('token');
-    if (!token) return false;
-    return true;
-  }
-
-  // ========== CARICAMENTO DATI DEI SELECT ==========
-  let categorieCompleto = [];
-  const magazzinoSelect = document.getElementById('magazzino');
-  const settoreSelect = document.getElementById('settore');
-  const categoriaSelect = document.getElementById('categoria');
-  const marcaSelect = document.getElementById('marca');
-
-  function setDefaultSelect(selectElement, testiValidi) {
-    if (!selectElement) return false;
-    for (let i = 0; i < selectElement.options.length; i++) {
-      const opt = selectElement.options[i];
-      const testoMin = opt.text.toLowerCase();
-      for (let valido of testiValidi) {
-        if (testoMin === valido.toLowerCase()) {
-          selectElement.value = opt.value;
-          console.log(`Default impostato per ${selectElement.id} -> ${opt.value} (${opt.text})`);
-          return true;
-        }
-      }
-    }
-    console.warn(`Default non trovato per ${selectElement.id} con testi:`, testiValidi);
-    return false;
-  }
-
-  async function caricaMagazzini() {
-    try {
-      const data = await apiFetch('/api/anagrafiche/magazzini');
-      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      data.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id;
-        option.textContent = m.nome;
-        magazzinoSelect.appendChild(option);
-      });
-      setDefaultSelect(magazzinoSelect, ['race']);
-      await caricaSettori();
-    } catch (err) {
-      console.error(err);
-      magazzinoSelect.innerHTML = '<option value="">Errore caricamento magazzini</option>';
-      showMessage('Errore caricamento magazzini', 'error');
-    }
-  }
-
-  async function caricaSettori() {
-    try {
-      const data = await apiFetch('/api/anagrafiche/settori');
-      settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
-      data.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.id;
-        option.textContent = s.nome;
-        settoreSelect.appendChild(option);
-      });
-      setDefaultSelect(settoreSelect, ['sci alpino', 'alpino']);
-      await caricaCategorie();
-    } catch (err) {
-      console.error(err);
-      settoreSelect.innerHTML = '<option value="">Errore caricamento settori</option>';
-    }
-  }
-
-  async function caricaCategorie() {
-    try {
-      const data = await apiFetch('/api/anagrafiche/categorie');
-      categorieCompleto = data;
-      categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
-      data.forEach(c => {
-        const option = document.createElement('option');
-        option.value = c.id;
-        option.textContent = c.nome;
-        categoriaSelect.appendChild(option);
-      });
-      setDefaultSelect(categoriaSelect, ['sci']);
-      await caricaMarche();
-      toggleLunghezzaDurezza();
-    } catch (err) {
-      console.error(err);
-      categoriaSelect.innerHTML = '<option value="">Errore caricamento categorie</option>';
-    }
-  }
-
-  async function caricaMarche() {
-    try {
-      const data = await apiFetch('/api/anagrafiche/marche');
-      marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
-      data.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id;
-        option.textContent = m.nome;
-        marcaSelect.appendChild(option);
-      });
-      setDefaultSelect(marcaSelect, ['kastle', 'Kastle']);
-    } catch (err) {
-      console.error(err);
-      marcaSelect.innerHTML = '<option value="">Errore caricamento marche</option>';
-    }
-  }
-
-  function toggleLunghezzaDurezza() {
-    const catId = categoriaSelect.value;
-    const categoria = categorieCompleto.find(c => c.id == catId);
-    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : false;
-    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : false;
-    document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
-    document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
-  }
-
-  // ========== FILTRI INCROCIATI PER DATALIST ==========
-  const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
-  const endpointMap = {
-    descrizione: '/api/articoli/valori/descrizioni',
-    sigla: '/api/articoli/valori/sigle',
-    lunghezza: '/api/articoli/valori/lunghezze',
-    durezza: '/api/articoli/valori/durezze',
-    codice_modello: '/api/articoli/valori/modelli'
-  };
-
-  function getCurrentFilters() {
-    const filters = {};
-    for (let field of filterFields) {
-      let el;
-      if (field === 'magazzino') el = magazzinoSelect;
-      else if (field === 'settore') el = settoreSelect;
-      else if (field === 'categoria') el = categoriaSelect;
-      else if (field === 'marca') el = marcaSelect;
-      else el = document.getElementById(field);
-      if (el) filters[field] = el.value;
-    }
-    return filters;
-  }
-
-  async function aggiornaDatalist(campo, endpoint) {
-    const filters = getCurrentFilters();
-    delete filters[campo];
-    const params = new URLSearchParams();
-    for (let [key, value] of Object.entries(filters)) {
-      if (value && value !== '') params.append(key, value);
-    }
-    const url = `${endpoint}?${params.toString()}`;
-    try {
-      const data = await apiFetch(url);
-      const datalist = document.getElementById(`${campo}List`);
-      if (!datalist) return;
-      datalist.innerHTML = '';
-      data.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item[campo];
-        datalist.appendChild(option);
-      });
-      console.log(`Datalist ${campo} aggiornato con ${data.length} voci`);
-    } catch (err) {
-      console.error(`Errore aggiornamento datalist ${campo}:`, err);
-    }
-  }
-
-  async function refreshAllDatalists() {
-    for (let [campo, endpoint] of Object.entries(endpointMap)) {
-      await aggiornaDatalist(campo, endpoint);
-    }
-  }
-
-  function attachEvents() {
-    magazzinoSelect.addEventListener('change', () => {
-      console.log('Magazzino cambiato');
-      refreshAllDatalists();
-      aggiornaTabellaDebounced();
-    });
-    settoreSelect.addEventListener('change', () => {
-      console.log('Settore cambiato');
-      refreshAllDatalists();
-      aggiornaTabellaDebounced();
-    });
-    categoriaSelect.addEventListener('change', () => {
-      console.log('Categoria cambiata');
-      toggleLunghezzaDurezza();
-      refreshAllDatalists();
-    });
-    marcaSelect.addEventListener('change', () => {
-      console.log('Marca cambiata');
-      refreshAllDatalists();
-      aggiornaTabellaDebounced();
-    });
-
-    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
-    textFields.forEach(field => {
-      const input = document.getElementById(field);
-      if (input) {
-        input.addEventListener('input', () => {
-          console.log(`${field} cambiato:`, input.value);
-          refreshAllDatalists();
-          aggiornaTabellaDebounced();
-        });
-      }
-    });
-  }
-
-  // ========== GESTIONE ASSEGNAZIONE OPZIONALE ==========
-  const assegnaCheckbox = document.getElementById('assegnaCheckbox');
-  const assegnaSection = document.getElementById('assegnaSection');
-  const destinazioneTipo = document.getElementById('destinazioneTipo');
-  const destinazioneId = document.getElementById('destinazioneId');
-  const assegnaNote = document.getElementById('assegnaNote');
-
-  assegnaCheckbox.addEventListener('change', () => {
-    assegnaSection.style.display = assegnaCheckbox.checked ? 'block' : 'none';
-    if (assegnaCheckbox.checked && destinazioneId.options.length <= 1) {
-      caricaDestinazioni();
-    }
-  });
-
-  async function caricaDestinazioni() {
-    const tipo = destinazioneTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destinazioneId.appendChild(new Option(testo, item.id));
-      });
-    } catch (err) {
-      console.error('Errore caricamento destinazioni:', err);
-      showMessage('Errore caricamento destinazioni', 'error');
-    }
-  }
-
-  destinazioneTipo.addEventListener('change', () => {
-    if (assegnaCheckbox.checked) caricaDestinazioni();
-  });
-
-  // ========== SALVATAGGIO ARTICOLO + ASSEGNAZIONE OPZIONALE ==========
-  async function salvaArticolo() {
-    const descrizione = document.getElementById('descrizione').value.trim();
-    const magazzino = magazzinoSelect.value;
-    const settore = settoreSelect.value;
-    const categoria = categoriaSelect.value;
-    const marca = marcaSelect.value;
-    const lunghezza = document.getElementById('lunghezza').value.trim();
-    const durezza = document.getElementById('durezza').value.trim();
-    const quantita = parseInt(document.getElementById('quantita').value);
-    const versione = document.getElementById('versione').value.trim();
-    const note = document.getElementById('note').value.trim();
-    const sigla = document.getElementById('sigla').value.trim();
-    const codiceModello = document.getElementById('codice_modello').value.trim();
-
-    if (!descrizione || !magazzino || !settore || !categoria || !marca || !quantita) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
-    }
-
-    const payload = {
-      descrizione,
-      magazzino: parseInt(magazzino),
-      settore: parseInt(settore),
-      categoria: parseInt(categoria),
-      marca: parseInt(marca),
-      lunghezza: lunghezza || '',
-      durezza: durezza || '',
-      quantita,
-      versione: versione || '1.0',
-      note: note || '',
-      sigla: sigla || null,
-      codiceModello: codiceModello || null
-    };
-
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio in corso...';
-
-    try {
-      const articleResult = await apiFetch('/api/articoli', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (!articleResult.success) throw new Error(articleResult.message);
-      const articleId = articleResult.id;
-      showMessage(articleResult.message, 'success');
-
-      if (assegnaCheckbox.checked) {
-        const destinazioneTipoVal = destinazioneTipo.value;
-        const destinazioneIdVal = destinazioneId.value;
-        if (!destinazioneIdVal) {
-          showMessage('Articolo salvato, ma manca il destinatario per l\'assegnazione.', 'error');
-        } else {
-          const assignPayload = {
-            magazzinoId: parseInt(magazzino),
-            destinazioneTipo: destinazioneTipoVal,
-            destinazioneId: parseInt(destinazioneIdVal),
-            note: assegnaNote.value.trim() || note,
-            oggetti: [{
-              tipoOggetto: 'ARTICOLO',
-              oggettoId: articleId,
-              quantita: quantita
-            }]
-          };
-          const assignResult = await apiFetch('/api/assegnazioni/uscita/batch', {
-            method: 'POST',
-            body: JSON.stringify(assignPayload)
-          });
-          if (assignResult.success) {
-            showMessage(`Articolo assegnato a ${destinazioneTipoVal} con successo`, 'success');
-          } else {
-            showMessage(`Articolo salvato ma assegnazione fallita: ${assignResult.message}`, 'error');
-          }
-        }
-      }
-
-      // Reset form
-      document.getElementById('descrizione').value = '';
-      document.getElementById('sigla').value = '';
-      document.getElementById('lunghezza').value = '';
-      document.getElementById('durezza').value = '';
-      document.getElementById('codice_modello').value = '';
-      document.getElementById('quantita').value = 1;
-      document.getElementById('note').value = '';
-      assegnaCheckbox.checked = false;
-      assegnaSection.style.display = 'none';
-      refreshAllDatalists();
-      aggiornaTabellaDebounced(); // aggiorna la tabella dopo il salvataggio
-    } catch (err) {
-      console.error('Errore:', err);
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '💾 Salva Articolo';
-    }
-  }
-
-  // ========== TABELLA ARTICOLI CON ORDINAMENTO E FRECCE ==========
-  let articoliCorrente = [];
-  let sortColumn = 'descrizione';
-  let sortAsc = true;
-
-  function compare(a, b, column) {
-    let valA = a[column];
-    let valB = b[column];
-    if (column === 'lunghezza') {
-      valA = parseFloat(valA) || 0;
-      valB = parseFloat(valB) || 0;
-    } else if (column === 'quantita_totale' || column === 'giacenza') {
-      valA = Number(valA) || 0;
-      valB = Number(valB) || 0;
-    } else {
-      valA = (valA || '').toString().toLowerCase();
-      valB = (valB || '').toString().toLowerCase();
-    }
-    if (valA < valB) return -1;
-    if (valA > valB) return 1;
-    return 0;
-  }
-
-  function ordinaArticoli(articoli) {
-    return [...articoli].sort((a, b) => {
-      let result = compare(a, b, sortColumn);
-      if (!sortAsc) result = -result;
-      if (result === 0 && sortColumn !== 'descrizione') {
-        let descCompare = compare(a, b, 'descrizione');
-        if (descCompare !== 0) return descCompare;
-        let lenCompare = compare(a, b, 'lunghezza');
-        if (lenCompare !== 0) return lenCompare;
-      }
-      return result;
-    });
-  }
-
-  function aggiornaIndicatoriOrdine() {
-    const headers = document.querySelectorAll('#tabellaArticoli th');
-    headers.forEach(th => {
-      const column = th.getAttribute('data-sort');
-      if (column === sortColumn) {
-        th.innerHTML = th.innerText.replace(/[↑↓]/g, '') + (sortAsc ? ' ↑' : ' ↓');
-      } else {
-        th.innerHTML = th.innerText.replace(/[↑↓]/g, '');
-      }
-    });
-  }
-
-  function renderTabella(articoli) {
-    const tbody = document.querySelector('#tabellaArticoli tbody');
-    tbody.innerHTML = '';
-    if (!articoli.length) {
-      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato<\/td>';
-    } else {
-      articoli.forEach(a => {
-        const row = tbody.insertRow();
-        row.insertCell(0).innerText = a.id;
-        row.insertCell(1).innerText = a.codice;
-        row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
-        row.insertCell(3).innerText = a.lunghezza || '';
-        row.insertCell(4).innerText = a.durezza || '';
-        row.insertCell(5).innerText = a.sigla || '';
-        row.insertCell(6).innerText = a.quantita_totale || 0;
-        const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-        row.insertCell(7).innerText = giacenza;
-      });
-    }
-    aggiornaIndicatoriOrdine();
-  }
-
-  async function aggiornaTabella() {
-    try {
-      const params = new URLSearchParams();
-      if (magazzinoSelect.value) params.append('magazzino', magazzinoSelect.value);
-      if (settoreSelect.value) params.append('settore', settoreSelect.value);
-      if (marcaSelect.value) params.append('marca', marcaSelect.value);
-      if (document.getElementById('descrizione').value.trim())
-        params.append('descrizione', document.getElementById('descrizione').value.trim());
-      if (document.getElementById('sigla').value.trim())
-        params.append('sigla', document.getElementById('sigla').value.trim());
-      if (document.getElementById('codice_modello').value.trim())
-        params.append('codice_modello', document.getElementById('codice_modello').value.trim());
-      if (document.getElementById('lunghezza').value.trim())
-        params.append('lunghezza', document.getElementById('lunghezza').value.trim());
-      if (document.getElementById('durezza').value.trim())
-        params.append('durezza', document.getElementById('durezza').value.trim());
-
-      const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      if (res.success) {
-        articoliCorrente = res.data;
-        const ordinati = ordinaArticoli(articoliCorrente);
-        renderTabella(ordinati);
-      } else {
-        throw new Error(res.message);
-      }
-    } catch (err) {
-      showMessage('Errore caricamento articoli: ' + err.message, 'error');
-      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore<\/td>';
-    }
-  }
-
-  let debounceTimer;
-  function aggiornaTabellaDebounced() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => aggiornaTabella(), 300);
-  }
-
-  function handleSort(column) {
-    if (sortColumn === column) {
-      sortAsc = !sortAsc;
-    } else {
-      sortColumn = column;
-      sortAsc = true;
-    }
-    const ordinati = ordinaArticoli(articoliCorrente);
-    renderTabella(ordinati);
-  }
-
-  function attachSortListeners() {
-    const headers = document.querySelectorAll('#tabellaArticoli th');
-    headers.forEach(th => {
-      th.addEventListener('click', () => {
-        const column = th.getAttribute('data-sort');
-        if (column) handleSort(column);
-      });
-    });
-  }
-
-  // ========== MODALE ARTICOLI IN MAGAZZINO ==========
-  let articoliMagazzino = [];
-  async function mostraArticoliMagazzino() {
-    const magId = magazzinoSelect.value;
-    if (!magId) { showMessage('Seleziona prima un magazzino', 'error'); return; }
-    const modal = document.getElementById('modalArticoli');
-    modal.style.display = 'flex';
-    const tbody = document.getElementById('tabellaArticoliModalBody');
-    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...<\/td>';
-    try {
-      const res = await apiFetch(`/api/articoli?magazzino=${magId}`);
-      if (res.success) {
-        articoliMagazzino = res.data;
-        const categorieUniche = new Set(articoliMagazzino.map(a => a.categoria).filter(c => c));
-        const filtroCat = document.getElementById('filtroCategoriaModal');
-        filtroCat.innerHTML = '<option value="">Tutte</option>';
-        for (let catId of categorieUniche) {
-          const nomeCat = categorieCompleto.find(c => c.id == catId)?.nome || catId;
-          filtroCat.appendChild(new Option(nomeCat, catId));
-        }
-        applicaFiltroCategoria();
-      } else throw new Error('Errore caricamento');
-    } catch (err) { document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`; tbody.innerHTML = '<td colspan="6" class="text-center">Errore<\/td>'; }
-  }
-
-  function applicaFiltroCategoria() {
-    const catId = document.getElementById('filtroCategoriaModal').value;
-    let filtrati = catId ? articoliMagazzino.filter(a => a.categoria == catId) : [...articoliMagazzino];
-    filtrati.sort((a,b) => {
-      let descA = (a.descrizione || '').toLowerCase(), descB = (b.descrizione || '').toLowerCase();
-      if (descA !== descB) return descA.localeCompare(descB);
-      return (parseFloat(a.lunghezza) || 0) - (parseFloat(b.lunghezza) || 0);
-    });
-    const tbody = document.getElementById('tabellaArticoliModalBody');
-    tbody.innerHTML = '';
-    filtrati.forEach(a => {
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = a.codice || '';
-      row.insertCell(1).innerText = a.descrizione_completa || a.descrizione || '';
-      row.insertCell(2).innerText = a.lunghezza || '';
-      row.insertCell(3).innerText = a.durezza || '';
-      row.insertCell(4).innerText = a.quantita_totale || 0;
-      row.insertCell(5).innerText = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-    });
-  }
-
-  function chiudiModalArticoli() { document.getElementById('modalArticoli').style.display = 'none'; }
-
-  // ========== LOGOUT ==========
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'Login.html';
-  }
-
-  // ========== INIZIALIZZAZIONE ==========
-  window.onload = async () => {
-    if (!restoreSession()) {
-      document.body.innerHTML = '<div class="container" style="text-align:center"><h2>Accesso non autorizzato</h2><p>Devi effettuare il login.</p><a href="Login.html">Vai al login</a></div>';
-      return;
-    }
-    await caricaMagazzini();
-    attachEvents();
-    await aggiornaTabella(); // carica tabella iniziale
+    await caricaAnagraficheFiltri();
+    attachFilterEvents();
     attachSortListeners();
-    setTimeout(async () => {
-      await refreshAllDatalists();
-    }, 500);
+    await caricaArticoli();
   };
 </script>
 </body>
