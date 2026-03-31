@@ -290,7 +290,7 @@
   <div id="messageArea"></div>
 
   <form id="articleForm" onsubmit="return false;">
-    <!-- Riga 1: Magazzino, Settore, Categoria, Marca + checkbox a sinistra -->
+    <!-- Riga 1: Magazzino, Settore, Categoria, Marca + checkbox -->
     <div class="form-row-4col">
       <div class="form-group">
         <label>Magazzino *</label>
@@ -307,6 +307,12 @@
       <div class="form-group">
         <label>Categoria *</label>
         <select id="categoria" required>
+          <option value="">⏳ Caricamento...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Marca *</label>
+        <select id="marca" required>
           <option value="">⏳ Caricamento...</option>
         </select>
       </div>
