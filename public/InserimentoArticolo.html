@@ -239,15 +239,6 @@
       cursor: pointer;
       font-size: 0.7rem;
     }
-    .article-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.75rem;
-    }
-    .article-table th, .article-table td {
-      border: 1px solid #ddd;
-      padding: 5px;
-    }
   </style>
 </head>
 <body>
@@ -399,7 +390,7 @@
   </div>
 </div>
 
-<!-- MODALE ARTICOLI IN MAGAZZINO (posizionata fuori dal container) -->
+<!-- MODALE ARTICOLI IN MAGAZZINO -->
 <div id="modalArticoli" class="modal" style="display: none;">
   <div class="modal-content">
     <button class="close-modal" onclick="chiudiModalArticoli()">✖️ Chiudi</button>
@@ -422,7 +413,7 @@
            <th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Qtà Totale</th><th>Giacenza Reale</th>
         </thead>
         <tbody id="tabellaArticoliModalBody">
-          <td colspan="6" class="text-center">Caricamento...</td>
+          <td colspan="6" class="text-center">Caricamento...<\/td>
         </tbody>
       表格
     </div>
@@ -792,10 +783,10 @@
     }
   }
 
-  // ========== TABELLA ARTICOLI CON ORDINAMENTO ==========
-  let articoliCorrente = [];  // ultimi dati caricati
-  let sortColumn = 'descrizione';  // colonna di ordinamento predefinita
-  let sortAsc = true;  // true = crescente
+  // ========== TABELLA ARTICOLI CON ORDINAMENTO E FRECCE ==========
+  let articoliCorrente = [];
+  let sortColumn = 'descrizione';
+  let sortAsc = true;
 
   function compare(a, b, column) {
     let valA = a[column];
@@ -829,25 +820,38 @@
     });
   }
 
+  function aggiornaIndicatoriOrdine() {
+    const headers = document.querySelectorAll('#tabellaArticoli th');
+    headers.forEach(th => {
+      const column = th.getAttribute('data-sort');
+      if (column === sortColumn) {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '') + (sortAsc ? ' ↑' : ' ↓');
+      } else {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '');
+      }
+    });
+  }
+
   function renderTabella(articoli) {
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
     if (!articoli.length) {
-      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato</td>';
-      return;
+      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun articolo trovato<\/td>';
+    } else {
+      articoli.forEach(a => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = a.id;
+        row.insertCell(1).innerText = a.codice;
+        row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
+        row.insertCell(3).innerText = a.lunghezza || '';
+        row.insertCell(4).innerText = a.durezza || '';
+        row.insertCell(5).innerText = a.sigla || '';
+        row.insertCell(6).innerText = a.quantita_totale || 0;
+        const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+        row.insertCell(7).innerText = giacenza;
+      });
     }
-    articoli.forEach(a => {
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = a.id;
-      row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.descrizione_completa || a.descrizione;
-      row.insertCell(3).innerText = a.lunghezza || '';
-      row.insertCell(4).innerText = a.durezza || '';
-      row.insertCell(5).innerText = a.sigla || '';
-      row.insertCell(6).innerText = a.quantita_totale || 0;
-      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
-      row.insertCell(7).innerText = giacenza;
-    });
+    aggiornaIndicatoriOrdine();
   }
 
   async function aggiornaTabella() {
@@ -877,7 +881,7 @@
       }
     } catch (err) {
       showMessage('Errore caricamento articoli: ' + err.message, 'error');
-      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore</td>';
+      document.querySelector('#tabellaArticoli tbody').innerHTML = '<td colspan="8" class="text-center">Errore<\/td>';
     }
   }
 
@@ -916,7 +920,7 @@
     const modal = document.getElementById('modalArticoli');
     modal.style.display = 'flex';
     const tbody = document.getElementById('tabellaArticoliModalBody');
-    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...</td>';
+    tbody.innerHTML = '<td colspan="6" class="text-center">Caricamento...<\/td>';
     try {
       const res = await apiFetch(`/api/articoli?magazzino=${magId}`);
       if (res.success) {
@@ -930,7 +934,7 @@
         }
         applicaFiltroCategoria();
       } else throw new Error('Errore caricamento');
-    } catch (err) { document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`; tbody.innerHTML = '<td colspan="6" class="text-center">Errore</td>'; }
+    } catch (err) { document.getElementById('modalMessage').innerHTML = `<div class="message error">${err.message}</div>`; tbody.innerHTML = '<td colspan="6" class="text-center">Errore<\/td>'; }
   }
 
   function applicaFiltroCategoria() {
