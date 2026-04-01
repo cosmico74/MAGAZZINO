@@ -20,7 +20,7 @@
       overflow: hidden;
     }
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       background: white;
       border-radius: 16px;
@@ -115,6 +115,10 @@
     .btn-danger:hover {
       background: #bb2d3b;
     }
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 0.75rem;
+    }
     .btn:hover {
       background: #0f5bb5;
     }
@@ -149,10 +153,33 @@
       color: #6c757d;
       margin-top: 5px;
     }
-    hr {
-      margin: 20px 0;
-      border: none;
-      border-top: 1px solid #dee2e6;
+    .table-wrapper {
+      overflow-x: auto;
+      margin-top: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      border: 1px solid #dee2e6;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #e9ecef;
+      font-weight: 600;
+    }
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .mode-toggle label {
+      margin: 0;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -195,8 +222,14 @@
     </div>
   </div>
 
-  <!-- Sezione Crea Kit (usi stock magazzino) -->
-  <div class="card">
+  <!-- Checkbox per attivare modalità spacchettamento -->
+  <div class="mode-toggle">
+    <input type="checkbox" id="modalitaSpacchetta">
+    <label for="modalitaSpacchetta">🔓 Attiva modalità spacchettamento</label>
+  </div>
+
+  <!-- Sezione Crea Kit (visibile solo se checkbox non spuntata) -->
+  <div id="creaKitSection" class="card">
     <h3>➕ Crea Kit da magazzino</h3>
     <div class="form-row-3col">
       <div class="form-group">
@@ -236,26 +269,33 @@
     </div>
   </div>
 
-  <!-- Sezione Spacchetta Kit -->
-  <div class="card">
-    <h3>🔓 Spacchetta Kit</h3>
-    <div class="form-row-3col">
-      <div class="form-group">
-        <label>Kit assegnato al soggetto</label>
-        <select id="kitDaSpacchettare">
-          <option value="">Seleziona soggetto prima</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Quantità da spacchettare</label>
-        <input type="number" id="quantitaSpacchetta" value="1" min="1" step="1">
-      </div>
-      <div class="form-group">
-        <button type="button" class="btn btn-danger" id="spacchettaBtn" onclick="spacchettaKit()">🔓 Spacchetta Kit</button>
-      </div>
+  <!-- Tabella kit in magazzino (visibile solo in modalità creazione) -->
+  <div id="warehouseKitsTable" class="card" style="display: block;">
+    <h3>📦 Kit presenti nel magazzino</h3>
+    <div class="table-wrapper">
+      <table id="tabellaKitMagazzino">
+        <thead>
+          <tr><th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th> </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="4" class="text-center">Seleziona un magazzino</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="info-note">
-      ⚠️ Lo spacchettamento rimuove il kit e restituisce i componenti (sci, attacchi, skistopper) al soggetto.
+  </div>
+
+  <!-- Sezione Spacchetta Kit (visibile solo se checkbox spuntata) -->
+  <div id="spacchettaSection" class="card" style="display: none;">
+    <h3>🔓 Spacchetta Kit assegnati</h3>
+    <div class="table-wrapper">
+      <table id="tabellaKitAssegnati">
+        <thead>
+          <tr><th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th><th>Azioni</th> </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5" class="text-center">Seleziona un soggetto</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -295,7 +335,8 @@
   let magazzini = [];
   let tuttiSoggetti = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
-  let assignedKits = [];           // kit assegnati al soggetto corrente (per spacchettamento)
+  let warehouseKits = [];            // kit nel magazzino selezionato
+  let assignedKits = [];             // kit assegnati al soggetto corrente
 
   // DOM elements
   const magazzinoSelect = document.getElementById('magazzino');
@@ -305,8 +346,10 @@
   const attacchiSelect = document.getElementById('attacchiId');
   const skistopperSelect = document.getElementById('skistopperId');
   const quantitaInput = document.getElementById('quantita');
-  const kitSpacchettaSelect = document.getElementById('kitDaSpacchettare');
-  const quantitaSpacchettaInput = document.getElementById('quantitaSpacchetta');
+  const modalitaSpacchettaCheck = document.getElementById('modalitaSpacchetta');
+  const creaKitSection = document.getElementById('creaKitSection');
+  const warehouseKitsTable = document.getElementById('warehouseKitsTable');
+  const spacchettaSection = document.getElementById('spacchettaSection');
 
   // ---------- CARICA ANAGRAFICHE ----------
   async function caricaMagazzini() {
@@ -356,9 +399,6 @@
     if (!tipo) {
       soggettoSelect.disabled = true;
       soggettoSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-      // Resetta i dati di spacchettamento
-      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      assignedKits = [];
       return;
     }
 
@@ -371,10 +411,14 @@
     });
     if (filtrati.length === 1) {
       soggettoSelect.value = `${filtrati[0].tipo}|${filtrati[0].id}`;
-      onSoggettoChange();  // carica i kit per spacchettamento
+      onSoggettoChange();  // carica i kit per spacchettamento se la modalità è attiva
     } else {
       soggettoSelect.value = '';
-      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+    }
+    // Ricarica kit assegnati se in modalità spacchettamento
+    if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
+      const [tipo, id] = soggettoSelect.value.split('_');
+      caricaKitsAssegnati(tipo, parseInt(id));
     }
   }
 
@@ -433,19 +477,47 @@
     }
   }
 
+  // ---------- CARICA KIT NEL MAGAZZINO ----------
+  async function caricaKitMagazzino() {
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) {
+      const tbody = document.querySelector('#tabellaKitMagazzino tbody');
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center">Seleziona un magazzino</td></tr>';
+      return;
+    }
+    try {
+      // Ottieni tutti i kit (con assegnazioni)
+      const kits = await apiFetch('/api/kit');
+      // Filtra per magazzino e quantita > 0
+      warehouseKits = kits.filter(k => k.magazzino == magazzinoId && k.quantita > 0);
+      const tbody = document.querySelector('#tabellaKitMagazzino tbody');
+      if (warehouseKits.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nessun kit presente in questo magazzino</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      warehouseKits.forEach(k => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = k.id;
+        row.insertCell(1).innerText = k.codice_kit;
+        row.insertCell(2).innerText = k.descrizione;
+        row.insertCell(3).innerText = k.quantita;
+      });
+    } catch (err) {
+      console.error('Errore caricamento kit magazzino:', err);
+      showMessage('Errore caricamento kit magazzino', 'error');
+    }
+  }
+
   // ---------- CARICA KIT ASSEGNATI PER SPACCHETTAMENTO ----------
   async function caricaKitsAssegnati(tipo, id) {
     try {
       const body = { targetTipo: tipo, targetId: id };
       if (currentUser.ruolo === 'admin') body.includeReferenced = true;
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-      console.log('📦 Risposta server per soggetto', tipo, id, ':', res);
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
-      console.log('📦 Oggetti ricevuti (prima filtro):', oggetti);
-
-      // Filtra per kit con quantità > 0 (non filtro su destinazione perché la richiesta è già specifica)
       assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
         id: k.ID,
         quantita: k.quantita,
@@ -453,27 +525,34 @@
         codice: k.codice || ''
       }));
 
-      console.log('📦 Kit assegnati dopo filtro:', assignedKits);
-
-      // Popola il dropdown
-      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona kit...</option>';
+      const tbody = document.querySelector('#tabellaKitAssegnati tbody');
       if (assignedKits.length === 0) {
-        kitSpacchettaSelect.innerHTML = '<option value="">Nessun kit assegnato</option>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td></tr>';
         return;
       }
+      tbody.innerHTML = '';
       assignedKits.forEach(k => {
-        const option = document.createElement('option');
-        option.value = k.id;
-        let display = k.codice || `Kit #${k.id}`;
-        if (k.descrizione) display += ` - ${k.descrizione}`;
-        if (k.quantita > 1) display += ` (x${k.quantita})`;
-        option.textContent = display;
-        option.setAttribute('data-quantita', k.quantita);
-        kitSpacchettaSelect.appendChild(option);
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = k.id;
+        row.insertCell(1).innerText = k.codice;
+        row.insertCell(2).innerText = k.descrizione;
+        const qtyCell = row.insertCell(3);
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.value = 1;
+        qtyInput.min = 1;
+        qtyInput.max = k.quantita;
+        qtyInput.step = 1;
+        qtyInput.style.width = '80px';
+        qtyInput.id = `qty_${k.id}`;
+        qtyCell.appendChild(qtyInput);
+        const actionCell = row.insertCell(4);
+        const btn = document.createElement('button');
+        btn.textContent = '🔓 Spacchetta';
+        btn.className = 'btn btn-danger btn-sm';
+        btn.onclick = () => spacchettaKitSingolo(k.id, parseInt(qtyInput.value));
+        actionCell.appendChild(btn);
       });
-      quantitaSpacchettaInput.value = 1;
-      if (assignedKits.length) quantitaSpacchettaInput.max = assignedKits[0].quantita;
-      else quantitaSpacchettaInput.max = 1;
     } catch (err) {
       console.error('Errore caricamento kit assegnati:', err);
       showMessage('Errore caricamento kit assegnati: ' + err.message, 'error');
@@ -554,8 +633,13 @@
         document.getElementById('note').value = '';
         // Ricarica gli articoli dal magazzino (per aggiornare le giacenze)
         await caricaArticoliMagazzino();
-        // Ricarica i kit assegnati al soggetto (potrebbe essere cambiata la lista)
-        await caricaKitsAssegnati(destinazioneTipo, parseInt(destinazioneId));
+        // Ricarica i kit nel magazzino
+        await caricaKitMagazzino();
+        // Ricarica i kit assegnati al soggetto (se in modalità spacchettamento)
+        if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
+          const [t, id] = soggettoSelect.value.split('_');
+          await caricaKitsAssegnati(t, parseInt(id));
+        }
       } else {
         showMessage(result.message, 'error');
       }
@@ -567,19 +651,13 @@
     }
   }
 
-  // ---------- SPACCHETTAMENTO KIT ----------
-  async function spacchettaKit() {
+  // ---------- SPACCHETTAMENTO SINGOLO KIT ----------
+  async function spacchettaKitSingolo(kitId, quantita) {
     const soggettoVal = soggettoSelect.value;
     if (!soggettoVal) {
       showMessage('Seleziona un soggetto', 'error');
       return;
     }
-    const kitId = kitSpacchettaSelect.value;
-    if (!kitId) {
-      showMessage('Seleziona un kit da spacchettare', 'error');
-      return;
-    }
-    const quantita = parseInt(quantitaSpacchettaInput.value);
     const kit = assignedKits.find(k => k.id == kitId);
     if (!kit) {
       showMessage('Kit non trovato', 'error');
@@ -593,15 +671,15 @@
     const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
 
     const payload = {
-      kitId: parseInt(kitId),
+      kitId: kitId,
       quantita: quantita,
       destinazioneTipo: destinazioneTipo,
       destinazioneId: parseInt(destinazioneId)
     };
 
-    const spacchettaBtn = document.getElementById('spacchettaBtn');
-    spacchettaBtn.disabled = true;
-    spacchettaBtn.innerHTML = '<span class="spinner"></span> Spacchettamento...';
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
 
     try {
       const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
@@ -609,44 +687,50 @@
         showMessage(result.message, 'success');
         // Ricarica i kit assegnati al soggetto
         await caricaKitsAssegnati(destinazioneTipo, parseInt(destinazioneId));
-        // Ricarica anche gli articoli del magazzino (per eventuali variazioni)
-        await caricaArticoliMagazzino();
+        // Ricarica anche i kit nel magazzino (potrebbe essere cambiata la quantità)
+        await caricaKitMagazzino();
       } else {
         showMessage(result.message, 'error');
       }
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     } finally {
-      spacchettaBtn.disabled = false;
-      spacchettaBtn.innerHTML = '🔓 Spacchetta Kit';
+      btn.disabled = false;
+      btn.innerHTML = '🔓 Spacchetta';
+    }
+  }
+
+  // ---------- GESTIONE MODALITA' ----------
+  function toggleModalita() {
+    const isSpacchetta = modalitaSpacchettaCheck.checked;
+    creaKitSection.style.display = isSpacchetta ? 'none' : 'block';
+    warehouseKitsTable.style.display = isSpacchetta ? 'none' : 'block';
+    spacchettaSection.style.display = isSpacchetta ? 'block' : 'none';
+
+    if (isSpacchetta && soggettoSelect.value) {
+      const [tipo, id] = soggettoSelect.value.split('_');
+      caricaKitsAssegnati(tipo, parseInt(id));
+    } else if (!isSpacchetta && magazzinoSelect.value) {
+      caricaKitMagazzino();
     }
   }
 
   // ---------- GESTIONE EVENTI ----------
   async function onSoggettoChange() {
-    const val = soggettoSelect.value;
-    if (!val) {
-      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      return;
+    if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
+      const [tipo, id] = soggettoSelect.value.split('_');
+      await caricaKitsAssegnati(tipo, parseInt(id));
     }
-    const [tipo, id] = val.split('_');
-    await caricaKitsAssegnati(tipo, parseInt(id));
   }
 
   function attachEvents() {
     tipoSoggettoSelect.addEventListener('change', filtraSoggetti);
     soggettoSelect.addEventListener('change', onSoggettoChange);
-    magazzinoSelect.addEventListener('change', caricaArticoliMagazzino);
-    kitSpacchettaSelect.addEventListener('change', () => {
-      const selected = kitSpacchettaSelect.selectedOptions[0];
-      if (selected && selected.getAttribute('data-quantita')) {
-        const maxQ = parseInt(selected.getAttribute('data-quantita'));
-        quantitaSpacchettaInput.max = maxQ;
-        quantitaSpacchettaInput.value = 1;
-      } else {
-        quantitaSpacchettaInput.max = 1;
-      }
+    magazzinoSelect.addEventListener('change', async () => {
+      await caricaArticoliMagazzino();
+      if (!modalitaSpacchettaCheck.checked) await caricaKitMagazzino();
     });
+    modalitaSpacchettaCheck.addEventListener('change', toggleModalita);
   }
 
   // ---------- INIZIALIZZAZIONE ----------
@@ -668,7 +752,10 @@
     await caricaMagazzini();
     await caricaTuttiSoggetti();
     attachEvents();
-    if (magazzinoSelect.value) await caricaArticoliMagazzino();
+    if (magazzinoSelect.value) {
+      await caricaArticoliMagazzino();
+      await caricaKitMagazzino();
+    }
   };
 </script>
 </body>
