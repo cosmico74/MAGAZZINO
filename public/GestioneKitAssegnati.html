@@ -281,10 +281,10 @@
     <div class="table-wrapper">
       <table id="tabellaKitMagazzino">
         <thead>
-           <tr><th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th></tr>
+           <th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th>
         </thead>
         <tbody>
-           <tr><td colspan="4" class="text-center">Seleziona un magazzino</td></tr>
+           <td colspan="4" class="text-center">Seleziona un magazzino</td>
         </tbody>
       </table>
     </div>
@@ -296,10 +296,10 @@
     <div class="table-wrapper">
       <table id="tabellaKitAssegnati">
         <thead>
-           <tr><th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th><th>Azioni</th></tr>
+           <th>ID</th><th>Codice Kit</th><th>Descrizione</th><th>Quantità</th><th>Azioni</th>
         </thead>
         <tbody>
-           <tr><td colspan="5" class="text-center">Seleziona un soggetto</td></tr>
+           <td colspan="5" class="text-center">Seleziona un soggetto</td>
         </tbody>
       </table>
     </div>
@@ -405,6 +405,11 @@
     if (!tipo) {
       soggettoSelect.disabled = true;
       soggettoSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+      // Se modalità spacchettamento attiva, resetta la tabella
+      if (modalitaSpacchettaCheck.checked) {
+        const tbody = document.querySelector('#tabellaKitAssegnati tbody');
+        tbody.innerHTML = ':<td colspan="5" class="text-center">Seleziona un tipo e poi un soggetto</td>';
+      }
       return;
     }
 
@@ -415,16 +420,21 @@
       let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
       soggettoSelect.appendChild(new Option(nome, `${s.tipo}|${s.id}`));
     });
+    // Se c'è un solo soggetto, lo seleziona automaticamente e carica i kit
     if (filtrati.length === 1) {
       soggettoSelect.value = `${filtrati[0].tipo}|${filtrati[0].id}`;
-      onSoggettoChange();  // carica i kit per spacchettamento se la modalità è attiva
+      // Forza l'aggiornamento della tabella
+      if (modalitaSpacchettaCheck.checked) {
+        const [tipo, id] = soggettoSelect.value.split('_');
+        caricaKitsAssegnati(tipo, parseInt(id));
+      }
     } else {
       soggettoSelect.value = '';
-    }
-    // Ricarica kit assegnati se in modalità spacchettamento
-    if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
-      const [tipo, id] = soggettoSelect.value.split('_');
-      caricaKitsAssegnati(tipo, parseInt(id));
+      // Se modalità spacchettamento attiva, resetta la tabella
+      if (modalitaSpacchettaCheck.checked) {
+        const tbody = document.querySelector('#tabellaKitAssegnati tbody');
+        tbody.innerHTML = ':<td colspan="5" class="text-center">Seleziona un soggetto</td>';
+      }
     }
   }
 
@@ -488,7 +498,7 @@
     const magazzinoId = magazzinoSelect.value;
     if (!magazzinoId) {
       const tbody = document.querySelector('#tabellaKitMagazzino tbody');
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center">Seleziona un magazzino</td></tr>';
+      tbody.innerHTML = ':<td colspan="4" class="text-center">Seleziona un magazzino</td>';
       return;
     }
     try {
@@ -496,7 +506,7 @@
       warehouseKits = kits.filter(k => k.magazzino == magazzinoId && k.quantita > 0);
       const tbody = document.querySelector('#tabellaKitMagazzino tbody');
       if (warehouseKits.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nessun kit presente in questo magazzino</td></tr>';
+        tbody.innerHTML = ':<td colspan="4" class="text-center">Nessun kit presente in questo magazzino</td>';
         return;
       }
       tbody.innerHTML = '';
@@ -515,6 +525,7 @@
 
   // ---------- CARICA KIT ASSEGNATI PER SPACCHETTAMENTO ----------
   async function caricaKitsAssegnati(tipo, id) {
+    console.log(`Caricamento kit assegnati per ${tipo} ${id}`);
     try {
       const body = { targetTipo: tipo, targetId: id };
       if (currentUser.ruolo === 'admin') body.includeReferenced = true;
@@ -531,7 +542,7 @@
 
       const tbody = document.querySelector('#tabellaKitAssegnati tbody');
       if (assignedKits.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td></tr>';
+        tbody.innerHTML = ':<td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td>';
         return;
       }
       tbody.innerHTML = '';
@@ -681,7 +692,7 @@
       destinazioneId: parseInt(destinazioneId)
     };
 
-    // Trova il bottone cliccato (non abbiamo event object, quindi usiamo document.activeElement)
+    // Trova il bottone cliccato
     const btn = document.activeElement;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>';
