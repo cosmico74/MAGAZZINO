@@ -779,34 +779,6 @@
     showMessage('Errore caricamento kit: ' + err.message, 'error');
   }
 }
-    try {
-      const data = await apiFetch('/api/kit');
-      kitList = data.filter(k => k.quantita > 0);
-      const articoliIds = new Set();
-      kitList.forEach(k => {
-        articoliIds.add(k.id_sci);
-        articoliIds.add(k.id_attacchi);
-        if (k.id_skistopper) articoliIds.add(k.id_skistopper);
-      });
-      for (let id of articoliIds) {
-        if (!articoliDettaglioCache.has(id)) {
-          try {
-            const art = await apiFetch(`/api/articoli/${id}`);
-            articoliDettaglioCache.set(id, art);
-          } catch (e) {
-            console.warn(`Errore caricamento articolo ${id}`, e);
-          }
-        }
-      }
-      console.log(`Caricati ${kitList.length} kit`);
-      if (externalCheckbox.checked && sourceId.value) {
-        await getKitsAssegnati(sourceTipo.value, sourceId.value);
-      }
-      filtraKit();
-    } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
-    }
-  }
 
 function filtraKit() {
   console.log('=== INIZIO FILTRO KIT ===');
