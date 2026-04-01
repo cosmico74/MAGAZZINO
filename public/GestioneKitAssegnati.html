@@ -405,7 +405,6 @@
     if (!tipo) {
       soggettoSelect.disabled = true;
       soggettoSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-      // Se modalità spacchettamento attiva, resetta la tabella
       if (modalitaSpacchettaCheck.checked) {
         const tbody = document.querySelector('#tabellaKitAssegnati tbody');
         tbody.innerHTML = '<td colspan="5" class="text-center">Seleziona un tipo e poi un soggetto</td>';
@@ -420,17 +419,14 @@
       let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
       soggettoSelect.appendChild(new Option(nome, `${s.tipo}|${s.id}`));
     });
-    // Se c'è un solo soggetto, lo seleziona automaticamente e carica i kit
     if (filtrati.length === 1) {
       soggettoSelect.value = `${filtrati[0].tipo}|${filtrati[0].id}`;
-      // Forza l'aggiornamento della tabella
       if (modalitaSpacchettaCheck.checked) {
-        const [tipo, id] = soggettoSelect.value.split('_');
+        const [tipo, id] = soggettoSelect.value.split('|');
         caricaKitsAssegnati(tipo, parseInt(id));
       }
     } else {
       soggettoSelect.value = '';
-      // Se modalità spacchettamento attiva, resetta la tabella
       if (modalitaSpacchettaCheck.checked) {
         const tbody = document.querySelector('#tabellaKitAssegnati tbody');
         tbody.innerHTML = '<td colspan="5" class="text-center">Seleziona un soggetto</td>';
@@ -534,16 +530,20 @@
 
       const oggetti = res.oggetti || [];
       console.log('Oggetti ricevuti:', oggetti);
+      // Log dettagliato per debug
+      console.log('Primo oggetto se presente:', oggetti[0] ? JSON.stringify(oggetti[0]) : 'nessuno');
 
-      // Filtra per kit con quantita > 0 e destinazione esatta (conversione tipi)
+      // Filtra per kit con quantita > 0 e destinazione esatta
       const filtrati = oggetti.filter(o => {
         if (o.tipo !== 'KIT') return false;
         if (o.quantita <= 0) return false;
-        // Verifica destinazione esatta
         const destTipo = o.destinazioneTipo;
         const destId = o.destinazioneId;
-        if (!destTipo || destId === undefined) return false;
-        // Confronta i tipi (stringhe) e gli ID (numerici)
+        if (destTipo === undefined || destId === undefined) {
+          console.warn('Oggetto senza destinazioneTipo/destinazioneId:', o);
+          return false;
+        }
+        // Confronto diretto (tipo è stringa, destTipo stringa; id numerici)
         return destTipo === tipo && parseInt(destId) === id;
       });
 
@@ -603,6 +603,7 @@
       return;
     }
 
+    const [destinazioneTipo, destinazioneId] = soggettoVal.split('|');
     const sciId = sciSelect.value;
     const attacchiId = attacchiSelect.value;
     const skistopperId = skistopperSelect.value;
@@ -632,8 +633,6 @@
         return;
       }
     }
-
-    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
 
     const payload = {
       magazzino: parseInt(magazzino),
@@ -668,7 +667,7 @@
         await caricaKitMagazzino();
         // Ricarica i kit assegnati al soggetto (se in modalità spacchettamento)
         if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
-          const [t, id] = soggettoSelect.value.split('_');
+          const [t, id] = soggettoSelect.value.split('|');
           await caricaKitsAssegnati(t, parseInt(id));
         }
       } else {
@@ -699,7 +698,7 @@
       return;
     }
 
-    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
+    const [destinazioneTipo, destinazioneId] = soggettoVal.split('|');
 
     const payload = {
       kitId: kitId,
@@ -740,7 +739,7 @@
     spacchettaSection.style.display = isSpacchetta ? 'block' : 'none';
 
     if (isSpacchetta && soggettoSelect.value) {
-      const [tipo, id] = soggettoSelect.value.split('_');
+      const [tipo, id] = soggettoSelect.value.split('|');
       caricaKitsAssegnati(tipo, parseInt(id));
     } else if (!isSpacchetta && magazzinoSelect.value) {
       caricaKitMagazzino();
@@ -751,7 +750,7 @@
   async function onSoggettoChange() {
     console.log('Soggetto cambiato:', soggettoSelect.value);
     if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
-      const [tipo, id] = soggettoSelect.value.split('_');
+      const [tipo, id] = soggettoSelect.value.split('|');
       await caricaKitsAssegnati(tipo, parseInt(id));
     }
   }
