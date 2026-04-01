@@ -195,20 +195,20 @@
     </div>
   </div>
 
-  <!-- Sezione Crea Kit -->
+  <!-- Sezione Crea Kit (usi stock magazzino) -->
   <div class="card">
-    <h3>➕ Crea Kit da articoli assegnati</h3>
+    <h3>➕ Crea Kit da magazzino</h3>
     <div class="form-row-3col">
       <div class="form-group">
         <label>Sci *</label>
         <select id="sciId" required>
-          <option value="">Seleziona soggetto prima</option>
+          <option value="">Seleziona magazzino prima</option>
         </select>
       </div>
       <div class="form-group">
         <label>Attacchi *</label>
         <select id="attacchiId" required>
-          <option value="">Seleziona soggetto prima</option>
+          <option value="">Seleziona magazzino prima</option>
         </select>
       </div>
       <div class="form-group">
@@ -232,7 +232,7 @@
       </div>
     </div>
     <div class="info-note">
-      ⚠️ I componenti verranno prelevati dagli articoli attualmente assegnati al soggetto. Il kit creato verrà assegnato allo stesso soggetto.
+      ⚠️ I componenti vengono prelevati dal magazzino selezionato. Il kit verrà assegnato al soggetto scelto.
     </div>
   </div>
 
@@ -293,10 +293,9 @@
   // ---------- GLOBALI ----------
   let currentUser = null;
   let magazzini = [];
-  let tuttiSoggetti = [];          // tutti i soggetti per il filtraggio
+  let tuttiSoggetti = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
-  let assignedArticles = { sci: [], attacchi: [], skistopper: [] };
-  let assignedKits = [];           // kit assegnati al soggetto corrente
+  let assignedKits = [];           // kit assegnati al soggetto corrente (per spacchettamento)
 
   // DOM elements
   const magazzinoSelect = document.getElementById('magazzino');
@@ -357,12 +356,8 @@
     if (!tipo) {
       soggettoSelect.disabled = true;
       soggettoSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-      // Resetta i dati visualizzati
-      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
+      // Resetta i dati di spacchettamento
       kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      assignedArticles = { sci: [], attacchi: [], skistopper: [] };
       assignedKits = [];
       return;
     }
@@ -374,21 +369,73 @@
       let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
       soggettoSelect.appendChild(new Option(nome, `${s.tipo}|${s.id}`));
     });
-    // Se c'è un solo soggetto, lo selezioniamo automaticamente (opzionale)
     if (filtrati.length === 1) {
       soggettoSelect.value = `${filtrati[0].tipo}|${filtrati[0].id}`;
-      onSoggettoChange();  // carica i dati
+      onSoggettoChange();  // carica i kit per spacchettamento
     } else {
       soggettoSelect.value = '';
-      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
       kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
     }
   }
 
-  // ---------- CARICA OGGETTI ASSEGNATI PER SOGGETTO ----------
-  async function caricaOggettiAssegnati(tipo, id) {
+  // ---------- CARICA ARTICOLI DAL MAGAZZINO (per creazione kit) ----------
+  async function caricaArticoliMagazzino() {
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) {
+      sciSelect.innerHTML = '<option value="">Seleziona magazzino prima</option>';
+      attacchiSelect.innerHTML = '<option value="">Seleziona magazzino prima</option>';
+      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
+      return;
+    }
+
+    try {
+      const fetchCategory = async (catId) => {
+        if (!catId) return [];
+        const params = new URLSearchParams({
+          magazzino: magazzinoId,
+          min_giacenza: '1',
+          categoria: catId
+        });
+        const url = `/api/articoli?${params.toString()}`;
+        const res = await apiFetch(url);
+        if (res.success) return res.data;
+        return [];
+      };
+
+      const [sciList, attacchiList, skistopperList] = await Promise.all([
+        fetchCategory(categoryIds.sci),
+        fetchCategory(categoryIds.attacchi),
+        fetchCategory(categoryIds.skistopper)
+      ]);
+
+      // Formatta e popola i select
+      function formatAndPopulate(select, lista, tipo) {
+        if (!select) return;
+        select.innerHTML = '<option value="">Seleziona...</option>';
+        lista.forEach(art => {
+          let text = art.descrizione_completa || art.descrizione;
+          if (art.sigla) text = `[${art.sigla}] ${text}`;
+          const giacenza = art.quantita_totale - art.quantita_in_kit;
+          text += ` (disp. ${giacenza})`;
+          const option = document.createElement('option');
+          option.value = art.id;
+          option.textContent = text;
+          option.setAttribute('data-giacenza', giacenza);
+          select.appendChild(option);
+        });
+      }
+
+      formatAndPopulate(sciSelect, sciList, 'sci');
+      formatAndPopulate(attacchiSelect, attacchiList, 'attacchi');
+      formatAndPopulate(skistopperSelect, skistopperList, 'skistopper', true);
+    } catch (err) {
+      console.error('Errore caricamento articoli magazzino:', err);
+      showMessage('Errore caricamento articoli dal magazzino', 'error');
+    }
+  }
+
+  // ---------- CARICA KIT ASSEGNATI PER SPACCHETTAMENTO ----------
+  async function caricaKitsAssegnati(tipo, id) {
     try {
       const body = { targetTipo: tipo, targetId: id };
       if (currentUser.ruolo === 'admin') body.includeReferenced = true;
@@ -396,51 +443,6 @@
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
-
-      // Articoli per creazione kit
-      assignedArticles.sci = oggetti.filter(o =>
-        o.tipo === 'ARTICOLO' &&
-        o.CATEGORIA === categoryIds.sci &&
-        (o.quantita - (o.quantita_in_kit || 0)) > 0
-      ).map(a => ({
-        id: a.ID,
-        codice: a.codice,
-        descrizione: a.descrizione,
-        giacenza: a.quantita - (a.quantita_in_kit || 0),
-        sigla: a.SIGLA,
-        lunghezza: a.LUNGHEZZA,
-        durezza: a.DUREZZA
-      }));
-
-      assignedArticles.attacchi = oggetti.filter(o =>
-        o.tipo === 'ARTICOLO' &&
-        o.CATEGORIA === categoryIds.attacchi &&
-        (o.quantita - (o.quantita_in_kit || 0)) > 0
-      ).map(a => ({
-        id: a.ID,
-        codice: a.codice,
-        descrizione: a.descrizione,
-        giacenza: a.quantita - (a.quantita_in_kit || 0),
-        sigla: a.SIGLA
-      }));
-
-      assignedArticles.skistopper = oggetti.filter(o =>
-        o.tipo === 'ARTICOLO' &&
-        o.CATEGORIA === categoryIds.skistopper &&
-        (o.quantita - (o.quantita_in_kit || 0)) > 0
-      ).map(a => ({
-        id: a.ID,
-        codice: a.codice,
-        descrizione: a.descrizione,
-        giacenza: a.quantita - (a.quantita_in_kit || 0),
-        sigla: a.SIGLA
-      }));
-
-      popolaSelect(sciSelect, assignedArticles.sci, 'sci');
-      popolaSelect(attacchiSelect, assignedArticles.attacchi, 'attacchi');
-      popolaSelect(skistopperSelect, assignedArticles.skistopper, 'skistopper', true);
-
-      // Kit assegnati per spacchettamento
       assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
         id: k.ID,
         quantita: k.quantita,
@@ -448,65 +450,44 @@
         codice: k.codice || ''
       }));
 
-      popolaSelectKits(assignedKits);
+      // Popola il dropdown
+      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona kit...</option>';
+      if (assignedKits.length === 0) {
+        kitSpacchettaSelect.innerHTML = '<option value="">Nessun kit assegnato</option>';
+        return;
+      }
+      assignedKits.forEach(k => {
+        const option = document.createElement('option');
+        option.value = k.id;
+        let display = k.codice || `Kit #${k.id}`;
+        if (k.descrizione) display += ` - ${k.descrizione}`;
+        if (k.quantita > 1) display += ` (x${k.quantita})`;
+        option.textContent = display;
+        option.setAttribute('data-quantita', k.quantita);
+        kitSpacchettaSelect.appendChild(option);
+      });
+      quantitaSpacchettaInput.value = 1;
+      if (assignedKits.length) quantitaSpacchettaInput.max = assignedKits[0].quantita;
+      else quantitaSpacchettaInput.max = 1;
     } catch (err) {
-      console.error('Errore caricamento oggetti assegnati:', err);
-      showMessage('Errore caricamento oggetti: ' + err.message, 'error');
+      console.error('Errore caricamento kit assegnati:', err);
+      showMessage('Errore caricamento kit assegnati: ' + err.message, 'error');
     }
   }
 
-  function formatArticleDisplay(art, tipo) {
-    let parts = [];
-    if (art.sigla) parts.push(`[${art.sigla}]`);
-    parts.push(art.descrizione);
-    if (tipo === 'sci') {
-      if (art.lunghezza) parts.push(art.lunghezza);
-      if (art.durezza && art.durezza !== 'N/A') parts.push(art.durezza);
-    }
-    return `${parts.join(' ')} (disp. ${art.giacenza})`;
-  }
-
-  function popolaSelect(select, lista, tipo, optional = false) {
-    select.innerHTML = optional ? '<option value="">Nessuno</option>' : '<option value="">Seleziona...</option>';
-    lista.forEach(art => {
-      const option = document.createElement('option');
-      option.value = art.id;
-      option.textContent = formatArticleDisplay(art, tipo);
-      option.setAttribute('data-giacenza', art.giacenza);
-      select.appendChild(option);
-    });
-  }
-
-  function popolaSelectKits(kits) {
-    kitSpacchettaSelect.innerHTML = '<option value="">Seleziona kit...</option>';
-    if (kits.length === 0) {
-      kitSpacchettaSelect.innerHTML = '<option value="">Nessun kit assegnato</option>';
-      return;
-    }
-    kits.forEach(k => {
-      const option = document.createElement('option');
-      option.value = k.id;
-      let display = k.codice || `Kit #${k.id}`;
-      if (k.descrizione) display += ` - ${k.descrizione}`;
-      if (k.quantita > 1) display += ` (x${k.quantita})`;
-      option.textContent = display;
-      option.setAttribute('data-quantita', k.quantita);
-      kitSpacchettaSelect.appendChild(option);
-    });
-    quantitaSpacchettaInput.value = 1;
-    if (kits.length) quantitaSpacchettaInput.max = kits[0].quantita;
-    else quantitaSpacchettaInput.max = 1;
-  }
-
-  // ---------- CREAZIONE KIT ----------
+  // ---------- CREAZIONE KIT (da magazzino, assegnato al soggetto) ----------
   async function creaKit() {
     const magazzino = magazzinoSelect.value;
     const soggettoVal = soggettoSelect.value;
-    if (!magazzino || !soggettoVal) {
-      showMessage('Seleziona magazzino e soggetto', 'error');
+    if (!magazzino) {
+      showMessage('Seleziona un magazzino', 'error');
       return;
     }
-    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
+    if (!soggettoVal) {
+      showMessage('Seleziona un soggetto destinatario', 'error');
+      return;
+    }
+
     const sciId = sciSelect.value;
     const attacchiId = attacchiSelect.value;
     const skistopperId = skistopperSelect.value;
@@ -518,23 +499,26 @@
       return;
     }
 
-    const sci = assignedArticles.sci.find(a => a.id == sciId);
-    const att = assignedArticles.attacchi.find(a => a.id == attacchiId);
-    if (!sci || sci.giacenza < quantita) {
-      showMessage('Giacenza sci insufficiente', 'error');
+    // Verifica giacenza (opzionale, i dati nel select hanno già la giacenza)
+    const sciOption = sciSelect.selectedOptions[0];
+    const attOption = attacchiSelect.selectedOptions[0];
+    if (sciOption && parseInt(sciOption.getAttribute('data-giacenza')) < quantita) {
+      showMessage('Giacenza sci insufficiente nel magazzino', 'error');
       return;
     }
-    if (!att || att.giacenza < quantita) {
-      showMessage('Giacenza attacchi insufficiente', 'error');
+    if (attOption && parseInt(attOption.getAttribute('data-giacenza')) < quantita) {
+      showMessage('Giacenza attacchi insufficiente nel magazzino', 'error');
       return;
     }
     if (skistopperId) {
-      const sk = assignedArticles.skistopper.find(a => a.id == skistopperId);
-      if (!sk || sk.giacenza < quantita) {
-        showMessage('Giacenza skistopper insufficiente', 'error');
+      const skOption = skistopperSelect.selectedOptions[0];
+      if (skOption && parseInt(skOption.getAttribute('data-giacenza')) < quantita) {
+        showMessage('Giacenza skistopper insufficiente nel magazzino', 'error');
         return;
       }
     }
+
+    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
 
     const payload = {
       magazzino: parseInt(magazzino),
@@ -544,9 +528,7 @@
       id_skistopper: skistopperId ? parseInt(skistopperId) : null,
       sigla: null,
       note: note || null,
-      componiDaAssegnati: true,
-      sourceTipo: destinazioneTipo,
-      sourceId: parseInt(destinazioneId),
+      componiDaAssegnati: false,     // usa stock magazzino, non articoli assegnati
       destinazioneTipo: destinazioneTipo,
       destinazioneId: parseInt(destinazioneId)
     };
@@ -559,14 +541,16 @@
       const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
         showMessage(result.message, 'success');
-        // Reset campi
+        // Reset campi creazione
         sciSelect.value = '';
         attacchiSelect.value = '';
         skistopperSelect.value = '';
         quantitaInput.value = 1;
         document.getElementById('note').value = '';
-        // Ricarica gli oggetti del soggetto
-        await caricaOggettiAssegnati(destinazioneTipo, parseInt(destinazioneId));
+        // Ricarica gli articoli dal magazzino (per aggiornare le giacenze)
+        await caricaArticoliMagazzino();
+        // Ricarica i kit assegnati al soggetto (potrebbe essere cambiata la lista)
+        await caricaKitsAssegnati(destinazioneTipo, parseInt(destinazioneId));
       } else {
         showMessage(result.message, 'error');
       }
@@ -618,8 +602,10 @@
       const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
         showMessage(result.message, 'success');
-        // Ricarica i dati del soggetto
-        await caricaOggettiAssegnati(destinazioneTipo, parseInt(destinazioneId));
+        // Ricarica i kit assegnati al soggetto
+        await caricaKitsAssegnati(destinazioneTipo, parseInt(destinazioneId));
+        // Ricarica anche gli articoli del magazzino (per eventuali variazioni)
+        await caricaArticoliMagazzino();
       } else {
         showMessage(result.message, 'error');
       }
@@ -634,14 +620,18 @@
   // ---------- GESTIONE EVENTI ----------
   async function onSoggettoChange() {
     const val = soggettoSelect.value;
-    if (!val) return;
+    if (!val) {
+      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      return;
+    }
     const [tipo, id] = val.split('_');
-    await caricaOggettiAssegnati(tipo, parseInt(id));
+    await caricaKitsAssegnati(tipo, parseInt(id));
   }
 
   function attachEvents() {
     tipoSoggettoSelect.addEventListener('change', filtraSoggetti);
     soggettoSelect.addEventListener('change', onSoggettoChange);
+    magazzinoSelect.addEventListener('change', caricaArticoliMagazzino);
     kitSpacchettaSelect.addEventListener('change', () => {
       const selected = kitSpacchettaSelect.selectedOptions[0];
       if (selected && selected.getAttribute('data-quantita')) {
@@ -671,8 +661,10 @@
 
     await caricaCategorie();
     await caricaMagazzini();
-    await caricaTuttiSoggetti();  // carica tutti i soggetti per il filtraggio
+    await caricaTuttiSoggetti();
     attachEvents();
+    // Carica gli articoli del magazzino se già selezionato
+    if (magazzinoSelect.value) await caricaArticoliMagazzino();
   };
 </script>
 </body>
