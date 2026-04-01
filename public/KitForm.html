@@ -311,7 +311,7 @@
     </div>
   </form>
 
-  <!-- FILTRI E AGGIORNAMENTO TABELLA -->
+  <!-- FILTRI (con aggiornamento automatico) -->
   <div class="filter-section">
     <div class="filter-row-5col">
       <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino" autocomplete="off"><option value="">Tutti</option></select></div>
@@ -328,9 +328,6 @@
       <div class="filter-group"></div>
     </div>
     <div class="toolbar" style="justify-content: flex-start;">
-      <button class="btn" onclick="applicaFiltri()">🔍 Filtra componenti</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-      <button class="btn" onclick="caricaKit()">🔄 Aggiorna lista kit</button>
       <span class="info-note">I filtri influenzano solo lo SCI e la tabella kit.</span>
     </div>
   </div>
@@ -901,7 +898,6 @@
   async function caricaSorgenti() {
     const tipo = sourceTipo.value;
     try {
-      // Usa l'endpoint corretto: /api/soggetti/tipo/:tipo
       const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
       console.log(`Soggetti per tipo ${tipo}:`, data);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
@@ -910,7 +906,6 @@
         sourceId.appendChild(new Option(testo, item.id));
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      // Dopo aver caricato la sorgente, se la checkbox è attiva, aggiorna i datalist e la tabella
       if (externalCheckbox.checked) {
         await refreshComponentDatalists();
       }
@@ -972,10 +967,15 @@
         }
       });
 
+      destinazioneTipo.addEventListener('change', () => {
+        if (externalCheckbox.checked) {
+          caricaDestinazioni();
+        }
+      });
+
       externalCheckbox.addEventListener('change', () => {
         if (externalCheckbox.checked) {
           assegnazioneSection.style.display = 'block';
-          // Carica sia sorgenti che destinazioni e poi aggiorna
           Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
             refreshComponentDatalists();
           });
@@ -997,12 +997,11 @@
       }
     }
 
-    destinazioneTipo.addEventListener('change', () => {
-  if (externalCheckbox.checked) {
-    caricaDestinazioni();
-  }
-});
-    
+    sourceId.addEventListener('change', () => {
+      if (externalCheckbox.checked) {
+        refreshComponentDatalists();
+      }
+    });
   }
 
   // ---------- CREAZIONE KIT ----------
