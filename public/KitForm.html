@@ -411,12 +411,15 @@
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let canUseWarehouse = false;
 
+  // Variabili per ordinamento
   let sortColumn = 'id';
   let sortAsc = true;
 
+  // Cache per oggetti assegnati (articoli e kit)
   let cachedAssignedKits = null;
   let lastSourceKey = null;
 
+  // Elementi filtro
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
   const filtroMar = document.getElementById('filtroMarca');
@@ -426,6 +429,7 @@
   const filtroLung = document.getElementById('filtroLunghezza');
   const filtroDur = document.getElementById('filtroDurezza');
 
+  // Elementi esterni
   const externalCheckbox = document.getElementById('assegnazioniEsterneCheckbox');
   const assegnazioneSection = document.getElementById('assegnazioneSection');
   const sourceTipo = document.getElementById('sourceTipo');
@@ -512,6 +516,7 @@
     params.append('min_giacenza', '1');
     if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
     const url = `/api/articoli?${params.toString()}`;
+    console.log(`📡 Caricamento ${tipo}:`, url);
     const res = await apiFetch(url);
     if (res.success) return res.data;
     return [];
@@ -596,6 +601,7 @@
           if (datalist) datalist.innerHTML = '';
           return;
         }
+        console.log(`Popolo ${datalistId} con oggetti assegnati a ${srcTipo} ${srcId}`);
         articoli = await getArticoliPerDatalistAssegnati(tipo, srcTipo, srcId);
       } else {
         articoli = await getArticoliPerDatalist(tipo);
@@ -631,7 +637,7 @@
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    filtraKit();
+    filtraKit(); // aggiorna tabella
   }
 
   // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
@@ -776,23 +782,54 @@
     let valA, valB;
 
     switch (column) {
-      case 'id': valA = a.id; valB = b.id; break;
-      case 'codice': valA = a.codice_kit || ''; valB = b.codice_kit || ''; break;
-      case 'sigla': valA = a.sigla || ''; valB = b.sigla || ''; break;
-      case 'descrizione': valA = a.descrizione || ''; valB = b.descrizione || ''; break;
+      case 'id':
+        valA = a.id;
+        valB = b.id;
+        break;
+      case 'codice':
+        valA = a.codice_kit || '';
+        valB = b.codice_kit || '';
+        break;
+      case 'sigla':
+        valA = a.sigla || '';
+        valB = b.sigla || '';
+        break;
+      case 'descrizione':
+        valA = a.descrizione || '';
+        valB = b.descrizione || '';
+        break;
       case 'magazzino_nome':
         valA = magazzini.find(m => m.id == a.magazzino)?.nome || '';
         valB = magazzini.find(m => m.id == b.magazzino)?.nome || '';
         break;
-      case 'sci_desc': valA = articoliDettaglioCache.get(a.id_sci)?.descrizione || ''; valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || ''; break;
-      case 'attacchi_desc': valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || ''; valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || ''; break;
-      case 'skistopper_desc': valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-'; valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-'; break;
-      case 'quantita': valA = a.quantita; valB = b.quantita; break;
-      case 'assegnato_nome': valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino'; valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino'; break;
-      default: valA = ''; valB = '';
+      case 'sci_desc':
+        valA = articoliDettaglioCache.get(a.id_sci)?.descrizione || '';
+        valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || '';
+        break;
+      case 'attacchi_desc':
+        valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || '';
+        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || '';
+        break;
+      case 'skistopper_desc':
+        valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-';
+        valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-';
+        break;
+      case 'quantita':
+        valA = a.quantita;
+        valB = b.quantita;
+        break;
+      case 'assegnato_nome':
+        valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino';
+        valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino';
+        break;
+      default:
+        valA = '';
+        valB = '';
     }
 
-    if (typeof valA === 'number' && typeof valB === 'number') return valA - valB;
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return valA - valB;
+    }
     return (valA || '').toString().localeCompare((valB || '').toString());
   }
 
@@ -810,7 +847,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nessun kit trovato</td></tr>';
+      tbody.innerHTML = '|<td colspan="11" class="text-center">Nessun kit trovato<\/td>|';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -860,17 +897,20 @@
     });
   }
 
-  // ---------- GESTIONE SORGENTI E DESTINAZIONI ----------
+  // ---------- GESTIONE SORGENTI E DESTINAZIONI (CORRETTO) ----------
   async function caricaSorgenti() {
     const tipo = sourceTipo.value;
     try {
-      const data = await apiFetch(`/api/soggetti?tipo=${tipo}`);
+      // Usa l'endpoint corretto: /api/soggetti/tipo/:tipo
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      console.log(`Soggetti per tipo ${tipo}:`, data);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
         sourceId.appendChild(new Option(testo, item.id));
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      // Dopo aver caricato la sorgente, se la checkbox è attiva, aggiorna i datalist e la tabella
       if (externalCheckbox.checked) {
         await refreshComponentDatalists();
       }
@@ -882,7 +922,7 @@
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
-      const data = await apiFetch(`/api/soggetti?tipo=${tipo}`);
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
       destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
@@ -914,7 +954,7 @@
             }
           }
         }
-        refreshComponentDatalists();
+        refreshComponentDatalists(); // aggiorna tutto
       });
       destinazioneTipo.disabled = false;
       destinazioneId.disabled = false;
@@ -935,6 +975,7 @@
       externalCheckbox.addEventListener('change', () => {
         if (externalCheckbox.checked) {
           assegnazioneSection.style.display = 'block';
+          // Carica sia sorgenti che destinazioni e poi aggiorna
           Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
             refreshComponentDatalists();
           });
@@ -956,11 +997,12 @@
       }
     }
 
-    sourceId.addEventListener('change', () => {
-      if (externalCheckbox.checked) {
-        refreshComponentDatalists();
-      }
-    });
+    destinazioneTipo.addEventListener('change', () => {
+  if (externalCheckbox.checked) {
+    caricaDestinazioni();
+  }
+});
+    
   }
 
   // ---------- CREAZIONE KIT ----------
