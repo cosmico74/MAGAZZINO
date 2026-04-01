@@ -146,17 +146,6 @@ async function loadAndShowMenu() {
   const user = JSON.parse(userStr);
   try {
     const menuItems = await apiCall('/api/anagrafiche/menu', 'GET');
-    // Aggiungiamo il nuovo card "Articoli Unificato" manualmente
-    // (se non già presente dal backend)
-    const alreadyHasUnified = menuItems.some(item => item.url === 'ArticoliUnificato.html');
-    if (!alreadyHasUnified) {
-      menuItems.push({
-        titolo: '📦 Articoli Unificato',
-        descrizione: 'Inserisci e modifica articoli in un’unica schermata',
-        icona: '📦',
-        url: 'ArticoliUnificato.html'
-      });
-    }
     showMenu(user, menuItems);
   } catch (err) {
     console.error('Errore menu:', err);
