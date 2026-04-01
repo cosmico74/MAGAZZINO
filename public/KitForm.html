@@ -638,7 +638,7 @@
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    filtraKit();
+    filtraKit(); // aggiorna tabella
   }
 
   // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
@@ -898,17 +898,19 @@
     });
   }
 
-  // ---------- GESTIONE SORGENTI E DESTINAZIONI ----------
+  // ---------- GESTIONE SORGENTI E DESTINAZIONI (CORRETTO) ----------
   async function caricaSorgenti() {
     const tipo = sourceTipo.value;
     try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      // Usa l'endpoint corretto: /api/soggetti?tipo=...
+      const data = await apiFetch(`/api/soggetti?tipo=${tipo}`);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
         sourceId.appendChild(new Option(testo, item.id));
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      // Dopo aver caricato la sorgente, se la checkbox è attiva, aggiorna i datalist e la tabella
       if (externalCheckbox.checked) {
         await refreshComponentDatalists();
       }
@@ -920,7 +922,7 @@
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      const data = await apiFetch(`/api/soggetti?tipo=${tipo}`);
       destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
@@ -952,7 +954,7 @@
             }
           }
         }
-        refreshComponentDatalists();
+        refreshComponentDatalists(); // aggiorna tutto
       });
       destinazioneTipo.disabled = false;
       destinazioneId.disabled = false;
@@ -966,17 +968,17 @@
 
       sourceTipo.addEventListener('change', () => {
         if (externalCheckbox.checked) {
-          caricaSorgenti().then(() => {
-            refreshComponentDatalists();
-          });
+          caricaSorgenti().then(() => refreshComponentDatalists());
         }
       });
 
       externalCheckbox.addEventListener('change', () => {
         if (externalCheckbox.checked) {
           assegnazioneSection.style.display = 'block';
-          caricaSorgenti();
-          caricaDestinazioni();
+          // Carica sia sorgenti che destinazioni e poi aggiorna
+          Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
+            refreshComponentDatalists();
+          });
         } else {
           assegnazioneSection.style.display = 'none';
           cachedAssignedKits = null;
@@ -987,15 +989,15 @@
 
       if (externalCheckbox.checked) {
         assegnazioneSection.style.display = 'block';
-        caricaSorgenti();
-        caricaDestinazioni();
+        Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
+          refreshComponentDatalists();
+        });
       } else {
         assegnazioneSection.style.display = 'none';
       }
     }
 
     sourceId.addEventListener('change', () => {
-      console.log('sourceId changed to:', sourceId.value);
       if (externalCheckbox.checked) {
         refreshComponentDatalists();
       }
