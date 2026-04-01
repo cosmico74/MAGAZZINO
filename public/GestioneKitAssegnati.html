@@ -408,7 +408,7 @@
       // Se modalità spacchettamento attiva, resetta la tabella
       if (modalitaSpacchettaCheck.checked) {
         const tbody = document.querySelector('#tabellaKitAssegnati tbody');
-        tbody.innerHTML = ':<td colspan="5" class="text-center">Seleziona un tipo e poi un soggetto</td>';
+        tbody.innerHTML = '<td colspan="5" class="text-center">Seleziona un tipo e poi un soggetto</td>';
       }
       return;
     }
@@ -433,7 +433,7 @@
       // Se modalità spacchettamento attiva, resetta la tabella
       if (modalitaSpacchettaCheck.checked) {
         const tbody = document.querySelector('#tabellaKitAssegnati tbody');
-        tbody.innerHTML = ':<td colspan="5" class="text-center">Seleziona un soggetto</td>';
+        tbody.innerHTML = '<td colspan="5" class="text-center">Seleziona un soggetto</td>';
       }
     }
   }
@@ -498,7 +498,7 @@
     const magazzinoId = magazzinoSelect.value;
     if (!magazzinoId) {
       const tbody = document.querySelector('#tabellaKitMagazzino tbody');
-      tbody.innerHTML = ':<td colspan="4" class="text-center">Seleziona un magazzino</td>';
+      tbody.innerHTML = '<td colspan="4" class="text-center">Seleziona un magazzino</td>';
       return;
     }
     try {
@@ -506,7 +506,7 @@
       warehouseKits = kits.filter(k => k.magazzino == magazzinoId && k.quantita > 0);
       const tbody = document.querySelector('#tabellaKitMagazzino tbody');
       if (warehouseKits.length === 0) {
-        tbody.innerHTML = ':<td colspan="4" class="text-center">Nessun kit presente in questo magazzino</td>';
+        tbody.innerHTML = '<td colspan="4" class="text-center">Nessun kit presente in questo magazzino</td>';
         return;
       }
       tbody.innerHTML = '';
@@ -533,16 +533,27 @@
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
-      assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
+      console.log('Oggetti ricevuti:', oggetti);
+
+      // Filtra per destinazione esatta (evita oggetti referenziati)
+      const filtrati = oggetti.filter(o => 
+        o.tipo === 'KIT' && 
+        o.quantita > 0 &&
+        o.destinazioneTipo === tipo &&
+        o.destinazioneId === id
+      );
+      assignedKits = filtrati.map(k => ({
         id: k.ID,
         quantita: k.quantita,
         descrizione: k.descrizione || '',
         codice: k.codice || ''
       }));
 
+      console.log('Kit filtrati per destinazione esatta:', assignedKits);
+
       const tbody = document.querySelector('#tabellaKitAssegnati tbody');
       if (assignedKits.length === 0) {
-        tbody.innerHTML = ':<td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td>';
+        tbody.innerHTML = '<td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td>';
         return;
       }
       tbody.innerHTML = '';
@@ -733,6 +744,7 @@
 
   // ---------- GESTIONE EVENTI ----------
   async function onSoggettoChange() {
+    console.log('Soggetto cambiato:', soggettoSelect.value);
     if (modalitaSpacchettaCheck.checked && soggettoSelect.value) {
       const [tipo, id] = soggettoSelect.value.split('_');
       await caricaKitsAssegnati(tipo, parseInt(id));
