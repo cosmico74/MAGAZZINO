@@ -478,3 +478,4 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
 module.exports = router;
 module.exports.registraUscitaTransazionale = registraUscitaTransazionale;
 module.exports.registraRientroTransazionale = registraRientroTransazionale;
+module.exports.aggiornaSintesiCarico = aggiornaSintesiCarico;
