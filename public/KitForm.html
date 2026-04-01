@@ -349,6 +349,7 @@
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
+   </table>
   </div>
 </div>
 
@@ -433,8 +434,9 @@
   const destinazioneTipo = document.getElementById('destinazioneTipo');
   const destinazioneId = document.getElementById('destinazioneId');
 
-  // Nuovi riferimenti per il magazzino del form
+  // Riferimenti per magazzino del form
   const kitMagazzinoSelect = document.getElementById('kitMagazzino');
+  const editKitMagazzino = document.getElementById('editKitMagazzino');
 
   // ---------- CARICAMENTO ANAGRAFICHE ----------
   async function caricaAnagrafiche() {
@@ -470,13 +472,11 @@
       popolaSelect(filtroSet, settori);
       popolaSelect(filtroMar, marche);
 
-      const kitMag = document.getElementById('kitMagazzino');
-      const editKitMag = document.getElementById('editKitMagazzino');
-      if (kitMag) kitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
-      if (editKitMag) editKitMag.innerHTML = '<option value="">Seleziona magazzino</option>';
+      if (kitMagazzinoSelect) kitMagazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      if (editKitMagazzino) editKitMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
       magazzini.forEach(m => {
-        if (kitMag) kitMag.appendChild(new Option(m.nome, m.id));
-        if (editKitMag) editKitMag.appendChild(new Option(m.nome, m.id));
+        if (kitMagazzinoSelect) kitMagazzinoSelect.appendChild(new Option(m.nome, m.id));
+        if (editKitMagazzino) editKitMagazzino.appendChild(new Option(m.nome, m.id));
       });
 
       await setDefaultMagazzino();
@@ -500,10 +500,8 @@
   }
 
   // ---------- OTTIENI ARTICOLI PER DATALIST (da magazzino) ----------
-  // Ora accetta un parametro magazzinoId opzionale; se non fornito usa filtroMag.value
   async function getArticoliPerDatalist(tipo, magazzinoId = null) {
     const params = new URLSearchParams();
-    // Usa il magazzino passato, altrimenti il filtro
     if (magazzinoId) {
       params.append('magazzino', magazzinoId);
     } else if (filtroMag.value) {
@@ -589,7 +587,8 @@
     return parts.join(' ');
   }
 
-  async function popolaDatalistTipo(tipo, datalistId) {
+  // ========== DATALIST con supporto per override magazzino ==========
+  async function popolaDatalistTipo(tipo, datalistId, overrideMagazzinoId = null) {
     try {
       const catId = categoryIds[tipo];
       if (!catId) {
@@ -609,8 +608,7 @@
         console.log(`Popolo ${datalistId} con oggetti assegnati a ${srcTipo} ${srcId}`);
         articoli = await getArticoliPerDatalistAssegnati(tipo, srcTipo, srcId);
       } else {
-        // Usa il magazzino selezionato nel form di composizione
-        const magazzinoId = kitMagazzinoSelect.value;
+        let magazzinoId = overrideMagazzinoId !== null ? overrideMagazzinoId : kitMagazzinoSelect.value;
         if (!magazzinoId) {
           console.warn(`Magazzino non selezionato per ${datalistId}`);
           const datalist = document.getElementById(datalistId);
@@ -639,10 +637,7 @@
     await Promise.all([
       popolaDatalistTipo('sci', 'sciList'),
       popolaDatalistTipo('attacchi', 'attacchiList'),
-      popolaDatalistTipo('skistopper', 'skistopperList'),
-      popolaDatalistTipo('sci', 'editSciList'),
-      popolaDatalistTipo('attacchi', 'editAttacchiList'),
-      popolaDatalistTipo('skistopper', 'editSkistopperList')
+      popolaDatalistTipo('skistopper', 'skistopperList')
     ]);
     if (externalCheckbox.checked && sourceId.value) {
       await getKitsAssegnati(sourceTipo.value, sourceId.value);
@@ -651,6 +646,16 @@
       lastSourceKey = null;
     }
     filtraKit(); // aggiorna tabella
+  }
+
+  async function refreshEditDatalists() {
+    const magazzinoId = editKitMagazzino.value;
+    if (!magazzinoId) return;
+    await Promise.all([
+      popolaDatalistTipo('sci', 'editSciList', magazzinoId),
+      popolaDatalistTipo('attacchi', 'editAttacchiList', magazzinoId),
+      popolaDatalistTipo('skistopper', 'editSkistopperList', magazzinoId)
+    ]);
   }
 
   // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
@@ -965,7 +970,7 @@
             }
           }
         }
-        refreshComponentDatalists(); // aggiorna tutto
+        refreshComponentDatalists();
       });
       destinazioneTipo.disabled = false;
       destinazioneId.disabled = false;
@@ -1034,7 +1039,7 @@
   }
 
   async function salvaKit() {
-    const magazzino = document.getElementById('kitMagazzino').value;
+    const magazzino = kitMagazzinoSelect.value;
     const quantita = parseInt(document.getElementById('kitQuantita').value);
     const sciInput = document.getElementById('kitSci').value;
     const attacchiInput = document.getElementById('kitAttacchi').value;
@@ -1105,7 +1110,7 @@
   }
 
   function resetForm() {
-    document.getElementById('kitMagazzino').value = '';
+    kitMagazzinoSelect.value = '';
     document.getElementById('kitQuantita').value = 1;
     document.getElementById('kitSci').value = '';
     document.getElementById('kitAttacchi').value = '';
@@ -1138,7 +1143,7 @@
       const kit = await apiFetch(`/api/kit/${id}`);
       currentEditId = id;
       document.getElementById('editKitId').value = kit.id;
-      document.getElementById('editKitMagazzino').value = kit.magazzino;
+      editKitMagazzino.value = kit.magazzino;
       document.getElementById('editKitQuantita').value = kit.quantita;
       document.getElementById('editKitNote').value = kit.note || '';
 
@@ -1152,15 +1157,55 @@
       } else {
         document.getElementById('editKitSkistopper').value = '';
       }
+
+      toggleEditLunghezzaDurezza();
+      attachEditEvents();
+      await refreshEditDatalists();
+
       document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
   }
 
+  function toggleEditLunghezzaDurezza() {
+    const catId = document.getElementById('editCategoria')?.value;
+    const categoria = categorieCompleto.find(c => c.id == catId);
+    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : true;
+    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : true;
+    const gruppoLung = document.getElementById('editGruppoLunghezza');
+    const gruppoDur = document.getElementById('editGruppoDurezza');
+    if (gruppoLung) gruppoLung.style.display = mostraLunghezza ? 'block' : 'none';
+    if (gruppoDur) gruppoDur.style.display = mostraDurezza ? 'block' : 'none';
+  }
+
+  function attachEditEvents() {
+    const selects = ['editMagazzino', 'editSettore', 'editCategoria', 'editMarca'];
+    selects.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.removeEventListener('change', handleEditChange);
+        el.addEventListener('change', handleEditChange);
+      }
+    });
+    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+    textFields.forEach(field => {
+      const input = document.getElementById(`edit${field.charAt(0).toUpperCase() + field.slice(1)}`);
+      if (input) {
+        input.removeEventListener('change', handleEditChange);
+        input.addEventListener('change', handleEditChange);
+      }
+    });
+  }
+
+  async function handleEditChange(e) {
+    if (e.target.id === 'editCategoria') toggleEditLunghezzaDurezza();
+    await refreshEditDatalists();
+  }
+
   async function salvaModificaKit() {
     const id = currentEditId;
-    const magazzino = document.getElementById('editKitMagazzino').value;
+    const magazzino = editKitMagazzino.value;
     const quantita = parseInt(document.getElementById('editKitQuantita').value);
     const sciInput = document.getElementById('editKitSci').value;
     const attacchiInput = document.getElementById('editKitAttacchi').value;
@@ -1234,12 +1279,18 @@
     selectFilters.forEach(select => {
       if (select) select.addEventListener('change', handleFilterChange);
     });
-    // Aggiungi listener per il cambio del magazzino nel form di composizione
     kitMagazzinoSelect.addEventListener('change', () => {
       if (!externalCheckbox.checked) {
         refreshComponentDatalists();
       }
     });
+    if (editKitMagazzino) {
+      editKitMagazzino.addEventListener('change', () => {
+        if (document.getElementById('modalEditKit').style.display === 'flex') {
+          refreshEditDatalists();
+        }
+      });
+    }
   }
 
   async function applicaFiltri() {
