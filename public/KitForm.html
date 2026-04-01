@@ -252,6 +252,13 @@
       grid-template-columns: 1fr 2fr 2fr 2fr 0.8fr;
       gap: 15px;
     }
+    .assigned-info {
+      background: #e9ecef;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
     @media (max-width: 800px) {
       .modal-content .form-row-5col {
         grid-template-columns: 1fr;
@@ -389,7 +396,13 @@
         <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" autocomplete="off" required><datalist id="editSciList"></datalist></div>
         <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" autocomplete="off" required><datalist id="editAttacchiList"></datalist></div>
         <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList" autocomplete="off"><datalist id="editSkistopperList"></datalist></div>
-        <div class="form-group"><label>Quantità</label><input type="number" id="editKitQuantita" min="1" step="1" autocomplete="off" required></div>
+        <div class="form-group"><label>Quantità Totale (in magazzino)</label><input type="number" id="editKitQuantita" min="0" step="1" autocomplete="off" required></div>
+      </div>
+      <div id="assignedInfo" class="assigned-info" style="display:none;">
+        <strong>ℹ️ Informazioni assegnazione</strong><br>
+        Questo kit è attualmente assegnato a: <span id="assignedToName"></span><br>
+        Quantità assegnata: <span id="assignedQuantity"></span><br>
+        La quantità in magazzino è separata dalla quantità assegnata. Modificando la quantità in magazzino non influisce sulla quantità già assegnata.
       </div>
       <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
       <div class="modal-buttons">
@@ -753,8 +766,7 @@
       const data = await apiFetch('/api/kit');
       allKits = data;  // tutti i kit (inclusi quelli con quantità 0)
       kitList = data.filter(k => k.quantita > 0);
-      console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a, quantita_assegnata: k.assegnato_a?.quantita })));
-      console.log('Kit con quantita > 0:', kitList.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
+      console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
       const articoliIds = new Set();
       allKits.forEach(k => {
         articoliIds.add(k.id_sci);
@@ -1282,6 +1294,7 @@
 
   // ---------- MODIFICA KIT ----------
   let currentEditId = null;
+  let currentAssignedInfo = null; // per memorizzare info assegnazione
 
   async function modificaKit(id) {
     try {
@@ -1303,6 +1316,18 @@
         document.getElementById('editKitSkistopper').value = '';
       }
 
+      // Recupera l'assegnazione attuale (se presente) per mostrare informazioni aggiuntive
+      const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
+      currentAssignedInfo = assignedInfo;
+      const assignedInfoDiv = document.getElementById('assignedInfo');
+      if (assignedInfo) {
+        document.getElementById('assignedToName').innerText = assignedInfo.nome;
+        document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
+        assignedInfoDiv.style.display = 'block';
+      } else {
+        assignedInfoDiv.style.display = 'none';
+      }
+
       await refreshEditDatalists();
 
       document.getElementById('modalEditKit').style.display = 'flex';
@@ -1320,7 +1345,7 @@
     const skistopperInput = document.getElementById('editKitSkistopper').value;
     const note = document.getElementById('editKitNote').value.trim();
 
-    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
+    if (!magazzino || isNaN(quantita) || !sciInput || !attacchiInput) {
       showMessage('Compila tutti i campi obbligatori', 'error');
       return;
     }
