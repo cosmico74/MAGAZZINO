@@ -1,126 +1,644 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
-  <title>Crea Kit da Assegnati</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔧 Gestione Kit Assegnati</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; }
-    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    .btn { padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      height: 100%;
+      overflow: hidden;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      padding: 20px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo img {
+      height: 40px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      border-left: 5px solid #1a73e8;
+      padding-left: 12px;
+      color: #1e2a3a;
+    }
+    .menu-btn {
+      background: #6c757d;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+      font-size: 0.8rem;
+    }
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #1e2a3a;
+      border-left: 4px solid #1a73e8;
+      padding-left: 10px;
+    }
+    .form-row-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #2c3e50;
+      font-size: 0.8rem;
+    }
+    select, input, textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-right: 10px;
+    }
+    .btn-danger {
+      background: #dc3545;
+    }
+    .btn-danger:hover {
+      background: #bb2d3b;
+    }
+    .btn:hover {
+      background: #0f5bb5;
+    }
+    .message {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .info-note {
+      font-size: 0.7rem;
+      color: #6c757d;
+      margin-top: 5px;
+    }
+    hr {
+      margin: 20px 0;
+      border: none;
+      border-top: 1px solid #dee2e6;
+    }
   </style>
-  <script>
-    // ========== LIBRERIA COMUNE ==========
-    (function() { /* common.js */ })();
-
-    let soggetti = [], articoliAssegnati = { sci: [], attacchi: [], skistopper: [] };
-
-    window.onload = function() {
-      if (!window.restoreSession()) {
-        document.body.innerHTML = '<div style="padding:20px;text-align:center">Devi effettuare il login. <a href="?login">Login</a></div>';
-        return;
-      }
-      caricaSoggetti();
-    };
-
-    function caricaSoggetti() {
-      callServer('getAllSoggetti', {}, function(data) {
-        soggetti = data;
-        const select = document.getElementById('soggetto');
-        select.innerHTML = '<option value="">Seleziona soggetto</option>';
-        soggetti.forEach(s => select.innerHTML += `<option value="${s.TIPO}_${s.ID}">${s.NOME} (${s.TIPO})</option>`);
-        select.addEventListener('change', caricaArticoliAssegnati);
-      });
-    }
-
-    function caricaArticoliAssegnati() {
-      const val = document.getElementById('soggetto').value;
-      if (!val) return;
-      const [tipo, id] = val.split('_');
-      callServer('getArticoliAssegnatiPerKit', { tipo: tipo, id: id }, function(data) {
-        articoliAssegnati = data;
-        popolaSelect('sciId', articoliAssegnati.sci);
-        popolaSelect('attacchiId', articoliAssegnati.attacchi);
-        popolaSelect('skistopperId', articoliAssegnati.skistopper);
-      });
-    }
-
-    function popolaSelect(id, lista) {
-      const select = document.getElementById(id);
-      select.innerHTML = '<option value="">Seleziona</option>';
-      lista.forEach(a => select.innerHTML += `<option value="${a.ID}">${a.CODICE} - ${a.DESCRIZIONE} (disp. ${a.GIACENZA})</option>`);
-    }
-
-    function creaKit() {
-      const val = document.getElementById('soggetto').value;
-      if (!val) return;
-      const [destinazioneTipo, destinazioneId] = val.split('_');
-      const sciId = document.getElementById('sciId').value;
-      const attacchiId = document.getElementById('attacchiId').value;
-      const skistopperId = document.getElementById('skistopperId').value;
-      const quantita = parseInt(document.getElementById('quantita').value);
-      const note = document.getElementById('note').value;
-      if (!sciId || !attacchiId || quantita < 1) {
-        showMessage('Seleziona sci, attacchi e quantità valida', 'error');
-        return;
-      }
-      // Verifica disponibilità
-      const sci = articoliAssegnati.sci.find(a => a.ID == sciId);
-      const att = articoliAssegnati.attacchi.find(a => a.ID == attacchiId);
-      if (!sci || sci.GIACENZA < quantita) return showMessage('Sci insufficiente', 'error');
-      if (!att || att.GIACENZA < quantita) return showMessage('Attacchi insufficienti', 'error');
-      if (skistopperId) {
-        const sk = articoliAssegnati.skistopper.find(a => a.ID == skistopperId);
-        if (!sk || sk.GIACENZA < quantita) return showMessage('Skistopper insufficiente', 'error');
-      }
-      callServer('creaKitDaAssegnati', {
-        destinazioneTipo, destinazioneId,
-        sciId, attacchiId, skistopperId: skistopperId || null,
-        quantita, note
-      }, function(res) {
-        if (res.success) {
-          showMessage(res.message, 'success');
-          // reset form
-          document.getElementById('sciId').value = '';
-          document.getElementById('attacchiId').value = '';
-          document.getElementById('skistopperId').value = '';
-          document.getElementById('quantita').value = 1;
-          document.getElementById('note').value = '';
-          caricaArticoliAssegnati(); // ricarica
-        } else {
-          showMessage(res.message, 'error');
-        }
-      });
-    }
-  </script>
 </head>
 <body>
-  <h2>🔧 Crea Kit da Assegnati</h2>
-  <div class="form-group">
-    <label>Soggetto (promoter/negozio/cliente)</label>
-    <select id="soggetto"></select>
+
+<div class="container">
+  <div class="header-bar">
+    <div class="logo">
+      <img src="/images/kastle-logo.png" alt="Kastle">
+      <h2>🔧 Gestione Kit Assegnati</h2>
+    </div>
+    <button class="menu-btn" onclick="window.location.href='MenuPrincipale.html'">🏠 Torna al Menu</button>
   </div>
-  <div class="form-group">
-    <label>Sci</label>
-    <select id="sciId"></select>
+
+  <div id="messageArea"></div>
+
+  <!-- Selezione comune: magazzino e soggetto -->
+  <div class="form-row-3col">
+    <div class="form-group">
+      <label>Magazzino *</label>
+      <select id="magazzino" required>
+        <option value="">Caricamento...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Soggetto (promoter/negozio/cliente/agente) *</label>
+      <select id="soggetto" required>
+        <option value="">Seleziona soggetto...</option>
+      </select>
+    </div>
+    <div class="form-group"></div>
   </div>
-  <div class="form-group">
-    <label>Attacchi</label>
-    <select id="attacchiId"></select>
+
+  <!-- Sezione Crea Kit -->
+  <div class="card">
+    <h3>➕ Crea Kit da articoli assegnati</h3>
+    <div class="form-row-3col">
+      <div class="form-group">
+        <label>Sci *</label>
+        <select id="sciId" required>
+          <option value="">Seleziona soggetto prima</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Attacchi *</label>
+        <select id="attacchiId" required>
+          <option value="">Seleziona soggetto prima</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Skistopper (opzionale)</label>
+        <select id="skistopperId">
+          <option value="">Nessuno</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-3col">
+      <div class="form-group">
+        <label>Quantità kit *</label>
+        <input type="number" id="quantita" value="1" min="1" step="1" required>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="note" rows="1" placeholder="Note aggiuntive (opzionali)"></textarea>
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn" id="creaBtn" onclick="creaKit()">🔧 Crea Kit</button>
+      </div>
+    </div>
+    <div class="info-note">
+      ⚠️ I componenti verranno prelevati dagli articoli attualmente assegnati al soggetto. Il kit creato verrà assegnato allo stesso soggetto.
+    </div>
   </div>
-  <div class="form-group">
-    <label>Skistopper (opzionale)</label>
-    <select id="skistopperId"></select>
+
+  <!-- Sezione Spacchetta Kit -->
+  <div class="card">
+    <h3>🔓 Spacchetta Kit</h3>
+    <div class="form-row-3col">
+      <div class="form-group">
+        <label>Kit assegnato al soggetto</label>
+        <select id="kitDaSpacchettare">
+          <option value="">Seleziona soggetto prima</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quantità da spacchettare</label>
+        <input type="number" id="quantitaSpacchetta" value="1" min="1" step="1">
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn btn-danger" id="spacchettaBtn" onclick="spacchettaKit()">🔓 Spacchetta Kit</button>
+      </div>
+    </div>
+    <div class="info-note">
+      ⚠️ Lo spacchettamento rimuove il kit e restituisce i componenti (sci, attacchi, skistopper) al soggetto.
+    </div>
   </div>
-  <div class="form-group">
-    <label>Quantità kit</label>
-    <input type="number" id="quantita" value="1" min="1">
-  </div>
-  <div class="form-group">
-    <label>Note</label>
-    <textarea id="note" rows="2"></textarea>
-  </div>
-  <button class="btn" onclick="creaKit()">🔧 Crea Kit</button>
+</div>
+
+<script>
+  // ========== UTILITY ==========
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (!response.ok) {
+      let errMsg = `Errore ${response.status}`;
+      try { const err = await response.json(); errMsg = err.message || errMsg; } catch(e) {}
+      throw new Error(errMsg);
+    }
+    return response.json();
+  }
+
+  function restoreSession() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    return true;
+  }
+
+  // ---------- GLOBALI ----------
+  let currentUser = null;
+  let magazzini = [];
+  let soggetti = [];
+  let categoryIds = { sci: null, attacchi: null, skistopper: null };
+  let assignedArticles = { sci: [], attacchi: [], skistopper: [] };
+  let assignedKits = [];       // kit assegnati al soggetto corrente
+
+  // DOM elements
+  const magazzinoSelect = document.getElementById('magazzino');
+  const soggettoSelect = document.getElementById('soggetto');
+  const sciSelect = document.getElementById('sciId');
+  const attacchiSelect = document.getElementById('attacchiId');
+  const skistopperSelect = document.getElementById('skistopperId');
+  const quantitaInput = document.getElementById('quantita');
+  const kitSpacchettaSelect = document.getElementById('kitDaSpacchettare');
+  const quantitaSpacchettaInput = document.getElementById('quantitaSpacchetta');
+
+  // ---------- CARICA ANAGRAFICHE ----------
+  async function caricaMagazzini() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/magazzini');
+      magazzini = data;
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) magazzinoSelect.value = defaultMag.id;
+    } catch (err) {
+      console.error('Errore caricamento magazzini:', err);
+      showMessage('Errore caricamento magazzini', 'error');
+    }
+  }
+
+  async function caricaCategorie() {
+    try {
+      const data = await apiFetch('/api/anagrafiche/categorie');
+      const findCatId = (nome) => {
+        const cat = data.find(c => c.nome.toLowerCase() === nome.toLowerCase());
+        return cat ? cat.id : null;
+      };
+      categoryIds.sci = findCatId('sci');
+      categoryIds.attacchi = findCatId('attacchi');
+      categoryIds.skistopper = findCatId('skistopper');
+      console.log('ID categorie:', categoryIds);
+    } catch (err) {
+      console.error('Errore caricamento categorie:', err);
+      showMessage('Errore caricamento categorie', 'error');
+    }
+  }
+
+  async function caricaSoggetti() {
+    try {
+      const data = await apiFetch('/api/soggetti');
+      soggetti = data;
+      soggettoSelect.innerHTML = '<option value="">Seleziona soggetto...</option>';
+      soggetti.forEach(s => {
+        let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
+        soggettoSelect.appendChild(new Option(`${nome} (${s.tipo})`, `${s.tipo}|${s.id}`));
+      });
+    } catch (err) {
+      console.error('Errore caricamento soggetti:', err);
+      showMessage('Errore caricamento soggetti', 'error');
+    }
+  }
+
+  // ---------- CARICA OGGETTI ASSEGNATI PER SOGGETTO ----------
+  async function caricaOggettiAssegnati(tipo, id) {
+    try {
+      const body = { targetTipo: tipo, targetId: id };
+      if (currentUser.ruolo === 'admin') body.includeReferenced = true;
+      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.success) throw new Error(res.message);
+
+      const oggetti = res.oggetti || [];
+
+      // Articoli per creazione kit
+      assignedArticles.sci = oggetti.filter(o =>
+        o.tipo === 'ARTICOLO' &&
+        o.CATEGORIA === categoryIds.sci &&
+        (o.quantita - (o.quantita_in_kit || 0)) > 0
+      ).map(a => ({
+        id: a.ID,
+        codice: a.codice,
+        descrizione: a.descrizione,
+        giacenza: a.quantita - (a.quantita_in_kit || 0),
+        sigla: a.SIGLA,
+        lunghezza: a.LUNGHEZZA,
+        durezza: a.DUREZZA
+      }));
+
+      assignedArticles.attacchi = oggetti.filter(o =>
+        o.tipo === 'ARTICOLO' &&
+        o.CATEGORIA === categoryIds.attacchi &&
+        (o.quantita - (o.quantita_in_kit || 0)) > 0
+      ).map(a => ({
+        id: a.ID,
+        codice: a.codice,
+        descrizione: a.descrizione,
+        giacenza: a.quantita - (a.quantita_in_kit || 0),
+        sigla: a.SIGLA
+      }));
+
+      assignedArticles.skistopper = oggetti.filter(o =>
+        o.tipo === 'ARTICOLO' &&
+        o.CATEGORIA === categoryIds.skistopper &&
+        (o.quantita - (o.quantita_in_kit || 0)) > 0
+      ).map(a => ({
+        id: a.ID,
+        codice: a.codice,
+        descrizione: a.descrizione,
+        giacenza: a.quantita - (a.quantita_in_kit || 0),
+        sigla: a.SIGLA
+      }));
+
+      popolaSelect(sciSelect, assignedArticles.sci, 'sci');
+      popolaSelect(attacchiSelect, assignedArticles.attacchi, 'attacchi');
+      popolaSelect(skistopperSelect, assignedArticles.skistopper, 'skistopper', true);
+
+      // Kit assegnati per spacchettamento
+      assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
+        id: k.ID,
+        quantita: k.quantita,
+        descrizione: k.descrizione || '',
+        codice: k.codice || ''
+      }));
+
+      popolaSelectKits(assignedKits);
+    } catch (err) {
+      console.error('Errore caricamento oggetti assegnati:', err);
+      showMessage('Errore caricamento oggetti: ' + err.message, 'error');
+    }
+  }
+
+  function formatArticleDisplay(art, tipo) {
+    let parts = [];
+    if (art.sigla) parts.push(`[${art.sigla}]`);
+    parts.push(art.descrizione);
+    if (tipo === 'sci') {
+      if (art.lunghezza) parts.push(art.lunghezza);
+      if (art.durezza && art.durezza !== 'N/A') parts.push(art.durezza);
+    }
+    return `${parts.join(' ')} (disp. ${art.giacenza})`;
+  }
+
+  function popolaSelect(select, lista, tipo, optional = false) {
+    select.innerHTML = optional ? '<option value="">Nessuno</option>' : '<option value="">Seleziona...</option>';
+    lista.forEach(art => {
+      const option = document.createElement('option');
+      option.value = art.id;
+      option.textContent = formatArticleDisplay(art, tipo);
+      option.setAttribute('data-giacenza', art.giacenza);
+      select.appendChild(option);
+    });
+  }
+
+  function popolaSelectKits(kits) {
+    kitSpacchettaSelect.innerHTML = '<option value="">Seleziona kit...</option>';
+    if (kits.length === 0) {
+      kitSpacchettaSelect.innerHTML = '<option value="">Nessun kit assegnato</option>';
+      return;
+    }
+    kits.forEach(k => {
+      const option = document.createElement('option');
+      option.value = k.id;
+      let display = k.codice || `Kit #${k.id}`;
+      if (k.descrizione) display += ` - ${k.descrizione}`;
+      if (k.quantita > 1) display += ` (x${k.quantita})`;
+      option.textContent = display;
+      option.setAttribute('data-quantita', k.quantita);
+      kitSpacchettaSelect.appendChild(option);
+    });
+    quantitaSpacchettaInput.value = 1;
+    if (kits.length) quantitaSpacchettaInput.max = kits[0].quantita;
+    else quantitaSpacchettaInput.max = 1;
+  }
+
+  // ---------- CREAZIONE KIT ----------
+  async function creaKit() {
+    const magazzino = magazzinoSelect.value;
+    const soggettoVal = soggettoSelect.value;
+    if (!magazzino || !soggettoVal) {
+      showMessage('Seleziona magazzino e soggetto', 'error');
+      return;
+    }
+    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
+    const sciId = sciSelect.value;
+    const attacchiId = attacchiSelect.value;
+    const skistopperId = skistopperSelect.value;
+    const quantita = parseInt(quantitaInput.value);
+    const note = document.getElementById('note').value.trim();
+
+    if (!sciId || !attacchiId || quantita < 1) {
+      showMessage('Seleziona sci, attacchi e quantità valida', 'error');
+      return;
+    }
+
+    const sci = assignedArticles.sci.find(a => a.id == sciId);
+    const att = assignedArticles.attacchi.find(a => a.id == attacchiId);
+    if (!sci || sci.giacenza < quantita) {
+      showMessage('Giacenza sci insufficiente', 'error');
+      return;
+    }
+    if (!att || att.giacenza < quantita) {
+      showMessage('Giacenza attacchi insufficiente', 'error');
+      return;
+    }
+    if (skistopperId) {
+      const sk = assignedArticles.skistopper.find(a => a.id == skistopperId);
+      if (!sk || sk.giacenza < quantita) {
+        showMessage('Giacenza skistopper insufficiente', 'error');
+        return;
+      }
+    }
+
+    const payload = {
+      magazzino: parseInt(magazzino),
+      quantita: quantita,
+      id_sci: parseInt(sciId),
+      id_attacchi: parseInt(attacchiId),
+      id_skistopper: skistopperId ? parseInt(skistopperId) : null,
+      sigla: null,
+      note: note || null,
+      componiDaAssegnati: true,
+      sourceTipo: destinazioneTipo,
+      sourceId: parseInt(destinazioneId),
+      destinazioneTipo: destinazioneTipo,
+      destinazioneId: parseInt(destinazioneId)
+    };
+
+    const creaBtn = document.getElementById('creaBtn');
+    creaBtn.disabled = true;
+    creaBtn.innerHTML = '<span class="spinner"></span> Creazione...';
+
+    try {
+      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        // Reset campi
+        sciSelect.value = '';
+        attacchiSelect.value = '';
+        skistopperSelect.value = '';
+        quantitaInput.value = 1;
+        document.getElementById('note').value = '';
+        // Ricarica gli oggetti del soggetto
+        await caricaOggettiAssegnati(destinazioneTipo, parseInt(destinazioneId));
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      creaBtn.disabled = false;
+      creaBtn.innerHTML = '🔧 Crea Kit';
+    }
+  }
+
+  // ---------- SPACCHETTAMENTO KIT ----------
+  async function spacchettaKit() {
+    const soggettoVal = soggettoSelect.value;
+    if (!soggettoVal) {
+      showMessage('Seleziona un soggetto', 'error');
+      return;
+    }
+    const kitId = kitSpacchettaSelect.value;
+    if (!kitId) {
+      showMessage('Seleziona un kit da spacchettare', 'error');
+      return;
+    }
+    const quantita = parseInt(quantitaSpacchettaInput.value);
+    const kit = assignedKits.find(k => k.id == kitId);
+    if (!kit) {
+      showMessage('Kit non trovato', 'error');
+      return;
+    }
+    if (quantita > kit.quantita) {
+      showMessage(`Quantità richiesta (${quantita}) supera quella disponibile (${kit.quantita})`, 'error');
+      return;
+    }
+
+    const [destinazioneTipo, destinazioneId] = soggettoVal.split('_');
+
+    const payload = {
+      kitId: parseInt(kitId),
+      quantita: quantita,
+      destinazioneTipo: destinazioneTipo,
+      destinazioneId: parseInt(destinazioneId)
+    };
+
+    const spacchettaBtn = document.getElementById('spacchettaBtn');
+    spacchettaBtn.disabled = true;
+    spacchettaBtn.innerHTML = '<span class="spinner"></span> Spacchettamento...';
+
+    try {
+      const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        // Ricarica i dati del soggetto
+        await caricaOggettiAssegnati(destinazioneTipo, parseInt(destinazioneId));
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      spacchettaBtn.disabled = false;
+      spacchettaBtn.innerHTML = '🔓 Spacchetta Kit';
+    }
+  }
+
+  // ---------- GESTIONE EVENTI ----------
+  async function onSoggettoChange() {
+    const val = soggettoSelect.value;
+    if (!val) {
+      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
+      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      return;
+    }
+    const [tipo, id] = val.split('_');
+    await caricaOggettiAssegnati(tipo, parseInt(id));
+  }
+
+  function attachEvents() {
+    soggettoSelect.addEventListener('change', onSoggettoChange);
+    // Quando cambia kit selezionato, aggiorna il max della quantità spacchetta
+    kitSpacchettaSelect.addEventListener('change', () => {
+      const selected = kitSpacchettaSelect.selectedOptions[0];
+      if (selected && selected.getAttribute('data-quantita')) {
+        const maxQ = parseInt(selected.getAttribute('data-quantita'));
+        quantitaSpacchettaInput.max = maxQ;
+        quantitaSpacchettaInput.value = 1;
+      } else {
+        quantitaSpacchettaInput.max = 1;
+      }
+    });
+  }
+
+  // ---------- INIZIALIZZAZIONE ----------
+  window.onload = async () => {
+    if (!restoreSession()) {
+      document.body.innerHTML = '<div class="container"><h2>Accesso non autorizzato</h2><p>Devi effettuare il login.</p><a href="Login.html">Vai al login</a></div>';
+      return;
+    }
+    try {
+      currentUser = JSON.parse(localStorage.getItem('user'));
+    } catch(e) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'Login.html';
+      return;
+    }
+
+    await caricaCategorie();
+    await caricaMagazzini();
+    await caricaSoggetti();
+    attachEvents();
+  };
+</script>
 </body>
 </html>
