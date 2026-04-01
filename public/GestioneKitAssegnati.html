@@ -408,10 +408,9 @@
         fetchCategory(categoryIds.skistopper)
       ]);
 
-      // Formatta e popola i select
-      function formatAndPopulate(select, lista, tipo) {
+      function formatAndPopulate(select, lista, optional = false) {
         if (!select) return;
-        select.innerHTML = '<option value="">Seleziona...</option>';
+        select.innerHTML = optional ? '<option value="">Nessuno</option>' : '<option value="">Seleziona...</option>';
         lista.forEach(art => {
           let text = art.descrizione_completa || art.descrizione;
           if (art.sigla) text = `[${art.sigla}] ${text}`;
@@ -425,9 +424,9 @@
         });
       }
 
-      formatAndPopulate(sciSelect, sciList, 'sci');
-      formatAndPopulate(attacchiSelect, attacchiList, 'attacchi');
-      formatAndPopulate(skistopperSelect, skistopperList, 'skistopper', true);
+      formatAndPopulate(sciSelect, sciList);
+      formatAndPopulate(attacchiSelect, attacchiList);
+      formatAndPopulate(skistopperSelect, skistopperList, true);
     } catch (err) {
       console.error('Errore caricamento articoli magazzino:', err);
       showMessage('Errore caricamento articoli dal magazzino', 'error');
@@ -443,7 +442,13 @@
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
-      assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
+      // Filtra esplicitamente per destinazione (sicurezza extra)
+      assignedKits = oggetti.filter(o => 
+        o.tipo === 'KIT' && 
+        o.quantita > 0 &&
+        o.destinazioneTipo === tipo &&
+        o.destinazioneId === id
+      ).map(k => ({
         id: k.ID,
         quantita: k.quantita,
         descrizione: k.descrizione || '',
@@ -499,7 +504,7 @@
       return;
     }
 
-    // Verifica giacenza (opzionale, i dati nel select hanno già la giacenza)
+    // Verifica giacenza
     const sciOption = sciSelect.selectedOptions[0];
     const attOption = attacchiSelect.selectedOptions[0];
     if (sciOption && parseInt(sciOption.getAttribute('data-giacenza')) < quantita) {
@@ -528,7 +533,7 @@
       id_skistopper: skistopperId ? parseInt(skistopperId) : null,
       sigla: null,
       note: note || null,
-      componiDaAssegnati: false,     // usa stock magazzino, non articoli assegnati
+      componiDaAssegnati: false,
       destinazioneTipo: destinazioneTipo,
       destinazioneId: parseInt(destinazioneId)
     };
@@ -663,7 +668,6 @@
     await caricaMagazzini();
     await caricaTuttiSoggetti();
     attachEvents();
-    // Carica gli articoli del magazzino se già selezionato
     if (magazzinoSelect.value) await caricaArticoliMagazzino();
   };
 </script>
