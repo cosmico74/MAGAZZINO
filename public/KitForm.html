@@ -271,6 +271,16 @@
       gap: 10px;
       margin-top: 15px;
     }
+    .checkbox-column {
+      width: 30px;
+      text-align: center;
+    }
+    .batch-toolbar {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
   </style>
 </head>
 <body>
@@ -363,10 +373,17 @@
     </div>
   </div>
 
-  <!-- TABELLA KIT con ordinamento -->
+  <!-- Barra azioni batch -->
+  <div class="batch-toolbar">
+    <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
+    <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
+  </div>
+
+  <!-- TABELLA KIT con checkboxes -->
   <div class="table-wrapper">
     <table id="tabellaKit">
       <thead>
+         <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
          <th data-sort="id">ID</th>
          <th data-sort="codice">Codice Kit</th>
          <th data-sort="sigla">Sigla</th>
@@ -385,7 +402,44 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA -->
+<!-- MODALE TRASFERIMENTO -->
+<div id="modalTrasferimento" class="modal">
+  <div class="modal-content" style="max-width: 500px;">
+    <h3>🔄 Trasferisci kit selezionati</h3>
+    <div class="form-group">
+      <label>Magazzino di transito *</label>
+      <select id="transferMagazzino">
+        <option value="">Caricamento...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Tipo destinazione *</label>
+      <select id="destinatarioTipo">
+        <option value="">Seleziona tipo...</option>
+        <option value="PROMOTER">👤 Promoter</option>
+        <option value="NEGOZIO">🏪 Negozio</option>
+        <option value="CLIENTE">👥 Cliente</option>
+        <option value="AGENTE">🤝 Agente</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Destinatario *</label>
+      <select id="destinatarioId" disabled>
+        <option value="">Seleziona prima il tipo</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Note (opzionale)</label>
+      <input type="text" id="transferNote" placeholder="Note per il trasferimento">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn" onclick="eseguiTrasferimento()">Conferma trasferimento</button>
+      <button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA KIT -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
@@ -402,7 +456,7 @@
         <strong>ℹ️ Informazioni assegnazione</strong><br>
         Questo kit è attualmente assegnato a: <span id="assignedToName"></span><br>
         Quantità assegnata: <span id="assignedQuantity"></span><br>
-        La quantità in magazzino è separata dalla quantità assegnata. Modificando la quantità in magazzino non influisce sulla quantità già assegnata.
+        La quantità in magazzino è separata dalla quantità già assegnata. Modificando la quantità in magazzino non influisce sulla quantità già assegnata.
       </div>
       <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
       <div class="modal-buttons">
@@ -446,6 +500,7 @@
   let kitFiltrati = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let canUseWarehouse = false;
+  let allSoggetti = [];            // per popolare destinatari
 
   // Variabili per ordinamento
   let sortColumn = 'id';
@@ -477,13 +532,19 @@
   const kitMagazzinoSelect = document.getElementById('kitMagazzino');
   const editKitMagazzino = document.getElementById('editKitMagazzino');
 
+  // Elementi per batch transfer
+  const transferMagazzinoSelect = document.getElementById('transferMagazzino');
+  const destinatarioTipoSelect = document.getElementById('destinatarioTipo');
+  const destinatarioIdSelect = document.getElementById('destinatarioId');
+
   // ---------- CARICAMENTO ANAGRAFICHE ----------
   async function caricaAnagrafiche() {
     try {
-      [magazzini, settori, marche] = await Promise.all([
+      [magazzini, settori, marche, allSoggetti] = await Promise.all([
         apiFetch('/api/anagrafiche/magazzini'),
         apiFetch('/api/anagrafiche/settori'),
-        apiFetch('/api/anagrafiche/marche')
+        apiFetch('/api/anagrafiche/marche'),
+        apiFetch('/api/soggetti')
       ]);
       const categorie = await apiFetch('/api/anagrafiche/categorie');
       console.log('Categorie ricevute:', categorie);
@@ -518,6 +579,10 @@
         if (editKitMagazzino) editKitMagazzino.appendChild(new Option(m.nome, m.id));
       });
 
+      // Popola select magazzino per trasferimento
+      transferMagazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => transferMagazzinoSelect.appendChild(new Option(m.nome, m.id)));
+
       // Imposta magazzino di default per il form di creazione
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag && kitMagazzinoSelect) {
@@ -535,6 +600,192 @@
     }
   }
 
+  // Funzione per filtrare i soggetti in base al tipo per il trasferimento
+  function filtraSoggettiTrasferimento() {
+    const tipo = destinatarioTipoSelect.value;
+    if (!tipo) {
+      destinatarioIdSelect.disabled = true;
+      destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+      return;
+    }
+    const filtrati = allSoggetti.filter(s => s.tipo === tipo);
+    destinatarioIdSelect.disabled = false;
+    destinatarioIdSelect.innerHTML = '<option value="">Seleziona destinatario...</option>';
+    filtrati.forEach(s => {
+      let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
+      destinatarioIdSelect.appendChild(new Option(nome, s.id));
+    });
+  }
+
+  destinatarioTipoSelect.addEventListener('change', filtraSoggettiTrasferimento);
+
+  // ---------- SELEZIONE MULTIPLA ----------
+  function toggleSelectAll() {
+    const checkAll = document.getElementById('selectAllCheckbox').checked;
+    const checkboxes = document.querySelectorAll('.kit-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkAll);
+  }
+
+  function getSelectedKits() {
+    const selected = [];
+    const checkboxes = document.querySelectorAll('.kit-checkbox:checked');
+    for (let cb of checkboxes) {
+      const kitId = parseInt(cb.getAttribute('data-kit-id'));
+      const kit = kitFiltrati.find(k => k.id === kitId);
+      if (kit && kit.assegnato_a) {
+        selected.push(kit);
+      }
+    }
+    return selected;
+  }
+
+  // ---------- OPERAZIONI BATCH ----------
+  async function rientraSelezionati() {
+    const selected = getSelectedKits();
+    if (selected.length === 0) {
+      showMessage('Seleziona almeno un kit assegnato da riportare in magazzino', 'error');
+      return;
+    }
+    const magazzinoId = kitMagazzinoSelect.value; // utilizziamo il magazzino corrente del form
+    if (!magazzinoId) {
+      showMessage('Seleziona un magazzino di destinazione (nel form di creazione)', 'error');
+      return;
+    }
+
+    const oggetti = selected.map(kit => ({
+      tipoOggetto: 'KIT',
+      oggettoId: kit.id,
+      quantita: kit.assegnato_a.quantita,
+      daTipo: kit.assegnato_a.tipo,
+      daId: kit.assegnato_a.id
+    }));
+
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      note: `Rientro batch di ${selected.length} kit`,
+      oggetti: oggetti
+    };
+
+    const btn = document.getElementById('btnRientraMagazzino');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> In corso...';
+
+    try {
+      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        // deseleziona tutti
+        document.getElementById('selectAllCheckbox').checked = false;
+        await caricaKit();
+        await refreshComponentDatalists();
+        await refreshFilterDatalists();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📦 Rientra in magazzino';
+    }
+  }
+
+  function apriModalTrasferimento() {
+    const selected = getSelectedKits();
+    if (selected.length === 0) {
+      showMessage('Seleziona almeno un kit assegnato da trasferire', 'error');
+      return;
+    }
+    // reset select
+    destinatarioTipoSelect.value = '';
+    filtraSoggettiTrasferimento();
+    document.getElementById('transferNote').value = '';
+    // Imposta magazzino di default sul primo disponibile se non già selezionato
+    if (!transferMagazzinoSelect.value && magazzini.length > 0) {
+      transferMagazzinoSelect.value = magazzini[0].id;
+    }
+    document.getElementById('modalTrasferimento').style.display = 'flex';
+  }
+
+  function chiudiModalTrasferimento() {
+    document.getElementById('modalTrasferimento').style.display = 'none';
+  }
+
+  async function eseguiTrasferimento() {
+    const selected = getSelectedKits();
+    if (selected.length === 0) {
+      showMessage('Nessun kit selezionato', 'error');
+      chiudiModalTrasferimento();
+      return;
+    }
+    const magazzinoId = transferMagazzinoSelect.value;
+    if (!magazzinoId) {
+      showMessage('Seleziona un magazzino di transito', 'error');
+      return;
+    }
+    const destinazioneTipo = destinatarioTipoSelect.value;
+    const destinazioneId = destinatarioIdSelect.value;
+    if (!destinazioneTipo || !destinazioneId) {
+      showMessage('Seleziona il destinatario', 'error');
+      return;
+    }
+    const note = document.getElementById('transferNote').value.trim();
+
+    // Prepara oggetti per il trasferimento
+    const oggetti = selected.map(kit => ({
+      tipoOggetto: 'KIT',
+      oggettoId: kit.id,
+      quantita: kit.assegnato_a.quantita
+    }));
+
+    // Prendiamo il primo kit per ottenere daTipo e daId
+    const primo = selected[0];
+    const daTipo = primo.assegnato_a.tipo;
+    const daId = primo.assegnato_a.id;
+
+    // Verifichiamo che tutti i kit abbiano lo stesso soggetto di partenza
+    const sameSource = selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId);
+    if (!sameSource) {
+      showMessage('I kit selezionati provengono da soggetti diversi. Seleziona kit dello stesso soggetto.', 'error');
+      return;
+    }
+
+    const payload = {
+      daTipo: daTipo,
+      daId: daId,
+      aTipo: destinazioneTipo,
+      aId: parseInt(destinazioneId),
+      magazzinoId: parseInt(magazzinoId),
+      oggetti: oggetti,
+      note: note || `Trasferimento batch di ${selected.length} kit`
+    };
+
+    const btn = document.querySelector('#modalTrasferimento .btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Trasferimento...';
+
+    try {
+      const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        chiudiModalTrasferimento();
+        // deseleziona tutti
+        document.getElementById('selectAllCheckbox').checked = false;
+        await caricaKit();
+        await refreshComponentDatalists();
+        await refreshFilterDatalists();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Conferma trasferimento';
+    }
+  }
+
+  // ---------- FUNZIONI ESISTENTI (caricaKit, filtraKit, ecc.) ----------
   async function setDefaultMagazzino() {
     const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
     if (defaultMag && filtroMag) {
@@ -548,7 +799,6 @@
     }
   }
 
-  // ---------- OTTIENI ARTICOLI PER DATALIST (da magazzino) ----------
   async function getArticoliPerDatalist(tipo, magazzinoId = null) {
     const params = new URLSearchParams();
     if (magazzinoId) {
@@ -568,13 +818,11 @@
     params.append('min_giacenza', '1');
     if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
     const url = `/api/articoli?${params.toString()}`;
-    console.log(`📡 Caricamento ${tipo} (magazzino: ${magazzinoId || filtroMag.value}):`, url);
     const res = await apiFetch(url);
     if (res.success) return res.data;
     return [];
   }
 
-  // ---------- OTTIENI KIT ASSEGNATI AL SOGGETTO SORGENTE ----------
   async function getKitsAssegnati(sourceTipoVal, sourceIdVal) {
     const key = `${sourceTipoVal}|${sourceIdVal}`;
     if (cachedAssignedKits !== null && lastSourceKey === key) {
@@ -595,7 +843,6 @@
     return cachedAssignedKits;
   }
 
-  // ---------- OTTIENI ARTICOLI PER DATALIST (da assegnati) ----------
   async function getArticoliPerDatalistAssegnati(tipo, sourceTipoVal, sourceIdVal) {
     const body = { targetTipo: sourceTipoVal, targetId: sourceIdVal };
     if (currentUser.ruolo === 'admin') body.includeReferenced = true;
@@ -636,7 +883,6 @@
     return parts.join(' ');
   }
 
-  // ========== DATALIST con supporto per override magazzino ==========
   async function popolaDatalistTipo(tipo, datalistId, overrideMagazzinoId = null) {
     try {
       const catId = categoryIds[tipo];
@@ -694,7 +940,6 @@
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    // Forza aggiornamento tabella
     filtraKit();
     console.log('Refresh componenti completato, chiamato filtraKit()');
   }
@@ -709,7 +954,7 @@
     ]);
   }
 
-  // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
+  // ---------- FILTRI DATALIST ----------
   const filterFieldMap = {
     descrizioni: 'descrizione',
     sigle: 'sigla',
@@ -764,7 +1009,7 @@
   async function caricaKit() {
     try {
       const data = await apiFetch('/api/kit');
-      allKits = data;  // tutti i kit (inclusi quelli con quantità 0)
+      allKits = data;
       kitList = data.filter(k => k.quantita > 0);
       console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
       const articoliIds = new Set();
@@ -792,9 +1037,8 @@
     }
   }
 
-  // ---------- FILTRO KIT (principale) ----------
+  // ---------- FILTRO KIT ----------
   function filtraKit() {
-    console.log('=== INIZIO FILTRO KIT ===');
     const magazzino = filtroMag.value ? parseInt(filtroMag.value) : null;
     const settore = filtroSet.value ? parseInt(filtroSet.value) : null;
     const marca = filtroMar.value ? parseInt(filtroMar.value) : null;
@@ -804,36 +1048,21 @@
     const lunghezza = filtroLung.value;
     const durezza = filtroDur.value;
 
-    console.log(`Filtri applicati: magazzino=${magazzino}, settore=${settore}, marca=${marca}, descrizione="${descrizione}", sigla="${sigla}", codiceModello="${codiceModello}", lunghezza="${lunghezza}", durezza="${durezza}"`);
-    console.log(`externalCheckbox.checked=${externalCheckbox.checked}, sourceId.value=${sourceId.value}, cachedAssignedKits=${cachedAssignedKits}`);
-
     let baseList;
     if (externalCheckbox.checked && sourceId.value) {
-      // Modalità esterna: usa tutti i kit e filtra per ID presenti in cachedAssignedKits
       baseList = allKits.filter(k => cachedAssignedKits.includes(k.id));
       console.log('Base list in modalità esterna (da allKits filtrata per cachedAssignedKits):', baseList.map(k => k.id));
     } else {
-      // Modalità normale: solo kit con quantità > 0
       baseList = kitList;
     }
 
     kitFiltrati = baseList.filter(kit => {
-      console.log(`\n--- Analisi kit ${kit.id} ---`);
       if (!externalCheckbox.checked || !sourceId.value) {
-        // In modalità normale, applica filtro magazzino
-        if (magazzino && kit.magazzino !== magazzino) {
-          console.log(`  -> scartato per magazzino (kit.magazzino=${kit.magazzino})`);
-          return false;
-        }
+        if (magazzino && kit.magazzino !== magazzino) return false;
       }
-
       const sci = articoliDettaglioCache.get(kit.id_sci);
       const att = articoliDettaglioCache.get(kit.id_attacchi);
-      const sk = kit.id_skistopper ? articoliDettaglioCache.get(kit.id_skistopper) : null;
-      if (!sci || !att) {
-        console.log(`  -> scartato per mancanza componenti (sci=${!!sci}, att=${!!att})`);
-        return false;
-      }
+      if (!sci || !att) return false;
 
       const matchAttributi = (art) => {
         if (!art) return true;
@@ -847,24 +1076,14 @@
         return true;
       };
       const baseMatch = matchAttributi(sci);
-      if (!baseMatch) {
-        console.log(`  -> scartato per attributi sci non corrispondenti`);
-        return false;
-      }
+      if (!baseMatch) return false;
 
       if (externalCheckbox.checked && sourceId.value) {
-        // Già filtrati per cachedAssignedKits, quindi accettiamo tutti
-        console.log(`  -> KIT ACCETTATO (esterno)`);
         return true;
       } else {
-        const isWarehouse = !kit.assegnato_a;
-        console.log(`  -> modalità normale, kit in magazzino? ${isWarehouse}`);
-        return isWarehouse;
+        return !kit.assegnato_a;
       }
     });
-
-    console.log(`Kit filtrati: ${kitFiltrati.length} di ${baseList.length}`);
-    console.log('=== FINE FILTRO KIT ===');
     popolaTabellaKit();
   }
 
@@ -883,59 +1102,37 @@
 
   function compareValues(a, b, column) {
     let valA, valB;
-
     switch (column) {
       case 'id':
-        valA = a.id;
-        valB = b.id;
-        break;
+        valA = a.id; valB = b.id; break;
       case 'codice':
-        valA = a.codice_kit || '';
-        valB = b.codice_kit || '';
-        break;
+        valA = a.codice_kit || ''; valB = b.codice_kit || ''; break;
       case 'sigla':
-        valA = a.sigla || '';
-        valB = b.sigla || '';
-        break;
+        valA = a.sigla || ''; valB = b.sigla || ''; break;
       case 'descrizione':
-        valA = a.descrizione || '';
-        valB = b.descrizione || '';
-        break;
+        valA = a.descrizione || ''; valB = b.descrizione || ''; break;
       case 'magazzino_nome':
         valA = magazzini.find(m => m.id == a.magazzino)?.nome || '';
-        valB = magazzini.find(m => m.id == b.magazzino)?.nome || '';
-        break;
+        valB = magazzini.find(m => m.id == b.magazzino)?.nome || ''; break;
       case 'sci_desc':
         valA = articoliDettaglioCache.get(a.id_sci)?.descrizione || '';
-        valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || '';
-        break;
+        valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || ''; break;
       case 'attacchi_desc':
         valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || '';
-        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || '';
-        break;
+        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || ''; break;
       case 'skistopper_desc':
         valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-';
-        valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-';
-        break;
+        valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-'; break;
       case 'quantita':
-        // Per l'ordinamento usiamo la quantità assegnata se presente, altrimenti la quantità del kit
         const qtyA = a.assegnato_a ? a.assegnato_a.quantita : a.quantita;
         const qtyB = b.assegnato_a ? b.assegnato_a.quantita : b.quantita;
-        valA = qtyA;
-        valB = qtyB;
-        break;
+        valA = qtyA; valB = qtyB; break;
       case 'assegnato_nome':
         valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino';
-        valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino';
-        break;
-      default:
-        valA = '';
-        valB = '';
+        valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino'; break;
+      default: valA = ''; valB = '';
     }
-
-    if (typeof valA === 'number' && typeof valB === 'number') {
-      return valA - valB;
-    }
+    if (typeof valA === 'number' && typeof valB === 'number') return valA - valB;
     return (valA || '').toString().localeCompare((valB || '').toString());
   }
 
@@ -947,19 +1144,13 @@
     });
   }
 
-  // Funzione per spacchettare il kit
   async function spacchettaKit(kitId, quantita, destinazioneTipo, destinazioneId) {
     if (!kitId || !quantita || quantita < 1) {
       showMessage('Quantità non valida', 'error');
       return;
     }
-    const payload = {
-      kitId: kitId,
-      quantita: quantita,
-      destinazioneTipo: destinazioneTipo,
-      destinazioneId: parseInt(destinazioneId)
-    };
-    const btn = document.activeElement; // il bottone che ha scatenato l'evento
+    const payload = { kitId, quantita, destinazioneTipo, destinazioneId: parseInt(destinazioneId) };
+    const btn = document.activeElement;
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>';
@@ -968,7 +1159,6 @@
       const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
         showMessage(result.message, 'success');
-        // Ricarica la tabella e i datalist
         await caricaKit();
         await refreshComponentDatalists();
         await refreshFilterDatalists();
@@ -989,7 +1179,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '|<td colspan="12" class="text-center">Nessun kit trovato<\/td>|';
+      tbody.innerHTML = '|<td colspan="13" class="text-center">Nessun kit trovato<\/td>|';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -998,22 +1188,36 @@
       const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione || k.id_attacchi;
       const skDesc = k.id_skistopper ? (articoliDettaglioCache.get(k.id_skistopper)?.descrizione || k.id_skistopper) : '-';
       const assegnato = k.assegnato_a ? k.assegnato_a.nome : 'Magazzino';
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = k.id;
-      row.insertCell(1).innerText = k.codice_kit;
-      row.insertCell(2).innerText = k.sigla || '-';
-      row.insertCell(3).innerText = k.descrizione;
-      row.insertCell(4).innerText = mag;
-      row.insertCell(5).innerText = sciDesc;
-      row.insertCell(6).innerText = attDesc;
-      row.insertCell(7).innerText = skDesc;
-      // Quantità: se assegnato, mostra la quantità assegnata, altrimenti quella del magazzino
       const quantitaDisplay = k.assegnato_a ? k.assegnato_a.quantita : k.quantita;
-      row.insertCell(8).innerText = quantitaDisplay;
-      row.insertCell(9).innerText = assegnato;
 
-      // Colonna spacchetta
-      const unpackCell = row.insertCell(10);
+      const row = tbody.insertRow();
+
+      // Checkbox
+      const cbCell = row.insertCell(0);
+      cbCell.className = 'checkbox-column';
+      if (k.assegnato_a) {
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'kit-checkbox';
+        cb.setAttribute('data-kit-id', k.id);
+        cbCell.appendChild(cb);
+      } else {
+        cbCell.innerText = '';
+      }
+
+      row.insertCell(1).innerText = k.id;
+      row.insertCell(2).innerText = k.codice_kit;
+      row.insertCell(3).innerText = k.sigla || '-';
+      row.insertCell(4).innerText = k.descrizione;
+      row.insertCell(5).innerText = mag;
+      row.insertCell(6).innerText = sciDesc;
+      row.insertCell(7).innerText = attDesc;
+      row.insertCell(8).innerText = skDesc;
+      row.insertCell(9).innerText = quantitaDisplay;
+      row.insertCell(10).innerText = assegnato;
+
+      // Spacchetta
+      const unpackCell = row.insertCell(11);
       if (k.assegnato_a) {
         const maxQty = k.assegnato_a.quantita;
         const qtyInput = document.createElement('input');
@@ -1041,8 +1245,8 @@
         unpackCell.innerText = '-';
       }
 
-      // Colonna azioni
-      const actions = row.insertCell(11);
+      // Azioni
+      const actions = row.insertCell(12);
       actions.className = 'action-buttons';
       actions.innerHTML = `
         <button class="btn" onclick="modificaKit(${k.id})" title="Modifica">✏️</button>
@@ -1077,7 +1281,6 @@
     const tipo = sourceTipo.value;
     try {
       const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      console.log(`Soggetti per tipo ${tipo}:`, data);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
@@ -1106,7 +1309,6 @@
     }
   }
 
-  // ---------- GESTIONE CHECKBOX E PERMESSI ----------
   function setupExternalMode() {
     const isAdmin = currentUser.ruolo === 'admin';
     const isPromoterLiv1 = currentUser.ruolo === 'promoter' && currentUser.livello === 1;
@@ -1144,19 +1346,13 @@
           caricaSorgenti().then(() => refreshComponentDatalists());
         }
       });
-
       destinazioneTipo.addEventListener('change', () => {
-        if (externalCheckbox.checked) {
-          caricaDestinazioni();
-        }
+        if (externalCheckbox.checked) caricaDestinazioni();
       });
-
       externalCheckbox.addEventListener('change', () => {
         if (externalCheckbox.checked) {
           assegnazioneSection.style.display = 'block';
-          Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
-            refreshComponentDatalists();
-          });
+          Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => refreshComponentDatalists());
         } else {
           assegnazioneSection.style.display = 'none';
           cachedAssignedKits = null;
@@ -1164,21 +1360,15 @@
           refreshComponentDatalists();
         }
       });
-
       if (externalCheckbox.checked) {
         assegnazioneSection.style.display = 'block';
-        Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
-          refreshComponentDatalists();
-        });
+        Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => refreshComponentDatalists());
       } else {
         assegnazioneSection.style.display = 'none';
       }
     }
-
     sourceId.addEventListener('change', () => {
-      if (externalCheckbox.checked) {
-        refreshComponentDatalists();
-      }
+      if (externalCheckbox.checked) refreshComponentDatalists();
     });
   }
 
@@ -1211,10 +1401,7 @@
     const idSci = getArticleIdFromInput(sciInput, 'sciList');
     const idAttacchi = getArticleIdFromInput(attacchiInput, 'attacchiList');
     let idSkistopper = null;
-    if (skistopperInput) {
-      idSkistopper = getArticleIdFromInput(skistopperInput, 'skistopperList');
-    }
-
+    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'skistopperList');
     if (!idSci || !idAttacchi) {
       showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
       return;
@@ -1222,7 +1409,7 @@
 
     const payload = {
       magazzino: parseInt(magazzino),
-      quantita: quantita,
+      quantita,
       id_sci: parseInt(idSci),
       id_attacchi: parseInt(idAttacchi),
       id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
@@ -1230,7 +1417,6 @@
       note: note || null,
       componiDaAssegnati: externalCheckbox.checked
     };
-
     if (externalCheckbox.checked) {
       if (!canUseWarehouse) {
         payload.sourceTipo = currentUser.ruolo.toUpperCase();
@@ -1294,7 +1480,7 @@
 
   // ---------- MODIFICA KIT ----------
   let currentEditId = null;
-  let currentAssignedInfo = null; // per memorizzare info assegnazione
+  let currentAssignedInfo = null;
 
   async function modificaKit(id) {
     try {
@@ -1316,7 +1502,6 @@
         document.getElementById('editKitSkistopper').value = '';
       }
 
-      // Recupera l'assegnazione attuale (se presente) per mostrare informazioni aggiuntive
       const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
       currentAssignedInfo = assignedInfo;
       const assignedInfoDiv = document.getElementById('assignedInfo');
@@ -1329,7 +1514,6 @@
       }
 
       await refreshEditDatalists();
-
       document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
       showMessage('Errore caricamento kit: ' + err.message, 'error');
@@ -1353,10 +1537,7 @@
     const idSci = getArticleIdFromInput(sciInput, 'editSciList');
     const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
     let idSkistopper = null;
-    if (skistopperInput) {
-      idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
-    }
-
+    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
     if (!idSci || !idAttacchi) {
       showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
       return;
@@ -1364,7 +1545,7 @@
 
     const payload = {
       magazzino: parseInt(magazzino),
-      quantita: quantita,
+      quantita,
       id_sci: parseInt(idSci),
       id_attacchi: parseInt(idAttacchi),
       id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
@@ -1413,15 +1594,11 @@
       if (select) select.addEventListener('change', handleFilterChange);
     });
     kitMagazzinoSelect.addEventListener('change', () => {
-      if (!externalCheckbox.checked) {
-        refreshComponentDatalists();
-      }
+      if (!externalCheckbox.checked) refreshComponentDatalists();
     });
     if (editKitMagazzino) {
       editKitMagazzino.addEventListener('change', () => {
-        if (document.getElementById('modalEditKit').style.display === 'flex') {
-          refreshEditDatalists();
-        }
+        if (document.getElementById('modalEditKit').style.display === 'flex') refreshEditDatalists();
       });
     }
   }
