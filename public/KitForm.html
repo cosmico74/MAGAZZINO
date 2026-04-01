@@ -349,7 +349,7 @@
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
-   </table>
+    </table>
   </div>
 </div>
 
@@ -1158,49 +1158,13 @@
         document.getElementById('editKitSkistopper').value = '';
       }
 
-      toggleEditLunghezzaDurezza();
-      attachEditEvents();
+      // Popola i datalist di modifica con gli articoli del magazzino corrente
       await refreshEditDatalists();
 
       document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
-  }
-
-  function toggleEditLunghezzaDurezza() {
-    const catId = document.getElementById('editCategoria')?.value;
-    const categoria = categorieCompleto.find(c => c.id == catId);
-    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : true;
-    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : true;
-    const gruppoLung = document.getElementById('editGruppoLunghezza');
-    const gruppoDur = document.getElementById('editGruppoDurezza');
-    if (gruppoLung) gruppoLung.style.display = mostraLunghezza ? 'block' : 'none';
-    if (gruppoDur) gruppoDur.style.display = mostraDurezza ? 'block' : 'none';
-  }
-
-  function attachEditEvents() {
-    const selects = ['editMagazzino', 'editSettore', 'editCategoria', 'editMarca'];
-    selects.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.removeEventListener('change', handleEditChange);
-        el.addEventListener('change', handleEditChange);
-      }
-    });
-    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
-    textFields.forEach(field => {
-      const input = document.getElementById(`edit${field.charAt(0).toUpperCase() + field.slice(1)}`);
-      if (input) {
-        input.removeEventListener('change', handleEditChange);
-        input.addEventListener('change', handleEditChange);
-      }
-    });
-  }
-
-  async function handleEditChange(e) {
-    if (e.target.id === 'editCategoria') toggleEditLunghezzaDurezza();
-    await refreshEditDatalists();
   }
 
   async function salvaModificaKit() {
