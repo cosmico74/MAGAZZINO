@@ -85,18 +85,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
 }
 
 // ========== HELPER: RICORSIVO PER OTTENERE TUTTI I SOGGETTI REFERENZIATI ==========
-async function getSoggettiReferenziati(soggettoId) {
-  const [diretti] = await pool.query(
-    'SELECT soggetti_id FROM soggetti_referenti WHERE referente_id = ?',
-    [soggettoId]
-  );
-  let result = diretti.map(r => r.soggetti_id);
-  for (const id of result) {
-    const sub = await getSoggettiReferenziati(id);
-    result = result.concat(sub);
-  }
-  return result;
-}
+getSoggettiReferenziati
 
 // ========== HELPER: OTTIENI OGGETTI IN CARICO PER UN SOGGETTO + REFERENTI ==========
 async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null) {
