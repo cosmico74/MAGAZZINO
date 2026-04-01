@@ -433,6 +433,9 @@
   const destinazioneTipo = document.getElementById('destinazioneTipo');
   const destinazioneId = document.getElementById('destinazioneId');
 
+  // Nuovi riferimenti per il magazzino del form
+  const kitMagazzinoSelect = document.getElementById('kitMagazzino');
+
   // ---------- CARICAMENTO ANAGRAFICHE ----------
   async function caricaAnagrafiche() {
     try {
@@ -497,9 +500,15 @@
   }
 
   // ---------- OTTIENI ARTICOLI PER DATALIST (da magazzino) ----------
-  async function getArticoliPerDatalist(tipo) {
+  // Ora accetta un parametro magazzinoId opzionale; se non fornito usa filtroMag.value
+  async function getArticoliPerDatalist(tipo, magazzinoId = null) {
     const params = new URLSearchParams();
-    if (filtroMag.value) params.append('magazzino', filtroMag.value);
+    // Usa il magazzino passato, altrimenti il filtro
+    if (magazzinoId) {
+      params.append('magazzino', magazzinoId);
+    } else if (filtroMag.value) {
+      params.append('magazzino', filtroMag.value);
+    }
     if (filtroSet.value) params.append('settore', filtroSet.value);
     if (filtroMar.value) params.append('marca', filtroMar.value);
     if (tipo === 'sci') {
@@ -512,7 +521,7 @@
     params.append('min_giacenza', '1');
     if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
     const url = `/api/articoli?${params.toString()}`;
-    console.log(`📡 Caricamento ${tipo}:`, url);
+    console.log(`📡 Caricamento ${tipo} (magazzino: ${magazzinoId || filtroMag.value}):`, url);
     const res = await apiFetch(url);
     if (res.success) return res.data;
     return [];
@@ -600,7 +609,15 @@
         console.log(`Popolo ${datalistId} con oggetti assegnati a ${srcTipo} ${srcId}`);
         articoli = await getArticoliPerDatalistAssegnati(tipo, srcTipo, srcId);
       } else {
-        articoli = await getArticoliPerDatalist(tipo);
+        // Usa il magazzino selezionato nel form di composizione
+        const magazzinoId = kitMagazzinoSelect.value;
+        if (!magazzinoId) {
+          console.warn(`Magazzino non selezionato per ${datalistId}`);
+          const datalist = document.getElementById(datalistId);
+          if (datalist) datalist.innerHTML = '';
+          return;
+        }
+        articoli = await getArticoliPerDatalist(tipo, magazzinoId);
       }
       const validi = articoli.filter(a => (a.quantita_totale - a.quantita_in_kit) > 0);
       const datalist = document.getElementById(datalistId);
@@ -893,7 +910,7 @@
     });
   }
 
-  // ---------- GESTIONE SORGENTI E DESTINAZIONI (CORRETTO) ----------
+  // ---------- GESTIONE SORGENTI E DESTINAZIONI ----------
   async function caricaSorgenti() {
     const tipo = sourceTipo.value;
     try {
@@ -1216,6 +1233,12 @@
     const selectFilters = [filtroMag, filtroSet, filtroMar];
     selectFilters.forEach(select => {
       if (select) select.addEventListener('change', handleFilterChange);
+    });
+    // Aggiungi listener per il cambio del magazzino nel form di composizione
+    kitMagazzinoSelect.addEventListener('change', () => {
+      if (!externalCheckbox.checked) {
+        refreshComponentDatalists();
+      }
     });
   }
 
