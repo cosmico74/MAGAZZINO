@@ -141,11 +141,14 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      float: right;
     }
     .header-bar {
       margin-bottom: 20px;
-      text-align: right;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     input:disabled, select:disabled, button:disabled {
       opacity: 0.6;
@@ -179,17 +182,16 @@
 </head>
 <body>
 <div class="container">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-  <div class="logo">
-    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+  <div class="header-bar">
+    <div class="logo">
+      <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span id="loginInfo" class="login-info"></span>
+      <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+      <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+    </div>
   </div>
-  <div style="display: flex; gap: 10px;">
-    <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-    <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-    <button class="btn btn-secondary" onclick="mostraArticoliMagazzino()">📋 Articoli in magazzino</button>
-  </div>
-</div>
-</div>
 
   <h2>📦 Assegnazioni e Rientri</h2>
   <div id="messageArea"></div>
@@ -671,9 +673,10 @@
   // ---------- FILTRI DATALIST ----------
   const filterFieldMap = {
     descrizioni: 'descrizione',
+    sigle: 'sigla',
+    modelli: 'codice_modello',
     lunghezze: 'lunghezza',
-    durezze: 'durezza',
-    sigle: 'sigla'
+    durezze: 'durezza'
   };
 
   async function getDistinctFilterValues(field, exceptField = null) {
@@ -688,17 +691,18 @@
     if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
     const endpoint = `/api/articoli/valori/${field}`;
     const url = `${endpoint}?${params.toString()}`;
-    console.log(`[DEBUG] getDistinctFilterValues: chiamata ${url}`);
+    console.log(`[DEBUG] getDistinctFilterValues chiamata: ${url}`);
     const data = await apiFetch(url);
+    console.log(`[DEBUG] Risposta da ${field}:`, data);
     const columnName = filterFieldMap[field] || field;
     const values = data.map(item => item[columnName]).filter(v => v && v !== '');
-    console.log(`[DEBUG] Valori distinti per ${field}:`, values);
     return values;
   }
 
   async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
       const values = await getDistinctFilterValues(field, exceptField);
+      console.log(`[DEBUG] Valori per ${field}:`, values);
       const datalist = document.getElementById(datalistId);
       if (!datalist) return;
       datalist.innerHTML = '';
@@ -713,10 +717,15 @@
   }
 
   async function refreshFilterDatalists() {
+    if (!magazzinoSelect.value) {
+      console.log("Magazzino non selezionato, salto refreshFilterDatalists");
+      return;
+    }
     await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
+    await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
+    await popolaFilterDatalist('modelli', 'codiceModelloList', 'codice_modello');
     await popolaFilterDatalist('lunghezze', 'lunghezzaList', 'lunghezza');
     await popolaFilterDatalist('durezze', 'durezzaList', 'durezza');
-    await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
   }
 
   // ---------- GESTIONE FILTRI GLOBALI ----------
@@ -1024,8 +1033,6 @@
     }
     const displayName = currentUser.nome_visualizzato || currentUser.username;
     document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
-    document.getElementById('loginInfo').style.display = 'inline-flex';
-    document.getElementById('logoutBtn').style.display = 'inline-block';
 
     await caricaAnagrafiche();
     await caricaDestinazioni();   // carica iniziale
