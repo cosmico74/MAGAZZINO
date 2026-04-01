@@ -471,7 +471,7 @@
     }
   }
 
-  // ---------- FORMATTA OGGETTO PER LA TABELLA ----------
+  // ---------- FORMATTA OGGETTO PER LA TABELLA (con sigla) ----------
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -479,13 +479,22 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
+      // Per i kit: mostra la sigla dello sci tra parentesi quadre, poi codice kit, poi descrizione
       const sciSigla = item.SCI_SIGLA || '';
       const kitDesc = item.descrizione || '';
-      codice = sciSigla ? `[${sciSigla}]` : (item.codice_kit || `Kit ${id}`);
+      // Codice: [sigla sci] + eventuale codice kit
+      if (sciSigla) {
+        codice = `[${sciSigla}]`;
+        if (item.codice_kit) codice += ` ${item.codice_kit}`;
+      } else {
+        codice = item.codice_kit || `Kit ${id}`;
+      }
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
       disponibile = item.quantita || 0;
     } else {
-      codice = item.codice || '';
+      // Per gli articoli: mostra la sigla se presente, altrimenti il codice articolo
+      codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
+      if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
       disponibile = item.quantita || 0;
     }
@@ -518,17 +527,15 @@
       if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
       paramsArticoli.append('min_giacenza', '1');
 
-      // CARICA ARTICOLI
       if (tipo === '' || tipo === 'ARTICOLO') {
         const urlArticoli = `/api/articoli?${paramsArticoli.toString()}`;
         console.log(`[DEBUG] Chiamata articoli: ${urlArticoli}`);
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
-        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`, articoli);
+        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO' })));
       }
 
-      // CARICA KIT
       if (tipo === '' || tipo === 'KIT') {
         console.log(`[DEBUG] Caricamento kit da /api/kit`);
         const resKit = await apiFetch('/api/kit');
@@ -560,9 +567,25 @@
       if (includeReferenced.checked) body.includeReferenced = true;
       console.log(`[DEBUG] Admin: sorgente selezionata: ${body.targetTipo} ${body.targetId}, referenti=${body.includeReferenced}`);
     } else if (currentUser.ruolo !== 'admin') {
-      console.log(`[DEBUG] Non admin: utilizzo riferimento utente ${currentUser.riferimento_id}`);
-    } else {
-      console.log(`[DEBUG] Admin ma nessuna sorgente selezionata (sourceId.value = ${sourceId.value})`);
+      // Per utenti non admin, usa il riferimento dell'utente
+      if (!currentUser.riferimento_id) {
+        console.warn('Utente senza riferimento_id, nessun carico da mostrare');
+        oggetti = [];
+        popolaTabella();
+        return;
+      }
+      body.targetTipo = currentUser.ruolo.toUpperCase();
+      body.targetId = currentUser.riferimento_id;
+      // Per i non admin non c'è la checkbox referenti, ma il backend potrebbe includerli automaticamente? No, lo gestiamo qui.
+      // Se il backend ha includeReferenced, lo passiamo solo per admin. Per semplicità, non lo passiamo.
+      console.log(`[DEBUG] Non admin: sorgente = ${body.targetTipo} ${body.targetId}`);
+    }
+
+    if (!body.targetTipo || !body.targetId) {
+      console.log('[DEBUG] Nessuna sorgente valida, nessun oggetto da caricare');
+      oggetti = [];
+      popolaTabella();
+      return;
     }
 
     try {
