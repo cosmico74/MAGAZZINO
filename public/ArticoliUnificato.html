@@ -17,7 +17,7 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
       height: 100%;
-      overflow: hidden; /* impedisce scroll globale, tutto gestito dentro .container */
+      overflow: hidden;
     }
     .container {
       max-width: 1400px;
@@ -32,8 +32,8 @@
       overflow: hidden;
     }
     h2 {
-      margin: 0 0 15px 0;
-      font-size: 1.5rem;
+      margin: 0 0 12px 0;
+      font-size: 1.4rem;
       border-left: 5px solid #1a73e8;
       padding-left: 12px;
       color: #1e2a3a;
@@ -41,27 +41,26 @@
     .form-row-5col {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-      margin-bottom: 12px;
-      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .form-row-3col {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .form-row-4col-slim {
       display: grid;
       grid-template-columns: 1fr 1fr auto auto;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .form-row-2col {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
+      grid-template-columns: 2fr 1fr 1fr;  /* note, save, reset */
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .form-group {
       margin-bottom: 0;
@@ -75,19 +74,22 @@
     }
     input, select, textarea {
       width: 100%;
-      padding: 6px 8px;
+      padding: 4px 6px;
       border: 1px solid #cbd5e0;
       border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
     .btn {
       background: #1a73e8;
       color: white;
       border: none;
-      padding: 6px 12px;
+      padding: 5px 10px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
     .btn:hover {
       background: #0f5bb5;
@@ -111,20 +113,25 @@
     .toolbar {
       display: flex;
       gap: 10px;
-      margin: 15px 0;
+      margin: 10px 0 5px;
       justify-content: flex-end;
     }
     .table-wrapper {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: 60vh;       /* altezza massima: scorre solo la tabella */
-      margin-top: 20px;
-      flex: 1;                /* occupa lo spazio rimanente nel flex container */
+      flex: 1;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
+    }
+    th, td {
+      padding: 4px 6px;
+      border: 1px solid #ddd;
     }
     th {
       background: #f8f9fa;
@@ -132,33 +139,31 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      border: 1px solid #ddd;
-      padding: 8px;
       cursor: pointer;
       user-select: none;
     }
-    td {
-      border: 1px solid #ddd;
-      padding: 6px;
+    .action-buttons {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+    .action-buttons button {
+      padding: 2px 4px;
+      font-size: 0.7rem;
+      min-width: 28px;
     }
     .message {
-      padding: 10px;
-      margin-bottom: 15px;
+      padding: 8px;
+      margin-bottom: 12px;
       border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
-    .success {
-      background: #d4edda;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
-    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
     .spinner {
       display: inline-block;
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       border: 2px solid #e2e8f0;
       border-top-color: #1a73e8;
       border-radius: 50%;
@@ -166,14 +171,12 @@
       margin-right: 4px;
       vertical-align: middle;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .assignment-group {
       background: #f8f9fa;
-      padding: 12px;
+      padding: 8px 10px;
       border-radius: 10px;
-      margin: 15px 0;
+      margin: 10px 0;
     }
     .inline-checkbox {
       display: flex;
@@ -181,16 +184,12 @@
       gap: 8px;
       margin: 0;
     }
-    .inline-checkbox input {
-      width: auto;
-    }
+    .inline-checkbox input { width: auto; }
     .modal {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.5);
       justify-content: center;
       align-items: center;
@@ -203,47 +202,37 @@
       max-width: 800px;
       max-height: 90vh;
       overflow-y: auto;
-      padding: 20px;
+      padding: 15px;
     }
     .modal-buttons {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-top: 20px;
+      margin-top: 15px;
     }
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
-    .text-center {
-      text-align: center;
-    }
+    .text-center { text-align: center; }
     .header-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
+      margin-bottom: 12px;
     }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo img {
-      height: 40px;
-    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo img { height: 32px; }
     .menu-btn {
       background: #6c757d;
       border: none;
-      padding: 6px 12px;
+      padding: 4px 10px;
       border-radius: 6px;
       cursor: pointer;
       color: white;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
   </style>
 </head>
@@ -259,7 +248,7 @@
   </div>
   <div id="messageArea"></div>
 
-  <!-- Form di inserimento (serve anche per filtrare la tabella) -->
+  <!-- Form di inserimento -->
   <form id="articleForm" onsubmit="return false;">
     <div class="form-row-5col">
       <div class="form-group">
@@ -289,7 +278,7 @@
       <div class="form-group">
         <div class="inline-checkbox">
           <input type="checkbox" id="assegnaCheckbox">
-          <label for="assegnaCheckbox">📤 Assegna a destinatario</label>
+          <label for="assegnaCheckbox">📤 Assegna</label>
         </div>
       </div>
     </div>
@@ -339,7 +328,10 @@
         <textarea id="note" rows="2"></textarea>
       </div>
       <div class="form-group">
-        <button type="button" class="btn btn-primary" id="saveBtn" onclick="salvaArticolo()">💾 Salva Articolo</button>
+        <button type="button" class="btn btn-primary" id="saveBtn" onclick="salvaArticolo()">💾 Salva</button>
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn btn-secondary" onclick="resetFiltri()" style="width:100%">🔄 Reset</button>
       </div>
     </div>
 
@@ -362,16 +354,11 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Note per l'assegnazione (opzionale)</label>
+        <label>Note per l'assegnazione</label>
         <input type="text" id="assegnaNote">
       </div>
     </div>
   </form>
-
-  <!-- Barra filtri: solo pulsante Reset (Filtra automatico) -->
-  <div class="toolbar">
-    <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-  </div>
 
   <!-- Tabella articoli scrollabile -->
   <div class="table-wrapper">
@@ -470,7 +457,6 @@
   let sortColumn = 'descrizione';
   let sortAsc = true;
 
-  // Elementi form
   const magazzinoSelect = document.getElementById('magazzino');
   const settoreSelect = document.getElementById('settore');
   const categoriaSelect = document.getElementById('categoria');
@@ -481,7 +467,6 @@
   const lunghezzaInput = document.getElementById('lunghezza');
   const durezzaInput = document.getElementById('durezza');
 
-  // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
     try {
       const [mag, set, cat, mar] = await Promise.all([
@@ -495,7 +480,6 @@
       categorieCompleto = cat;
       marche = mar;
 
-      // Popola select inserimento
       magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
       magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
       settoreSelect.innerHTML = '<option value="">Seleziona settore</option>';
@@ -505,7 +489,6 @@
       marcaSelect.innerHTML = '<option value="">Seleziona marca</option>';
       marche.forEach(m => marcaSelect.appendChild(new Option(m.nome, m.id)));
 
-      // Imposta default (es. Race, Sci Alpino, Sci, Kastle)
       setDefaultSelect(magazzinoSelect, ['race']);
       setDefaultSelect(settoreSelect, ['sci alpino', 'alpino']);
       setDefaultSelect(categoriaSelect, ['sci']);
@@ -541,7 +524,7 @@
     document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
   }
 
-  // ========== DATALIST PER FORM INSERIMENTO ==========
+  // ========== DATALIST ==========
   const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
   const endpointMap = {
     descrizione: '/api/articoli/valori/descrizioni',
@@ -594,20 +577,15 @@
     }
   }
 
-  // ========== REFRESH AUTOMATICO TABELLA CON DEBOUNCE ==========
+  // ========== REFRESH TABELLA AUTOMATICO ==========
   let refreshDebounceTimer;
-
-  function refreshTabella() {
-    caricaArticoli();
-  }
-
+  function refreshTabella() { caricaArticoli(); }
   function refreshTabellaDebounced() {
     clearTimeout(refreshDebounceTimer);
     refreshDebounceTimer = setTimeout(() => refreshTabella(), 300);
   }
 
   function attachFormEvents() {
-    // Select: cambio immediato (con debounce per la tabella)
     const selects = [magazzinoSelect, settoreSelect, categoriaSelect, marcaSelect];
     selects.forEach(select => {
       select.addEventListener('change', () => {
@@ -616,8 +594,6 @@
         refreshTabellaDebounced();
       });
     });
-
-    // Campi testo: input con debounce
     const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
     textFields.forEach(field => {
       const input = document.getElementById(field);
@@ -740,7 +716,6 @@
         }
       }
 
-      // Reset campi (opzionale)
       descrizioneInput.value = '';
       siglaInput.value = '';
       lunghezzaInput.value = '';
@@ -751,16 +726,16 @@
       assegnaCheckbox.checked = false;
       assegnaSection.style.display = 'none';
       refreshAllDatalists();
-      refreshTabella(); // aggiorna tabella
+      refreshTabella();
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.innerHTML = '💾 Salva Articolo';
+      saveBtn.innerHTML = '💾 Salva';
     }
   }
 
-  // ========== TABELLA ARTICOLI (filtra usando i valori del form) ==========
+  // ========== TABELLA ==========
   async function caricaArticoli() {
     try {
       const params = new URLSearchParams();
@@ -797,7 +772,7 @@
     lunghezzaInput.value = '';
     durezzaInput.value = '';
     refreshAllDatalists();
-    refreshTabella(); // carica senza filtri
+    refreshTabella();
   }
 
   function compare(a, b, column) {
@@ -871,8 +846,11 @@
       row.insertCell(11).innerText = a.GIACENZA_REALE;
       row.insertCell(12).innerText = a.stato;
       const actions = row.insertCell(13);
-      actions.innerHTML = `<button class="btn" onclick="modificaArticolo(${a.id})">✏️ Modifica</button>
-                           <button class="btn btn-danger" onclick="eliminaArticolo(${a.id})">🗑️ Elimina</button>`;
+      actions.className = 'action-buttons';
+      actions.innerHTML = `
+        <button class="btn" onclick="modificaArticolo(${a.id})" title="Modifica">✏️</button>
+        <button class="btn btn-danger" onclick="eliminaArticolo(${a.id})" title="Elimina">🗑️</button>
+      `;
     });
     aggiornaIndicatoriOrdine();
   }
@@ -1093,14 +1071,12 @@
     document.getElementById('modalEdit').style.display = 'none';
   }
 
-  // ========== LOGOUT ==========
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = 'Login.html';
   }
 
-  // ========== INIZIALIZZAZIONE ==========
   window.onload = async () => {
     if (!restoreSession()) {
       document.body.innerHTML = '<div class="container"><h2>Accesso non autorizzato</h2><p>Devi effettuare il login.</p><a href="Login.html">Vai al login</a></div>';
@@ -1109,7 +1085,7 @@
     await caricaAnagrafiche();
     attachFormEvents();
     attachSortListeners();
-    await refreshTabella(); // carica tabella iniziale
+    await refreshTabella();
     await refreshAllDatalists();
   };
 </script>
