@@ -16,6 +16,8 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
+      height: 100%;
+      overflow: hidden; /* impedisce scroll globale, tutto gestito dentro .container */
     }
     .container {
       max-width: 1400px;
@@ -24,6 +26,10 @@
       border-radius: 16px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.1);
       padding: 20px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     h2 {
       margin: 0 0 15px 0;
@@ -110,7 +116,10 @@
     }
     .table-wrapper {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: 60vh;       /* altezza massima: scorre solo la tabella */
       margin-top: 20px;
+      flex: 1;                /* occupa lo spazio rimanente nel flex container */
     }
     table {
       width: 100%;
@@ -122,6 +131,7 @@
       font-weight: 600;
       position: sticky;
       top: 0;
+      z-index: 10;
       border: 1px solid #ddd;
       padding: 8px;
       cursor: pointer;
@@ -358,12 +368,12 @@
     </div>
   </form>
 
-  <!-- Barra filtri: solo pulsante Reset (Filtra è automatico) -->
+  <!-- Barra filtri: solo pulsante Reset (Filtra automatico) -->
   <div class="toolbar">
     <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
   </div>
 
-  <!-- Tabella articoli -->
+  <!-- Tabella articoli scrollabile -->
   <div class="table-wrapper">
     <table id="tabellaArticoli">
       <thead>
@@ -839,7 +849,7 @@
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
     if (articoliCorrente.length === 0) {
-      tbody.innerHTML = '|<td colspan="14" class="text-center">Nessun articolo trovato<\/td>|';
+      tbody.innerHTML = '<tr><td colspan="14" class="text-center">Nessun articolo trovato</td></tr>';
       return;
     }
     articoliCorrente.forEach(a => {
