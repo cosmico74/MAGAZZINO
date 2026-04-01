@@ -169,7 +169,7 @@
 
   <div id="messageArea"></div>
 
-  <!-- Selezione comune: magazzino e soggetto -->
+  <!-- Selezione comune: magazzino e soggetto (con filtro per tipo) -->
   <div class="form-row-3col">
     <div class="form-group">
       <label>Magazzino *</label>
@@ -178,12 +178,21 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Soggetto (promoter/negozio/cliente/agente) *</label>
-      <select id="soggetto" required>
-        <option value="">Seleziona soggetto...</option>
+      <label>Tipo soggetto *</label>
+      <select id="tipoSoggetto">
+        <option value="">Seleziona tipo...</option>
+        <option value="PROMOTER">👤 Promoter</option>
+        <option value="NEGOZIO">🏪 Negozio</option>
+        <option value="CLIENTE">👥 Cliente</option>
+        <option value="AGENTE">🤝 Agente</option>
       </select>
     </div>
-    <div class="form-group"></div>
+    <div class="form-group">
+      <label>Soggetto *</label>
+      <select id="soggetto" required disabled>
+        <option value="">Seleziona prima il tipo</option>
+      </select>
+    </div>
   </div>
 
   <!-- Sezione Crea Kit -->
@@ -284,13 +293,14 @@
   // ---------- GLOBALI ----------
   let currentUser = null;
   let magazzini = [];
-  let soggetti = [];
+  let tuttiSoggetti = [];          // tutti i soggetti per il filtraggio
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let assignedArticles = { sci: [], attacchi: [], skistopper: [] };
-  let assignedKits = [];       // kit assegnati al soggetto corrente
+  let assignedKits = [];           // kit assegnati al soggetto corrente
 
   // DOM elements
   const magazzinoSelect = document.getElementById('magazzino');
+  const tipoSoggettoSelect = document.getElementById('tipoSoggetto');
   const soggettoSelect = document.getElementById('soggetto');
   const sciSelect = document.getElementById('sciId');
   const attacchiSelect = document.getElementById('attacchiId');
@@ -331,18 +341,49 @@
     }
   }
 
-  async function caricaSoggetti() {
+  async function caricaTuttiSoggetti() {
     try {
       const data = await apiFetch('/api/soggetti');
-      soggetti = data;
-      soggettoSelect.innerHTML = '<option value="">Seleziona soggetto...</option>';
-      soggetti.forEach(s => {
-        let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
-        soggettoSelect.appendChild(new Option(`${nome} (${s.tipo})`, `${s.tipo}|${s.id}`));
-      });
+      tuttiSoggetti = data;
     } catch (err) {
       console.error('Errore caricamento soggetti:', err);
       showMessage('Errore caricamento soggetti', 'error');
+    }
+  }
+
+  // Aggiorna il secondo dropdown in base al tipo selezionato
+  function filtraSoggetti() {
+    const tipo = tipoSoggettoSelect.value;
+    if (!tipo) {
+      soggettoSelect.disabled = true;
+      soggettoSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+      // Resetta i dati visualizzati
+      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
+      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      assignedArticles = { sci: [], attacchi: [], skistopper: [] };
+      assignedKits = [];
+      return;
+    }
+
+    const filtrati = tuttiSoggetti.filter(s => s.tipo === tipo);
+    soggettoSelect.disabled = false;
+    soggettoSelect.innerHTML = '<option value="">Seleziona soggetto...</option>';
+    filtrati.forEach(s => {
+      let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
+      soggettoSelect.appendChild(new Option(nome, `${s.tipo}|${s.id}`));
+    });
+    // Se c'è un solo soggetto, lo selezioniamo automaticamente (opzionale)
+    if (filtrati.length === 1) {
+      soggettoSelect.value = `${filtrati[0].tipo}|${filtrati[0].id}`;
+      onSoggettoChange();  // carica i dati
+    } else {
+      soggettoSelect.value = '';
+      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
+      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
+      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
     }
   }
 
@@ -593,20 +634,14 @@
   // ---------- GESTIONE EVENTI ----------
   async function onSoggettoChange() {
     const val = soggettoSelect.value;
-    if (!val) {
-      sciSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      attacchiSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      skistopperSelect.innerHTML = '<option value="">Nessuno</option>';
-      kitSpacchettaSelect.innerHTML = '<option value="">Seleziona soggetto prima</option>';
-      return;
-    }
+    if (!val) return;
     const [tipo, id] = val.split('_');
     await caricaOggettiAssegnati(tipo, parseInt(id));
   }
 
   function attachEvents() {
+    tipoSoggettoSelect.addEventListener('change', filtraSoggetti);
     soggettoSelect.addEventListener('change', onSoggettoChange);
-    // Quando cambia kit selezionato, aggiorna il max della quantità spacchetta
     kitSpacchettaSelect.addEventListener('change', () => {
       const selected = kitSpacchettaSelect.selectedOptions[0];
       if (selected && selected.getAttribute('data-quantita')) {
@@ -636,7 +671,7 @@
 
     await caricaCategorie();
     await caricaMagazzini();
-    await caricaSoggetti();
+    await caricaTuttiSoggetti();  // carica tutti i soggetti per il filtraggio
     attachEvents();
   };
 </script>
