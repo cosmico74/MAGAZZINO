@@ -1,7 +1,8 @@
-const { registraUscitaTransazionale, registraRientroTransazionale } = require('./assegnazioni');
+git checkout origin/main -- routes/assegnazioni.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { aggiornaSintesiCarico } = require('./assegnazioni');
 const { verifyToken } = require('../auth');
 
 
