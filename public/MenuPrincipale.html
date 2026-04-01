@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestione Magazzino</title>
@@ -119,7 +120,6 @@ async function apiCall(endpoint, method, data) {
     body: data ? JSON.stringify(data) : undefined
   });
   if (response.status === 401) {
-    // token non valido o scaduto
     logout();
     throw new Error('Sessione scaduta');
   }
@@ -130,64 +130,77 @@ async function apiCall(endpoint, method, data) {
   return response.json();
 }
 
-  function logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+function logout() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  window.location.href = 'Login.html';
+}
+
+async function loadAndShowMenu() {
+  const userStr = localStorage.getItem('user');
+  const token = localStorage.getItem('token');
+  if (!userStr || !token) {
     window.location.href = 'Login.html';
+    return;
   }
-
-  async function loadAndShowMenu() {
-    const userStr = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (!userStr || !token) {
-      window.location.href = 'Login.html';
-      return;
-    }
-    const user = JSON.parse(userStr);
-    try {
-      const menuItems = await apiCall('/api/anagrafiche/menu', 'GET');
-      showMenu(user, menuItems);
-    } catch (err) {
-      console.error('Errore menu:', err);
-      document.getElementById('app').innerHTML = `<div class="error-message">❌ Impossibile caricare il menu: ${err.message}</div>`;
-    }
-  }
-
-  function showMenu(user, menuItems) {
-    let livelloText = '';
-    if (user.ruolo === 'promoter' && user.livello) livelloText = ` livello ${user.livello}`;
-    else if (user.ruolo === 'agente') livelloText = ' (Agente)';
-
-    let html = `
-      <div class="header">
-        <h1>🏭 Gestione Magazzino</h1>
-        <div class="user-info">
-          <span class="user-badge">👤 ${user.nome_visualizzato || user.username} (${user.ruolo}${livelloText})</span>
-          <button class="logout-btn" onclick="logout()">🚪 Logout</button>
-        </div>
-      </div>
-    `;
-    if (menuItems.length === 0) {
-      html += `<div style="text-align:center; padding:40px; background:white; border-radius:16px;">Nessuna funzionalità disponibile per il tuo ruolo.</div>`;
-    } else {
-      html += `<div class="menu-grid">`;
-      menuItems.forEach(item => {
-        html += `
-          <div class="menu-item" onclick="window.location.href='${item.url}'">
-            <div class="menu-icon">${item.icona}</div>
-            <div class="menu-title">${item.titolo}</div>
-            <div class="menu-desc">${item.descrizione}</div>
-          </div>
-        `;
+  const user = JSON.parse(userStr);
+  try {
+    const menuItems = await apiCall('/api/anagrafiche/menu', 'GET');
+    // Aggiungiamo il nuovo card "Articoli Unificato" manualmente
+    // (se non già presente dal backend)
+    const alreadyHasUnified = menuItems.some(item => item.url === 'ArticoliUnificato.html');
+    if (!alreadyHasUnified) {
+      menuItems.push({
+        titolo: '📦 Articoli Unificato',
+        descrizione: 'Inserisci e modifica articoli in un’unica schermata',
+        icona: '📦',
+        url: 'ArticoliUnificato.html'
       });
-      html += `</div>`;
     }
-    html += `<div class="footer">Sistema di gestione magazzino</div>`;
-    document.getElementById('app').innerHTML = html;
+    showMenu(user, menuItems);
+  } catch (err) {
+    console.error('Errore menu:', err);
+    document.getElementById('app').innerHTML = `<div class="error-message">❌ Impossibile caricare il menu: ${err.message}</div>`;
   }
+}
 
-  // Avvia
-  loadAndShowMenu();
+function showMenu(user, menuItems) {
+  let livelloText = '';
+  if (user.ruolo === 'promoter' && user.livello) livelloText = ` livello ${user.livello}`;
+  else if (user.ruolo === 'agente') livelloText = ' (Agente)';
+
+  let html = `
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo">
+        <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+      </div>
+      <h1>🏭 Gestione Magazzino</h1>
+      <div class="user-info">
+        <span class="user-badge">👤 ${user.nome_visualizzato || user.username} (${user.ruolo}${livelloText})</span>
+        <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+      </div>
+    </div>
+  `;
+  if (menuItems.length === 0) {
+    html += `<div style="text-align:center; padding:40px; background:white; border-radius:16px;">Nessuna funzionalità disponibile per il tuo ruolo.</div>`;
+  } else {
+    html += `<div class="menu-grid">`;
+    menuItems.forEach(item => {
+      html += `
+        <div class="menu-item" onclick="window.location.href='${item.url}'">
+          <div class="menu-icon">${item.icona}</div>
+          <div class="menu-title">${item.titolo}</div>
+          <div class="menu-desc">${item.descrizione}</div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+  html += `<div class="footer">Sistema di gestione magazzino</div>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+loadAndShowMenu();
 </script>
 </body>
 </html>
