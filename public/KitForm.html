@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📦 Composizione Kit - Magazzino</title>
   <style>
+    /* (stile identico a prima) */
     * { box-sizing: border-box; }
     html, body {
       height: 100%;
@@ -297,7 +298,6 @@
   </div>
 
   <form id="kitForm" onsubmit="return false;" autocomplete="off">
-    <!-- Riga unica: Magazzino, Sci, Attacchi, Skistopper, Quantità -->
     <div class="form-row-5col">
       <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" autocomplete="off" required></select></div>
       <div class="form-group"><label>Sci *</label><input type="text" id="kitSci" list="sciList" autocomplete="off" required placeholder="Cerca sci..."><datalist id="sciList"></datalist></div>
@@ -412,15 +412,12 @@
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let canUseWarehouse = false;
 
-  // Variabili per ordinamento
   let sortColumn = 'id';
   let sortAsc = true;
 
-  // Cache per oggetti assegnati (articoli e kit)
   let cachedAssignedKits = null;
   let lastSourceKey = null;
 
-  // Elementi filtro
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
   const filtroMar = document.getElementById('filtroMarca');
@@ -430,7 +427,6 @@
   const filtroLung = document.getElementById('filtroLunghezza');
   const filtroDur = document.getElementById('filtroDurezza');
 
-  // Elementi esterni
   const externalCheckbox = document.getElementById('assegnazioniEsterneCheckbox');
   const assegnazioneSection = document.getElementById('assegnazioneSection');
   const sourceTipo = document.getElementById('sourceTipo');
@@ -523,7 +519,7 @@
     return [];
   }
 
-  // ---------- OTTIENI KIT ASSEGNATI AL SOGGETTO SORGENTE ----------
+  // ---------- OTTIENI KIT ASSEGNATI (gestione errori) ----------
   async function getKitsAssegnati(sourceTipoVal, sourceIdVal) {
     const key = `${sourceTipoVal}|${sourceIdVal}`;
     if (cachedAssignedKits !== null && lastSourceKey === key) {
@@ -531,49 +527,65 @@
     }
     const body = { targetTipo: sourceTipoVal, targetId: sourceIdVal };
     if (currentUser.ruolo === 'admin') body.includeReferenced = true;
-    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-    if (res.success) {
-      const oggetti = res.oggetti || [];
-      const kitIds = oggetti.filter(o => o.tipo === 'KIT').map(o => o.ID);
-      cachedAssignedKits = kitIds;
-      lastSourceKey = key;
-      console.log(`Kit assegnati:`, kitIds);
-    } else {
+    try {
+      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      if (res.success) {
+        const oggetti = res.oggetti || [];
+        const kitIds = oggetti.filter(o => o.tipo === 'KIT').map(o => o.ID);
+        cachedAssignedKits = kitIds;
+        lastSourceKey = key;
+        console.log(`Kit assegnati:`, kitIds);
+      } else {
+        cachedAssignedKits = [];
+        showMessage('Errore nel recupero oggetti assegnati: ' + (res.message || 'Errore sconosciuto'), 'error');
+      }
+    } catch (err) {
+      console.error('Errore in getKitsAssegnati:', err);
       cachedAssignedKits = [];
+      showMessage('Impossibile caricare gli oggetti assegnati. Verifica il backend.', 'error');
     }
     return cachedAssignedKits;
   }
 
-  // ---------- OTTIENI ARTICOLI PER DATALIST (da assegnati) ----------
+  // ---------- OTTIENI ARTICOLI PER DATALIST (da assegnati) con gestione errori ----------
   async function getArticoliPerDatalistAssegnati(tipo, sourceTipoVal, sourceIdVal) {
     const body = { targetTipo: sourceTipoVal, targetId: sourceIdVal };
     if (currentUser.ruolo === 'admin') body.includeReferenced = true;
-    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-    if (!res.success) return [];
-    let oggetti = res.oggetti || [];
-    let articoli = oggetti.filter(o => o.tipo === 'ARTICOLO' && o.CATEGORIA === categoryIds[tipo] && o.quantita > 0);
+    try {
+      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.success) {
+        showMessage('Errore nel recupero oggetti assegnati: ' + (res.message || 'Errore sconosciuto'), 'error');
+        return [];
+      }
+      let oggetti = res.oggetti || [];
+      let articoli = oggetti.filter(o => o.tipo === 'ARTICOLO' && o.CATEGORIA === categoryIds[tipo] && o.quantita > 0);
 
-    if (filtroSet.value) articoli = articoli.filter(o => o.SETTORE == filtroSet.value);
-    if (filtroMar.value) articoli = articoli.filter(o => o.MARCA == filtroMar.value);
+      if (filtroSet.value) articoli = articoli.filter(o => o.SETTORE == filtroSet.value);
+      if (filtroMar.value) articoli = articoli.filter(o => o.MARCA == filtroMar.value);
 
-    if (tipo === 'sci') {
-      if (filtroDesc.value) articoli = articoli.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
-      if (filtroSigla.value) articoli = articoli.filter(o => o.SIGLA?.toLowerCase().includes(filtroSigla.value.toLowerCase()));
-      if (filtroCodMod.value) articoli = articoli.filter(o => o.CODICE_MODELLO?.toLowerCase().includes(filtroCodMod.value.toLowerCase()));
-      if (filtroLung.value) articoli = articoli.filter(o => o.LUNGHEZZA == filtroLung.value);
-      if (filtroDur.value) articoli = articoli.filter(o => o.DUREZZA == filtroDur.value);
+      if (tipo === 'sci') {
+        if (filtroDesc.value) articoli = articoli.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
+        if (filtroSigla.value) articoli = articoli.filter(o => o.SIGLA?.toLowerCase().includes(filtroSigla.value.toLowerCase()));
+        if (filtroCodMod.value) articoli = articoli.filter(o => o.CODICE_MODELLO?.toLowerCase().includes(filtroCodMod.value.toLowerCase()));
+        if (filtroLung.value) articoli = articoli.filter(o => o.LUNGHEZZA == filtroLung.value);
+        if (filtroDur.value) articoli = articoli.filter(o => o.DUREZZA == filtroDur.value);
+      }
+
+      return articoli.map(o => ({
+        id: o.ID,
+        sigla: o.SIGLA || '',
+        descrizione: o.descrizione || '',
+        lunghezza: o.LUNGHEZZA || '',
+        durezza: o.DUREZZA || '',
+        quantita_totale: o.quantita,
+        quantita_in_kit: 0,
+        GIACENZA_REALE: o.quantita
+      }));
+    } catch (err) {
+      console.error('Errore in getArticoliPerDatalistAssegnati:', err);
+      showMessage('Impossibile caricare gli articoli assegnati. Verifica il backend.', 'error');
+      return [];
     }
-
-    return articoli.map(o => ({
-      id: o.ID,
-      sigla: o.SIGLA || '',
-      descrizione: o.descrizione || '',
-      lunghezza: o.LUNGHEZZA || '',
-      durezza: o.DUREZZA || '',
-      quantita_totale: o.quantita,
-      quantita_in_kit: 0,
-      GIACENZA_REALE: o.quantita
-    }));
   }
 
   function formatArticleDisplay(art) {
@@ -638,7 +650,7 @@
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    filtraKit(); // aggiorna tabella
+    filtraKit();
   }
 
   // ---------- FILTRI DATALIST (Descrizione, Sigla, ecc.) ----------
@@ -902,7 +914,7 @@
   async function caricaSorgenti() {
     const tipo = sourceTipo.value;
     try {
-      // Usa l'endpoint corretto: /api/soggetti?tipo=...
+      // ATTENZIONE: adattare l'endpoint alla realtà del backend
       const data = await apiFetch(`/api/soggetti?tipo=${tipo}`);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
@@ -910,7 +922,6 @@
         sourceId.appendChild(new Option(testo, item.id));
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      // Dopo aver caricato la sorgente, se la checkbox è attiva, aggiorna i datalist e la tabella
       if (externalCheckbox.checked) {
         await refreshComponentDatalists();
       }
@@ -954,7 +965,7 @@
             }
           }
         }
-        refreshComponentDatalists(); // aggiorna tutto
+        refreshComponentDatalists();
       });
       destinazioneTipo.disabled = false;
       destinazioneId.disabled = false;
@@ -975,7 +986,6 @@
       externalCheckbox.addEventListener('change', () => {
         if (externalCheckbox.checked) {
           assegnazioneSection.style.display = 'block';
-          // Carica sia sorgenti che destinazioni e poi aggiorna
           Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => {
             refreshComponentDatalists();
           });
