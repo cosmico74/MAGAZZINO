@@ -439,21 +439,21 @@
       const body = { targetTipo: tipo, targetId: id };
       if (currentUser.ruolo === 'admin') body.includeReferenced = true;
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      console.log('📦 Risposta server per soggetto', tipo, id, ':', res);
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
-      // Filtra esplicitamente per destinazione (sicurezza extra)
-      assignedKits = oggetti.filter(o => 
-        o.tipo === 'KIT' && 
-        o.quantita > 0 &&
-        o.destinazioneTipo === tipo &&
-        o.destinazioneId === id
-      ).map(k => ({
+      console.log('📦 Oggetti ricevuti (prima filtro):', oggetti);
+
+      // Filtra per kit con quantità > 0 (non filtro su destinazione perché la richiesta è già specifica)
+      assignedKits = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0).map(k => ({
         id: k.ID,
         quantita: k.quantita,
         descrizione: k.descrizione || '',
         codice: k.codice || ''
       }));
+
+      console.log('📦 Kit assegnati dopo filtro:', assignedKits);
 
       // Popola il dropdown
       kitSpacchettaSelect.innerHTML = '<option value="">Seleziona kit...</option>';
