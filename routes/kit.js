@@ -12,6 +12,7 @@ router.get('/', verifyToken, async (req, res) => {
       SELECT k.*,
              cs.destinazione_tipo AS assegnato_tipo,
              cs.destinazione_id AS assegnato_id,
+             cs.quantita AS assegnato_quantita,
              s.nome AS assegnato_nome,
              s.cognome AS assegnato_cognome
       FROM kit k
@@ -24,7 +25,8 @@ router.get('/', verifyToken, async (req, res) => {
       assegnato_a: k.assegnato_tipo ? {
         tipo: k.assegnato_tipo,
         id: k.assegnato_id,
-        nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome}`.trim() : k.assegnato_nome
+        nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome}`.trim() : k.assegnato_nome,
+        quantita: k.assegnato_quantita   // <-- aggiunto
       } : null
     }));
     res.json(kits);

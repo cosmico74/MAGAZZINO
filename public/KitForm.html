@@ -753,7 +753,7 @@
       const data = await apiFetch('/api/kit');
       allKits = data;  // tutti i kit (inclusi quelli con quantità 0)
       kitList = data.filter(k => k.quantita > 0);
-      console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
+      console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a, quantita_assegnata: k.assegnato_a?.quantita })));
       console.log('Kit con quantita > 0:', kitList.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
       const articoliIds = new Set();
       allKits.forEach(k => {
@@ -906,8 +906,11 @@
         valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-';
         break;
       case 'quantita':
-        valA = a.quantita;
-        valB = b.quantita;
+        // Per l'ordinamento usiamo la quantità assegnata se presente, altrimenti la quantità del kit
+        const qtyA = a.assegnato_a ? a.assegnato_a.quantita : a.quantita;
+        const qtyB = b.assegnato_a ? b.assegnato_a.quantita : b.quantita;
+        valA = qtyA;
+        valB = qtyB;
         break;
       case 'assegnato_nome':
         valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino';
@@ -992,17 +995,20 @@
       row.insertCell(5).innerText = sciDesc;
       row.insertCell(6).innerText = attDesc;
       row.insertCell(7).innerText = skDesc;
-      row.insertCell(8).innerText = k.quantita;
+      // Quantità: se assegnato, mostra la quantità assegnata, altrimenti quella del magazzino
+      const quantitaDisplay = k.assegnato_a ? k.assegnato_a.quantita : k.quantita;
+      row.insertCell(8).innerText = quantitaDisplay;
       row.insertCell(9).innerText = assegnato;
 
       // Colonna spacchetta
       const unpackCell = row.insertCell(10);
       if (k.assegnato_a) {
+        const maxQty = k.assegnato_a.quantita;
         const qtyInput = document.createElement('input');
         qtyInput.type = 'number';
         qtyInput.value = 1;
         qtyInput.min = 1;
-        qtyInput.max = k.quantita;
+        qtyInput.max = maxQty;
         qtyInput.step = 1;
         qtyInput.style.width = '70px';
         qtyInput.style.marginRight = '4px';
@@ -1011,7 +1017,7 @@
         unpackBtn.className = 'btn btn-danger btn-sm';
         unpackBtn.onclick = () => {
           const qty = parseInt(qtyInput.value);
-          if (isNaN(qty) || qty < 1 || qty > k.quantita) {
+          if (isNaN(qty) || qty < 1 || qty > maxQty) {
             showMessage('Quantità non valida', 'error');
             return;
           }
