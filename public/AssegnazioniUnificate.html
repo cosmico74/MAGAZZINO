@@ -320,7 +320,7 @@
 </div>
 
 <script>
-  // ---------- UTILITY ----------
+  // ========== UTILITY ==========
   function getAuthHeader() {
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
@@ -504,7 +504,7 @@
     }
 
     const tipo = tipoOggettoSelect.value;
-    console.log(`[DEBUG] Tipo oggetto selezionato: ${tipo}`);
+    console.log(`[DEBUG] caricaOggettiDaMagazzino - tipo = ${tipo}`);
     let lista = [];
 
     try {
@@ -518,15 +518,17 @@
       if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
       paramsArticoli.append('min_giacenza', '1');
 
+      // CARICA ARTICOLI
       if (tipo === '' || tipo === 'ARTICOLO') {
         const urlArticoli = `/api/articoli?${paramsArticoli.toString()}`;
         console.log(`[DEBUG] Chiamata articoli: ${urlArticoli}`);
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
-        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
+        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`, articoli);
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO' })));
       }
 
+      // CARICA KIT
       if (tipo === '' || tipo === 'KIT') {
         console.log(`[DEBUG] Caricamento kit da /api/kit`);
         const resKit = await apiFetch('/api/kit');
@@ -950,6 +952,7 @@
   function setupExternalMode() {
     const isAdmin = currentUser.ruolo === 'admin';
     const canUseWarehouse = isAdmin || (currentUser.ruolo === 'promoter' && currentUser.livello === 1) || currentUser.ruolo === 'agente';
+    console.log('[DEBUG] setupExternalMode - canUseWarehouse =', canUseWarehouse);
     if (canUseWarehouse) {
       radioMagazzino.disabled = false;
       magazzinoGroup.style.display = 'block';
