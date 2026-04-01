@@ -535,13 +535,18 @@
       const oggetti = res.oggetti || [];
       console.log('Oggetti ricevuti:', oggetti);
 
-      // Filtra per destinazione esatta (evita oggetti referenziati)
-      const filtrati = oggetti.filter(o => 
-        o.tipo === 'KIT' && 
-        o.quantita > 0 &&
-        o.destinazioneTipo === tipo &&
-        o.destinazioneId === id
-      );
+      // Filtra per kit con quantita > 0 e destinazione esatta (conversione tipi)
+      const filtrati = oggetti.filter(o => {
+        if (o.tipo !== 'KIT') return false;
+        if (o.quantita <= 0) return false;
+        // Verifica destinazione esatta
+        const destTipo = o.destinazioneTipo;
+        const destId = o.destinazioneId;
+        if (!destTipo || destId === undefined) return false;
+        // Confronta i tipi (stringhe) e gli ID (numerici)
+        return destTipo === tipo && parseInt(destId) === id;
+      });
+
       assignedKits = filtrati.map(k => ({
         id: k.ID,
         quantita: k.quantita,
