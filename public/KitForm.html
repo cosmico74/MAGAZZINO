@@ -778,6 +778,10 @@
   }
 
   function filtraKit() {
+    // LOG DETTAGLIATO: stampa la lista completa dei kit con assegnato_a
+    console.log('=== INIZIO FILTRO KIT ===');
+    console.log('kitList completa:', kitList.map(k => ({ id: k.id, magazzino: k.magazzino, assegnato_a: k.assegnato_a, quantita: k.quantita })));
+
     const magazzino = filtroMag.value ? parseInt(filtroMag.value) : null;
     const settore = filtroSet.value ? parseInt(filtroSet.value) : null;
     const marca = filtroMar.value ? parseInt(filtroMar.value) : null;
@@ -787,13 +791,23 @@
     const lunghezza = filtroLung.value;
     const durezza = filtroDur.value;
 
+    console.log(`Filtri applicati: magazzino=${magazzino}, settore=${settore}, marca=${marca}, descrizione="${descrizione}", sigla="${sigla}", codiceModello="${codiceModello}", lunghezza="${lunghezza}", durezza="${durezza}"`);
+    console.log(`externalCheckbox.checked=${externalCheckbox.checked}, sourceId.value=${sourceId.value}, cachedAssignedKits=${cachedAssignedKits}`);
+
     kitFiltrati = kitList.filter(kit => {
-      if (magazzino && kit.magazzino !== magazzino) return false;
+      console.log(`\n--- Analisi kit ${kit.id} ---`);
+      if (magazzino && kit.magazzino !== magazzino) {
+        console.log(`  -> scartato per magazzino (kit.magazzino=${kit.magazzino})`);
+        return false;
+      }
 
       const sci = articoliDettaglioCache.get(kit.id_sci);
       const att = articoliDettaglioCache.get(kit.id_attacchi);
       const sk = kit.id_skistopper ? articoliDettaglioCache.get(kit.id_skistopper) : null;
-      if (!sci || !att) return false;
+      if (!sci || !att) {
+        console.log(`  -> scartato per mancanza componenti (sci=${!!sci}, att=${!!att})`);
+        return false;
+      }
 
       const matchAttributi = (art) => {
         if (!art) return true;
@@ -807,21 +821,35 @@
         return true;
       };
       const baseMatch = matchAttributi(sci);
-
-      if (!baseMatch) return false;
+      if (!baseMatch) {
+        console.log(`  -> scartato per attributi sci non corrispondenti`);
+        return false;
+      }
 
       if (externalCheckbox.checked && sourceId.value) {
-        // Mostra solo i kit che sono assegnati a un soggetto e che sono nell'elenco dei kit del sorgente
-        if (!kit.assegnato_a) return false;
+        // Modalità esterne: mostra solo i kit assegnati a un soggetto e che sono nell'elenco del sorgente
+        if (!kit.assegnato_a) {
+          console.log(`  -> scartato perché non assegnato a nessun soggetto (assegnato_a = null)`);
+          return false;
+        }
         const isInList = cachedAssignedKits ? cachedAssignedKits.includes(kit.id) : false;
-        console.log(`Kit ${kit.id} (assegnato a ${kit.assegnato_a.nome}): in cachedAssignedKits? ${isInList}`);
-        return isInList;
+        console.log(`  -> in modalità esterna, kit ${kit.id} assegnato a ${kit.assegnato_a.nome}, in cachedAssignedKits? ${isInList}`);
+        if (!isInList) {
+          console.log(`  -> scartato perché non presente in cachedAssignedKits`);
+          return false;
+        }
+        console.log(`  -> KIT ACCETTATO (esterno)`);
+        return true;
       } else {
-        return !kit.assegnato_a;
+        // Modalità normale: mostra solo i kit NON assegnati (in magazzino)
+        const isWarehouse = !kit.assegnato_a;
+        console.log(`  -> modalità normale, kit in magazzino? ${isWarehouse}`);
+        return isWarehouse;
       }
     });
 
     console.log(`Kit filtrati: ${kitFiltrati.length} di ${kitList.length}`);
+    console.log('=== FINE FILTRO KIT ===');
     popolaTabellaKit();
   }
 
