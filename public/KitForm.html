@@ -161,14 +161,31 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
     }
     th, td {
       border: 1px solid #ddd;
-      padding: 5px;
+      padding: 4px 6px;
       text-align: left;
     }
-    th { background: #f8f9fa; font-weight: 600; }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+    .action-buttons button {
+      padding: 2px 4px;
+      font-size: 0.7rem;
+      min-width: 26px;
+    }
     .message {
       padding: 6px;
       margin-bottom: 8px;
@@ -319,12 +336,21 @@
     </div>
   </div>
 
-  <!-- TABELLA KIT -->
+  <!-- TABELLA KIT con ordinamento -->
   <div class="table-wrapper">
     <table id="tabellaKit">
       <thead>
-         <th>ID</th><th>Codice Kit</th><th>Sigla</th><th>Descrizione</th><th>Magazzino</th>
-         <th>Sci</th><th>Attacchi</th><th>Skistopper</th><th>Quantità</th><th>Assegnato a</th><th>Azioni</th>
+         <th data-sort="id">ID</th>
+         <th data-sort="codice">Codice Kit</th>
+         <th data-sort="sigla">Sigla</th>
+         <th data-sort="descrizione">Descrizione</th>
+         <th data-sort="magazzino_nome">Magazzino</th>
+         <th data-sort="sci_desc">Sci</th>
+         <th data-sort="attacchi_desc">Attacchi</th>
+         <th data-sort="skistopper_desc">Skistopper</th>
+         <th data-sort="quantita">Quantità</th>
+         <th data-sort="assegnato_nome">Assegnato a</th>
+         <th>Azioni</th>
       </thead>
       <tbody></tbody>
     表格
@@ -385,6 +411,10 @@
   let kitFiltrati = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let canUseWarehouse = false;
+
+  // Variabili per ordinamento
+  let sortColumn = 'id';
+  let sortAsc = true;
 
   // Cache per oggetti assegnati (articoli e kit)
   let cachedAssignedKits = null;
@@ -736,12 +766,89 @@
     popolaTabellaKit();
   }
 
+  // ---------- ORDINAMENTO E RENDER TABELLA ----------
+  function aggiornaIndicatoriOrdine() {
+    const headers = document.querySelectorAll('#tabellaKit th');
+    headers.forEach(th => {
+      const column = th.getAttribute('data-sort');
+      if (column === sortColumn) {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '') + (sortAsc ? ' ↑' : ' ↓');
+      } else {
+        th.innerHTML = th.innerText.replace(/[↑↓]/g, '');
+      }
+    });
+  }
+
+  function compareValues(a, b, column) {
+    let valA, valB;
+
+    switch (column) {
+      case 'id':
+        valA = a.id;
+        valB = b.id;
+        break;
+      case 'codice':
+        valA = a.codice_kit || '';
+        valB = b.codice_kit || '';
+        break;
+      case 'sigla':
+        valA = a.sigla || '';
+        valB = b.sigla || '';
+        break;
+      case 'descrizione':
+        valA = a.descrizione || '';
+        valB = b.descrizione || '';
+        break;
+      case 'magazzino_nome':
+        valA = magazzini.find(m => m.id == a.magazzino)?.nome || '';
+        valB = magazzini.find(m => m.id == b.magazzino)?.nome || '';
+        break;
+      case 'sci_desc':
+        valA = articoliDettaglioCache.get(a.id_sci)?.descrizione || '';
+        valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || '';
+        break;
+      case 'attacchi_desc':
+        valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || '';
+        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || '';
+        break;
+      case 'skistopper_desc':
+        valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-';
+        valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-';
+        break;
+      case 'quantita':
+        valA = a.quantita;
+        valB = b.quantita;
+        break;
+      case 'assegnato_nome':
+        valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino';
+        valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino';
+        break;
+      default:
+        valA = '';
+        valB = '';
+    }
+
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return valA - valB;
+    }
+    return (valA || '').toString().localeCompare((valB || '').toString());
+  }
+
+  function sortKitList() {
+    kitFiltrati.sort((a, b) => {
+      let result = compareValues(a, b, sortColumn);
+      if (!sortAsc) result = -result;
+      return result;
+    });
+  }
+
   function popolaTabellaKit() {
+    sortKitList();
     const tbody = document.querySelector('#tabellaKit tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '极<td colspan="11" class="text-center">Nessun kit trovato<\/td>倍';
+      tbody.innerHTML = '|<td colspan="11" class="text-center">Nessun kit trovato<\/td>|';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -762,8 +869,32 @@
       row.insertCell(8).innerText = k.quantita;
       row.insertCell(9).innerText = assegnato;
       const actions = row.insertCell(10);
-      actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})">✏️ Modifica</button>
-                           <button class="btn btn-danger" onclick="eliminaKit(${k.id})">🗑️ Elimina</button>`;
+      actions.className = 'action-buttons';
+      actions.innerHTML = `
+        <button class="btn" onclick="modificaKit(${k.id})" title="Modifica">✏️</button>
+        <button class="btn btn-danger" onclick="eliminaKit(${k.id})" title="Elimina">🗑️</button>
+      `;
+    });
+    aggiornaIndicatoriOrdine();
+  }
+
+  function handleSort(column) {
+    if (sortColumn === column) {
+      sortAsc = !sortAsc;
+    } else {
+      sortColumn = column;
+      sortAsc = true;
+    }
+    popolaTabellaKit();
+  }
+
+  function attachSortListeners() {
+    const headers = document.querySelectorAll('#tabellaKit th');
+    headers.forEach(th => {
+      const column = th.getAttribute('data-sort');
+      if (column) {
+        th.addEventListener('click', () => handleSort(column));
+      }
     });
   }
 
@@ -1141,6 +1272,7 @@
     await caricaKit();
     await refreshComponentDatalists();
     await refreshFilterDatalists();
+    attachSortListeners();
   };
 </script>
 </body>
