@@ -427,8 +427,8 @@
   // ---------- GLOBALI ----------
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
-  let kitList = [];
-  let allKits = [];    
+  let allKits = [];                // tutti i kit (anche con quantità 0)
+  let kitList = [];                // solo kit con quantità > 0
   let articoliDettaglioCache = new Map();
   let kitFiltrati = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
@@ -748,117 +748,41 @@
   }
 
   // ---------- CARICAMENTO KIT ----------
- async function caricaKit() {
-  try {
-    const data = await apiFetch('/api/kit');
-    allKits = data;  // store all kits (including zero quantity)
-    kitList = data.filter(k => k.quantita > 0);
-    console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
-    console.log('Kit con quantita > 0:', kitList.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
-    const articoliIds = new Set();
-    allKits.forEach(k => {
-      articoliIds.add(k.id_sci);
-      articoliIds.add(k.id_attacchi);
-      if (k.id_skistopper) articoliIds.add(k.id_skistopper);
-    });
-    for (let id of articoliIds) {
-      if (!articoliDettaglioCache.has(id)) {
-        try {
-          const art = await apiFetch(`/api/articoli/${id}`);
-          articoliDettaglioCache.set(id, art);
-        } catch (e) {
-          console.warn(`Errore caricamento articolo ${id}`, e);
+  async function caricaKit() {
+    try {
+      const data = await apiFetch('/api/kit');
+      allKits = data;  // tutti i kit (inclusi quelli con quantità 0)
+      kitList = data.filter(k => k.quantita > 0);
+      console.log('Tutti i kit ricevuti:', allKits.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
+      console.log('Kit con quantita > 0:', kitList.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
+      const articoliIds = new Set();
+      allKits.forEach(k => {
+        articoliIds.add(k.id_sci);
+        articoliIds.add(k.id_attacchi);
+        if (k.id_skistopper) articoliIds.add(k.id_skistopper);
+      });
+      for (let id of articoliIds) {
+        if (!articoliDettaglioCache.has(id)) {
+          try {
+            const art = await apiFetch(`/api/articoli/${id}`);
+            articoliDettaglioCache.set(id, art);
+          } catch (e) {
+            console.warn(`Errore caricamento articolo ${id}`, e);
+          }
         }
       }
-    }
-    if (externalCheckbox.checked && sourceId.value) {
-      await getKitsAssegnati(sourceTipo.value, sourceId.value);
-    }
-    filtraKit();
-  } catch (err) {
-    showMessage('Errore caricamento kit: ' + err.message, 'error');
-  }
-}
-
-function filtraKit() {
-  console.log('=== INIZIO FILTRO KIT ===');
-  const magazzino = filtroMag.value ? parseInt(filtroMag.value) : null;
-  const settore = filtroSet.value ? parseInt(filtroSet.value) : null;
-  const marca = filtroMar.value ? parseInt(filtroMar.value) : null;
-  const descrizione = filtroDesc.value.toLowerCase().trim();
-  const sigla = filtroSigla.value.toLowerCase().trim();
-  const codiceModello = filtroCodMod.value.toLowerCase().trim();
-  const lunghezza = filtroLung.value;
-  const durezza = filtroDur.value;
-
-  console.log(`Filtri applicati: magazzino=${magazzino}, settore=${settore}, marca=${marca}, descrizione="${descrizione}", sigla="${sigla}", codiceModello="${codiceModello}", lunghezza="${lunghezza}", durezza="${durezza}"`);
-  console.log(`externalCheckbox.checked=${externalCheckbox.checked}, sourceId.value=${sourceId.value}, cachedAssignedKits=${cachedAssignedKits}`);
-
-  let baseList;
-  if (externalCheckbox.checked && sourceId.value) {
-    // Usa tutti i kit (allKits) e filtra per ID presenti in cachedAssignedKits
-    baseList = allKits.filter(k => cachedAssignedKits.includes(k.id));
-    console.log('Base list in modalità esterna (da allKits filtrata per cachedAssignedKits):', baseList.map(k => k.id));
-  } else {
-    // Usa i kit con quantita > 0
-    baseList = kitList;
-  }
-
-  kitFiltrati = baseList.filter(kit => {
-    console.log(`\n--- Analisi kit ${kit.id} ---`);
-    if (externalCheckbox.checked && sourceId.value) {
-      // In modalità esterna, non filtriamo per magazzino
-    } else {
-      if (magazzino && kit.magazzino !== magazzino) {
-        console.log(`  -> scartato per magazzino (kit.magazzino=${kit.magazzino})`);
-        return false;
+      if (externalCheckbox.checked && sourceId.value) {
+        await getKitsAssegnati(sourceTipo.value, sourceId.value);
       }
+      filtraKit();
+    } catch (err) {
+      showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
+  }
 
-    const sci = articoliDettaglioCache.get(kit.id_sci);
-    const att = articoliDettaglioCache.get(kit.id_attacchi);
-    const sk = kit.id_skistopper ? articoliDettaglioCache.get(kit.id_skistopper) : null;
-    if (!sci || !att) {
-      console.log(`  -> scartato per mancanza componenti (sci=${!!sci}, att=${!!att})`);
-      return false;
-    }
-
-    const matchAttributi = (art) => {
-      if (!art) return true;
-      if (settore && art.settore !== settore) return false;
-      if (marca && art.marca !== marca) return false;
-      if (descrizione && !art.descrizione?.toLowerCase().includes(descrizione)) return false;
-      if (sigla && !art.sigla?.toLowerCase().includes(sigla)) return false;
-      if (codiceModello && !art.codice_modello?.toLowerCase().includes(codiceModello)) return false;
-      if (lunghezza && art.lunghezza !== lunghezza) return false;
-      if (durezza && art.durezza !== durezza) return false;
-      return true;
-    };
-    const baseMatch = matchAttributi(sci);
-    if (!baseMatch) {
-      console.log(`  -> scartato per attributi sci non corrispondenti`);
-      return false;
-    }
-
-    if (externalCheckbox.checked && sourceId.value) {
-      // Già filtrati per cachedAssignedKits, quindi accettiamo tutti
-      console.log(`  -> KIT ACCETTATO (esterno)`);
-      return true;
-    } else {
-      const isWarehouse = !kit.assegnato_a;
-      console.log(`  -> modalità normale, kit in magazzino? ${isWarehouse}`);
-      return isWarehouse;
-    }
-  });
-
-  console.log(`Kit filtrati: ${kitFiltrati.length} di ${baseList.length}`);
-  console.log('=== FINE FILTRO KIT ===');
-  popolaTabellaKit();
-}
-    // LOG DETTAGLIATO: stampa la lista completa dei kit con assegnato_a
+  // ---------- FILTRO KIT (principale) ----------
+  function filtraKit() {
     console.log('=== INIZIO FILTRO KIT ===');
-    console.log('kitList completa:', kitList.map(k => ({ id: k.id, magazzino: k.magazzino, assegnato_a: k.assegnato_a, quantita: k.quantita })));
-
     const magazzino = filtroMag.value ? parseInt(filtroMag.value) : null;
     const settore = filtroSet.value ? parseInt(filtroSet.value) : null;
     const marca = filtroMar.value ? parseInt(filtroMar.value) : null;
@@ -871,11 +795,24 @@ function filtraKit() {
     console.log(`Filtri applicati: magazzino=${magazzino}, settore=${settore}, marca=${marca}, descrizione="${descrizione}", sigla="${sigla}", codiceModello="${codiceModello}", lunghezza="${lunghezza}", durezza="${durezza}"`);
     console.log(`externalCheckbox.checked=${externalCheckbox.checked}, sourceId.value=${sourceId.value}, cachedAssignedKits=${cachedAssignedKits}`);
 
-    kitFiltrati = kitList.filter(kit => {
+    let baseList;
+    if (externalCheckbox.checked && sourceId.value) {
+      // Modalità esterna: usa tutti i kit e filtra per ID presenti in cachedAssignedKits
+      baseList = allKits.filter(k => cachedAssignedKits.includes(k.id));
+      console.log('Base list in modalità esterna (da allKits filtrata per cachedAssignedKits):', baseList.map(k => k.id));
+    } else {
+      // Modalità normale: solo kit con quantità > 0
+      baseList = kitList;
+    }
+
+    kitFiltrati = baseList.filter(kit => {
       console.log(`\n--- Analisi kit ${kit.id} ---`);
-      if (magazzino && kit.magazzino !== magazzino) {
-        console.log(`  -> scartato per magazzino (kit.magazzino=${kit.magazzino})`);
-        return false;
+      if (!externalCheckbox.checked || !sourceId.value) {
+        // In modalità normale, applica filtro magazzino
+        if (magazzino && kit.magazzino !== magazzino) {
+          console.log(`  -> scartato per magazzino (kit.magazzino=${kit.magazzino})`);
+          return false;
+        }
       }
 
       const sci = articoliDettaglioCache.get(kit.id_sci);
@@ -904,28 +841,17 @@ function filtraKit() {
       }
 
       if (externalCheckbox.checked && sourceId.value) {
-        // Modalità esterne: mostra solo i kit assegnati a un soggetto e che sono nell'elenco del sorgente
-        if (!kit.assegnato_a) {
-          console.log(`  -> scartato perché non assegnato a nessun soggetto (assegnato_a = null)`);
-          return false;
-        }
-        const isInList = cachedAssignedKits ? cachedAssignedKits.includes(kit.id) : false;
-        console.log(`  -> in modalità esterna, kit ${kit.id} assegnato a ${kit.assegnato_a.nome}, in cachedAssignedKits? ${isInList}`);
-        if (!isInList) {
-          console.log(`  -> scartato perché non presente in cachedAssignedKits`);
-          return false;
-        }
+        // Già filtrati per cachedAssignedKits, quindi accettiamo tutti
         console.log(`  -> KIT ACCETTATO (esterno)`);
         return true;
       } else {
-        // Modalità normale: mostra solo i kit NON assegnati (in magazzino)
         const isWarehouse = !kit.assegnato_a;
         console.log(`  -> modalità normale, kit in magazzino? ${isWarehouse}`);
         return isWarehouse;
       }
     });
 
-    console.log(`Kit filtrati: ${kitFiltrati.length} di ${kitList.length}`);
+    console.log(`Kit filtrati: ${kitFiltrati.length} di ${baseList.length}`);
     console.log('=== FINE FILTRO KIT ===');
     popolaTabellaKit();
   }
