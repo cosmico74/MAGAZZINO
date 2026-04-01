@@ -504,6 +504,16 @@
         if (editKitMagazzino) editKitMagazzino.appendChild(new Option(m.nome, m.id));
       });
 
+      // Imposta magazzino di default per il form di creazione
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag && kitMagazzinoSelect) {
+        kitMagazzinoSelect.value = defaultMag.id;
+        console.log(`Magazzino di default per creazione kit: ${defaultMag.nome} (ID ${defaultMag.id})`);
+      } else if (magazzini.length > 0 && kitMagazzinoSelect) {
+        kitMagazzinoSelect.value = magazzini[0].id;
+        console.log(`Magazzino di default per creazione kit: ${magazzini[0].nome}`);
+      }
+
       await setDefaultMagazzino();
     } catch (err) {
       console.error('Errore anagrafiche:', err);
@@ -564,7 +574,7 @@
       const kitIds = oggetti.filter(o => o.tipo === 'KIT').map(o => o.ID);
       cachedAssignedKits = kitIds;
       lastSourceKey = key;
-      console.log(`Kit assegnati:`, kitIds);
+      console.log(`Kit assegnati (sorgente ${sourceTipoVal}|${sourceIdVal}):`, kitIds);
     } else {
       cachedAssignedKits = [];
     }
@@ -670,7 +680,9 @@
       cachedAssignedKits = null;
       lastSourceKey = null;
     }
-    filtraKit(); // aggiorna tabella
+    // Forza aggiornamento tabella
+    filtraKit();
+    console.log('Refresh componenti completato, chiamato filtraKit()');
   }
 
   async function refreshEditDatalists() {
@@ -755,6 +767,7 @@
           }
         }
       }
+      console.log(`Caricati ${kitList.length} kit`);
       if (externalCheckbox.checked && sourceId.value) {
         await getKitsAssegnati(sourceTipo.value, sourceId.value);
       }
@@ -798,13 +811,17 @@
       if (!baseMatch) return false;
 
       if (externalCheckbox.checked && sourceId.value) {
+        // Mostra solo i kit che sono assegnati a un soggetto e che sono nell'elenco dei kit del sorgente
         if (!kit.assegnato_a) return false;
-        return cachedAssignedKits ? cachedAssignedKits.includes(kit.id) : false;
+        const isInList = cachedAssignedKits ? cachedAssignedKits.includes(kit.id) : false;
+        console.log(`Kit ${kit.id} (assegnato a ${kit.assegnato_a.nome}): in cachedAssignedKits? ${isInList}`);
+        return isInList;
       } else {
         return !kit.assegnato_a;
       }
     });
 
+    console.log(`Kit filtrati: ${kitFiltrati.length} di ${kitList.length}`);
     popolaTabellaKit();
   }
 
