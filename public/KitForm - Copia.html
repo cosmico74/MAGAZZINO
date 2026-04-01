@@ -186,14 +186,6 @@
       font-size: 0.7rem;
       min-width: 26px;
     }
-    .unpack-cell {
-      white-space: nowrap;
-    }
-    .unpack-cell input {
-      width: 70px;
-      padding: 2px 4px;
-      margin-right: 4px;
-    }
     .message {
       padding: 6px;
       margin-bottom: 8px;
@@ -243,15 +235,17 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 1200px;
+      max-width: 1200px;  /* allargato per dare più spazio */
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
     }
+    /* Modifica per le righe del modal: campi più larghi */
     .modal-content .form-row-5col {
-      grid-template-columns: 1fr 2fr 2fr 2fr 0.8fr;
+      grid-template-columns: 1fr 2fr 2fr 2fr 0.8fr;  /* sci, attacchi, skistopper prendono più spazio */
       gap: 15px;
     }
+    /* Per schermi più piccoli, mantieni il layout adattabile */
     @media (max-width: 800px) {
       .modal-content .form-row-5col {
         grid-template-columns: 1fr;
@@ -370,11 +364,10 @@
          <th data-sort="skistopper_desc">Skistopper</th>
          <th data-sort="quantita">Quantità</th>
          <th data-sort="assegnato_nome">Assegnato a</th>
-         <th>Spacchetta</th>
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
-    表格
+    </table>
   </div>
 </div>
 
@@ -884,49 +877,13 @@
     });
   }
 
-  // Funzione per spacchettare il kit
-  async function spacchettaKit(kitId, quantita, destinazioneTipo, destinazioneId) {
-    if (!kitId || !quantita || quantita < 1) {
-      showMessage('Quantità non valida', 'error');
-      return;
-    }
-    const payload = {
-      kitId: kitId,
-      quantita: quantita,
-      destinazioneTipo: destinazioneTipo,
-      destinazioneId: parseInt(destinazioneId)
-    };
-    const btn = document.activeElement; // il bottone che ha scatenato l'evento
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
-
-    try {
-      const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        // Ricarica la tabella e i datalist
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
-  }
-
   function popolaTabellaKit() {
     sortKitList();
     const tbody = document.querySelector('#tabellaKit tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '|<td colspan="12" class="text-center">Nessun kit trovato<\/td>|';
+      tbody.innerHTML = '|<td colspan="11" class="text-center">Nessun kit trovato<\/td>|';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -946,37 +903,7 @@
       row.insertCell(7).innerText = skDesc;
       row.insertCell(8).innerText = k.quantita;
       row.insertCell(9).innerText = assegnato;
-
-      // Colonna spacchetta
-      const unpackCell = row.insertCell(10);
-      if (k.assegnato_a) {
-        const qtyInput = document.createElement('input');
-        qtyInput.type = 'number';
-        qtyInput.value = 1;
-        qtyInput.min = 1;
-        qtyInput.max = k.quantita;
-        qtyInput.step = 1;
-        qtyInput.style.width = '70px';
-        qtyInput.style.marginRight = '4px';
-        const unpackBtn = document.createElement('button');
-        unpackBtn.textContent = '🔓';
-        unpackBtn.className = 'btn btn-danger btn-sm';
-        unpackBtn.onclick = () => {
-          const qty = parseInt(qtyInput.value);
-          if (isNaN(qty) || qty < 1 || qty > k.quantita) {
-            showMessage('Quantità non valida', 'error');
-            return;
-          }
-          spacchettaKit(k.id, qty, k.assegnato_a.tipo, k.assegnato_a.id);
-        };
-        unpackCell.appendChild(qtyInput);
-        unpackCell.appendChild(unpackBtn);
-      } else {
-        unpackCell.innerText = '-';
-      }
-
-      // Colonna azioni
-      const actions = row.insertCell(11);
+      const actions = row.insertCell(10);
       actions.className = 'action-buttons';
       actions.innerHTML = `
         <button class="btn" onclick="modificaKit(${k.id})" title="Modifica">✏️</button>
