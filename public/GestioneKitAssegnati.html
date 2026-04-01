@@ -286,7 +286,7 @@
         <tbody>
            <td colspan="4" class="text-center">Seleziona un magazzino</td>
         </tbody>
-      </table>
+       </table>
     </div>
   </div>
 
@@ -301,7 +301,7 @@
         <tbody>
            <td colspan="5" class="text-center">Seleziona un soggetto</td>
         </tbody>
-      </table>
+       </table>
     </div>
   </div>
 </div>
@@ -342,7 +342,7 @@
   let tuttiSoggetti = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let warehouseKits = [];            // kit nel magazzino selezionato
-  let assignedKits = [];             // kit assegnati al soggetto corrente
+  let assignedKits = [];             // kit assegnati al soggetto corrente (o ai suoi referenti)
 
   // DOM elements
   const magazzinoSelect = document.getElementById('magazzino');
@@ -524,28 +524,17 @@
     console.log(`Caricamento kit assegnati per ${tipo} ${id}`);
     try {
       const body = { targetTipo: tipo, targetId: id };
+      // Se l'utente è admin, includi referenti (già fatto nel backend con includeReferenced)
       if (currentUser.ruolo === 'admin') body.includeReferenced = true;
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
       if (!res.success) throw new Error(res.message);
 
       const oggetti = res.oggetti || [];
       console.log('Oggetti ricevuti:', oggetti);
-      // Log dettagliato per debug
-      console.log('Primo oggetto se presente:', oggetti[0] ? JSON.stringify(oggetti[0]) : 'nessuno');
 
-      // Filtra per kit con quantita > 0 e destinazione esatta
-      const filtrati = oggetti.filter(o => {
-        if (o.tipo !== 'KIT') return false;
-        if (o.quantita <= 0) return false;
-        const destTipo = o.destinazioneTipo;
-        const destId = o.destinazioneId;
-        if (destTipo === undefined || destId === undefined) {
-          console.warn('Oggetto senza destinazioneTipo/destinazioneId:', o);
-          return false;
-        }
-        // Confronto diretto (tipo è stringa, destTipo stringa; id numerici)
-        return destTipo === tipo && parseInt(destId) === id;
-      });
+      // Mostra tutti i kit con quantità > 0, senza filtrare per destinazione
+      // perché la richiesta ha già targetTipo e targetId specifici (e include i referenti)
+      const filtrati = oggetti.filter(o => o.tipo === 'KIT' && o.quantita > 0);
 
       assignedKits = filtrati.map(k => ({
         id: k.ID,
@@ -554,11 +543,11 @@
         codice: k.codice || ''
       }));
 
-      console.log('Kit filtrati per destinazione esatta:', assignedKits);
+      console.log('Kit da spacchettare:', assignedKits);
 
       const tbody = document.querySelector('#tabellaKitAssegnati tbody');
       if (assignedKits.length === 0) {
-        tbody.innerHTML = '<td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto</td>';
+        tbody.innerHTML = '<td colspan="5" class="text-center">Nessun kit assegnato a questo soggetto (o ai suoi referenti)</td>';
         return;
       }
       tbody.innerHTML = '';
