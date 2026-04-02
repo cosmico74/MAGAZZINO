@@ -264,6 +264,7 @@
       <thead>
          <th data-sort="id">ID</th>
          <th data-sort="codice">Codice</th>
+         <th data-sort="sigla">Sigla</th>
          <th data-sort="descrizione">Descrizione</th>
          <th data-sort="descrizione_completa">Descrizione Completa</th>
          <th data-sort="magazzino_nome">Magazzino</th>
@@ -278,6 +279,7 @@
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
+    </table>
   </div>
 </div>
 
@@ -414,6 +416,9 @@
     } else if (column === 'quantita_totale' || column === 'quantita_in_kit' || column === 'giacenza') {
       valA = Number(valA) || 0;
       valB = Number(valB) || 0;
+    } else if (column === 'sigla') {
+      valA = (valA || '').toString().toLowerCase();
+      valB = (valB || '').toString().toLowerCase();
     } else {
       valA = (valA || '').toString().toLowerCase();
       valB = (valB || '').toString().toLowerCase();
@@ -454,7 +459,7 @@
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
     if (articoliCorrente.length === 0) {
-      tbody.innerHTML = '<td colspan="14" class="text-center">Nessun articolo trovato<\/td>';
+      tbody.innerHTML = '<td colspan="15" class="text-center">Nessun articolo trovato<\/td>';
       return;
     }
     articoliCorrente.forEach(a => {
@@ -464,18 +469,19 @@
       const row = tbody.insertRow();
       row.insertCell(0).innerText = a.id;
       row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.descrizione;
-      row.insertCell(3).innerText = a.descrizione_completa;
-      row.insertCell(4).innerText = mag;
-      row.insertCell(5).innerText = cat;
-      row.insertCell(6).innerText = mar;
-      row.insertCell(7).innerText = a.lunghezza || '';
-      row.insertCell(8).innerText = a.durezza || '';
-      row.insertCell(9).innerText = a.quantita_totale;
-      row.insertCell(10).innerText = a.quantita_in_kit;
-      row.insertCell(11).innerText = a.GIACENZA_REALE;
-      row.insertCell(12).innerText = a.stato;
-      const actions = row.insertCell(13);
+      row.insertCell(2).innerText = a.sigla || '-';
+      row.insertCell(3).innerText = a.descrizione;
+      row.insertCell(4).innerText = a.descrizione_completa;
+      row.insertCell(5).innerText = mag;
+      row.insertCell(6).innerText = cat;
+      row.insertCell(7).innerText = mar;
+      row.insertCell(8).innerText = a.lunghezza || '';
+      row.insertCell(9).innerText = a.durezza || '';
+      row.insertCell(10).innerText = a.quantita_totale;
+      row.insertCell(11).innerText = a.quantita_in_kit;
+      row.insertCell(12).innerText = a.GIACENZA_REALE;
+      row.insertCell(13).innerText = a.stato;
+      const actions = row.insertCell(14);
       actions.innerHTML = `<button class="btn" onclick="modificaArticolo(${a.id})">✏️ Modifica</button>
                            <button class="btn btn-danger" onclick="eliminaArticolo(${a.id})">🗑️ Elimina</button>`;
     });
