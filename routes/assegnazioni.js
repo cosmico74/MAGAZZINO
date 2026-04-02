@@ -86,17 +86,44 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
 
 // ========== HELPER: RICORSIVO PER OTTENERE TUTTI I SOGGETTI REFERENZIATI ==========
 async function getSoggettiReferenziati(soggettoId) {
-  // CORREZIONE: usa soggetto_id (singolare) invece di soggetti_id
+  console.log(`[DEBUG] getSoggettiReferenziati per soggettoId = ${soggettoId}`);
   const [diretti] = await pool.query(
     'SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?',
     [soggettoId]
   );
   let result = diretti.map(r => r.soggetto_id);
+  console.log(`[DEBUG] Referenti diretti: ${JSON.stringify(result)}`);
   for (const id of result) {
     const sub = await getSoggettiReferenziati(id);
     result = result.concat(sub);
   }
+  console.log(`[DEBUG] Tutti i referenti (ricorsivo): ${JSON.stringify(result)}`);
   return result;
+}
+
+async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null) {
+  console.log(`[DEBUG] getOggettiPerSoggettoConReferenti: tipo=${tipo}, id=${id}, magazzinoFiltro=${magazzinoFiltro}`);
+  let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
+  oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta' }));
+  console.log(`[DEBUG] Oggetti diretti: ${oggetti.length}`);
+
+  const referentiIds = await getSoggettiReferenziati(id);
+  console.log(`[DEBUG] Referenti IDs: ${referentiIds}`);
+  for (const refId of referentiIds) {
+    const [sog] = await pool.query('SELECT tipo FROM soggetti WHERE id = ?', [refId]);
+    if (sog.length === 0) continue;
+    const tipoRef = sog[0].tipo;
+    console.log(`[DEBUG] Carico oggetti per referente ${tipoRef} ${refId}`);
+    const oggettiRef = await getOggettiInCarico(tipoRef, refId, magazzinoFiltro);
+    oggetti.push(...oggettiRef.map(o => ({
+      ...o,
+      destinazioneTipo: tipoRef,
+      destinazioneId: refId,
+      tipoAssegnazione: 'referente'
+    })));
+  }
+  console.log(`[DEBUG] Totale oggetti (con referenti): ${oggetti.length}`);
+  // ... resto invariato
 }
 
 // ========== HELPER: OTTIENI OGGETTI IN CARICO PER UN SOGGETTO + REFERENTI ==========
@@ -206,8 +233,10 @@ router.post('/oggetti', verifyToken, async (req, res) => {
       if (targetTipo && targetId) {
         let oggetti;
         if (includeReferenced) {
+          console.log(`[DEBUG] includeReferenced=true, chiamo getOggettiPerSoggettoConReferenti`)
           oggetti = await getOggettiPerSoggettoConReferenti(targetTipo, targetId, magazzino);
         } else {
+           console.log(`[DEBUG] includeReferenced=false, solo getOggettiInCarico`);
           oggetti = await getOggettiInCarico(targetTipo, targetId, magazzino);
           const [sog] = await pool.query('SELECT * FROM soggetti WHERE id = ?', [targetId]);
           let destinatarioNome = '';
