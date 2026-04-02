@@ -471,7 +471,7 @@
     }
   }
 
-  // ---------- FORMATTA OGGETTO PER LA TABELLA ----------
+  // ---------- FORMATTA OGGETTO PER LA TABELLA (con giacenza reale) ----------
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -488,13 +488,17 @@
         codice = item.codice_kit || `Kit ${id}`;
       }
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
+      // Per i kit, la giacenza reale è la quantità nel magazzino (item.quantita)
       disponibile = item.quantita || 0;
     } else {
       // Per gli articoli: mostra la sigla tra parentesi quadre
       codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
-      disponibile = item.quantita || 0;
+      // Calcola giacenza reale: quantita_totale - quantita_in_kit
+      const tot = item.quantita_totale || 0;
+      const inKit = item.quantita_in_kit || 0;
+      disponibile = tot - inKit;
     }
     return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
   }
@@ -636,7 +640,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA ----------
+  // ---------- POPOLA TABELLA (con checkbox disabilitate se disponibile = 0) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
@@ -651,6 +655,10 @@
       cb.type = 'checkbox';
       cb.className = 'select-item';
       cb.dataset.idx = idx;
+      // Disabilita se disponibile <= 0
+      if (obj.disponibile <= 0) {
+        cb.disabled = true;
+      }
       row.insertCell(0).appendChild(cb);
       row.insertCell(1).innerText = obj.codice;
       row.insertCell(2).innerText = obj.descrizione;
@@ -661,6 +669,7 @@
       qtaInput.max = obj.disponibile;
       qtaInput.value = 1;
       qtaInput.style.width = '80px';
+      if (obj.disponibile <= 0) qtaInput.disabled = true;
       row.insertCell(4).appendChild(qtaInput);
     });
     document.getElementById('selectAll').onclick = () => toggleSelectAll();
@@ -670,7 +679,9 @@
   function toggleSelectAll() {
     const checkboxes = document.querySelectorAll('.select-item');
     const all = document.getElementById('selectAll');
-    checkboxes.forEach(cb => cb.checked = all.checked);
+    checkboxes.forEach(cb => {
+      if (!cb.disabled) cb.checked = all.checked;
+    });
     aggiornaSelezione();
   }
 
@@ -679,7 +690,7 @@
     let count = 0, total = 0;
     rows.forEach(row => {
       const cb = row.querySelector('.select-item');
-      if (cb && cb.checked) {
+      if (cb && cb.checked && !cb.disabled) {
         const qtaInput = row.querySelector('input[type="number"]');
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
@@ -825,7 +836,7 @@
       const rows = document.querySelectorAll('#tabellaBody tr');
       rows.forEach((row, idx) => {
         const cb = row.querySelector('.select-item');
-        if (cb && cb.checked) {
+        if (cb && cb.checked && !cb.disabled) {
           const qtaInput = row.querySelector('input[type="number"]');
           let qta = parseInt(qtaInput.value);
           if (isNaN(qta) || qta < 1) qta = 1;
@@ -863,7 +874,7 @@
     const rows = document.querySelectorAll('#tabellaBody tr');
     rows.forEach((row, idx) => {
       const cb = row.querySelector('.select-item');
-      if (cb && cb.checked) {
+      if (cb && cb.checked && !cb.disabled) {
         const qtaInput = row.querySelector('input[type="number"]');
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
@@ -924,7 +935,7 @@
     const rows = document.querySelectorAll('#tabellaBody tr');
     rows.forEach((row, idx) => {
       const cb = row.querySelector('.select-item');
-      if (cb && cb.checked) {
+      if (cb && cb.checked && !cb.disabled) {
         const qtaInput = row.querySelector('input[type="number"]');
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
