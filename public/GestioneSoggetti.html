@@ -125,7 +125,7 @@
     <div class="form-group"><label>CAP</label><input type="text" id="cap"></div>
     <div class="form-group"><label>Regione</label><input type="text" id="regione"></div>
     <div class="form-group">
-      <label>Referenti (seleziona i soggetti di livello superiore che possono vedere questo)</label>
+      <label>Referenti (soggetti che possono vedere questo soggetto)</label>
       <div id="referentiCheckbox" class="checkbox-group"></div>
     </div>
     <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
@@ -221,9 +221,11 @@
     const tbody = document.getElementById('tabellaSoggetti').querySelector('tbody');
     tbody.innerHTML = '';
     for (const s of filtrati) {
-      // Trova i referenti di questo soggetto
-      const refs = soggetti.filter(r => (s.referenti && s.referenti.includes(r.id)) || (r.id == s.referente));
-      const refNomi = refs.map(r => `${r.nome || ''} ${r.cognome || ''}`.trim()).join(', ');
+      // Trova i nomi dei referenti
+      const referentiNomi = s.referenti && Array.isArray(s.referenti) ? s.referenti.map(refId => {
+        const ref = soggetti.find(r => r.id == refId);
+        return ref ? `${ref.nome || ''} ${ref.cognome || ''}`.trim() : '';
+      }).filter(n => n).join(', ') : '-';
       const row = tbody.insertRow();
       row.insertCell(0).innerText = s.id;
       row.insertCell(1).innerText = s.tipo;
@@ -233,10 +235,7 @@
       row.insertCell(5).innerText = s.telefono || '';
       row.insertCell(6).innerText = s.attivo === 1 ? 'SI' : 'NO';
       row.insertCell(7).innerText = s.livello || '';
-      row.insertCell(8).innerText = refNomi || '-';
-      // Mostra l'utente associato se presente (campo restituito dalla GET singola, ma non nell'elenco)
-      // Per l'elenco possiamo fare una seconda chiamata o aggiungere un campo. Per semplicità, mostriamo solo se già presente in soggetti (non lo è di default)
-      // Decido di non mostrare l'utente nell'elenco per non appesantire; lo mostrerò nel modale di modifica.
+      row.insertCell(8).innerText = referentiNomi;
       row.insertCell(9).innerText = s.utenteAssociato ? s.utenteAssociato.username : '-';
       const actions = row.insertCell(10);
       actions.innerHTML = `<button class="btn btn-small" onclick="modificaSoggetto(${s.id})">✏️</button>
@@ -244,12 +243,11 @@
     }
   }
 
-  // ========== CARICAMENTO UTENTI LIBERI ==========
   async function caricaUtentiLiberi() {
     try {
       const res = await apiFetch('/api/utenti');
       if (res.success) {
-        const utenti = res.data.filter(u => !u.riferimento_id); // solo quelli non ancora associati a un soggetto
+        const utenti = res.data.filter(u => !u.riferimento_id);
         const select = document.getElementById('utenteAssociato');
         select.innerHTML = '<option value="">-- Nessuno --</option>';
         utenti.forEach(u => {
@@ -261,7 +259,7 @@
     }
   }
 
-  // ========== GESTIONE MODALE ==========
+  // ========== MODALE ==========
   async function apriModaleNuovo() {
     document.getElementById('modalTitolo').innerText = 'Nuovo Soggetto';
     document.getElementById('soggettoId').value = '';
@@ -278,11 +276,10 @@
     document.getElementById('livello').value = '0';
     document.getElementById('note').value = '';
     document.getElementById('nuovaPassword').value = '';
-    document.getElementById('passwordGroup').style.display = 'block'; // mostriamo sempre per nuovo, ma poi eventualmente nascondiamo se si sceglie un utente esistente
     await caricaUtentiLiberi();
     document.getElementById('utenteAssociato').value = '';
-    togglePasswordField(); // aggiorna visibilità
-    await caricaSoggetti(); // per referenti
+    togglePasswordField();
+    await caricaSoggetti(); // aggiorna lista per i referenti
     popolaReferentiCheckbox([]);
     document.getElementById('modalSoggetto').style.display = 'flex';
   }
@@ -305,27 +302,25 @@
       document.getElementById('attivo').value = s.attivo === 1 ? 'SI' : 'NO';
       document.getElementById('livello').value = s.livello || '0';
       document.getElementById('note').value = s.note || '';
-      // Carica utenti liberi e imposta il valore selezionato
       await caricaUtentiLiberi();
       const selectUtente = document.getElementById('utenteAssociato');
       if (s.utenteAssociato) {
-        // Aggiungiamo temporaneamente l'utente già associato se non è nella lista (perché è già associato)
+        // Aggiungi opzione se non esiste (utente già associato)
         let optionExists = false;
         for (let i = 0; i < selectUtente.options.length; i++) {
-          if (selectUtente.options[i].value == s.utenteAssociato) {
+          if (selectUtente.options[i].value == s.utenteAssociato.id) {
             optionExists = true;
             break;
           }
         }
-        if (!optionExists && s.utenteAssociato) {
-          // Aggiungi opzione con l'utente già associato
-          selectUtente.appendChild(new Option(`${s.utenteUsername || `Utente ID ${s.utenteAssociato}`} (già associato)`, s.utenteAssociato));
+        if (!optionExists) {
+          selectUtente.appendChild(new Option(`${s.utenteAssociato.username} (${s.utenteAssociato.ruolo})`, s.utenteAssociato.id));
         }
-        selectUtente.value = s.utenteAssociato;
+        selectUtente.value = s.utenteAssociato.id;
       } else {
         selectUtente.value = '';
       }
-      document.getElementById('passwordGroup').style.display = 'none'; // in modifica non si può creare nuovo utente
+      document.getElementById('passwordGroup').style.display = 'none';
       await caricaSoggetti(); // aggiorna lista referenti
       popolaReferentiCheckbox(s.referenti || []);
       document.getElementById('modalSoggetto').style.display = 'flex';
@@ -356,7 +351,7 @@
     const tipo = document.getElementById('tipo').value;
     const utenteSelezionato = document.getElementById('utenteAssociato').value;
     const isPromoter = tipo === 'PROMOTER';
-    const shouldShow = isPromoter && !utenteSelezionato;  // solo per promoter e se non è stato scelto un utente esistente
+    const shouldShow = isPromoter && !utenteSelezionato;
     document.getElementById('passwordGroup').style.display = shouldShow ? 'block' : 'none';
   }
 
@@ -365,6 +360,9 @@
     const referenti = Array.from(document.querySelectorAll('#referentiCheckbox input:checked'))
       .map(cb => parseInt(cb.value))
       .filter(v => !isNaN(v));
+    // Converti l'array di referenti in una stringa separata da virgole
+    const referenteString = referenti.join(',');
+
     const dati = {
       tipo: document.getElementById('tipo').value,
       nome: document.getElementById('nome').value,
@@ -375,13 +373,14 @@
       citta: document.getElementById('citta').value,
       cap: document.getElementById('cap').value,
       regione: document.getElementById('regione').value,
-      referenti: referenti,
+      referente: referenteString,   // <-- campo corretto
       attivo: document.getElementById('attivo').value === 'SI' ? 1 : 0,
       livello: parseInt(document.getElementById('livello').value) || null,
       note: document.getElementById('note').value,
       utenteAssociato: document.getElementById('utenteAssociato').value || null,
       nuovaPassword: document.getElementById('nuovaPassword').value || null
     };
+
     try {
       if (id) {
         await apiFetch(`/api/soggetti/${id}`, { method: 'PUT', body: JSON.stringify(dati) });
@@ -414,7 +413,6 @@
 
   function chiudiModale() {
     document.getElementById('modalSoggetto').style.display = 'none';
-    document.body.style.overflow = '';
   }
 
   function applicaFiltri() {
