@@ -300,7 +300,7 @@
     <h2>📦 Composizione Kit</h2>
     <div class="external-checkbox">
       <input type="checkbox" id="assegnazioniEsterneCheckbox">
-      <label for="assegnazioniEsterneCheckbox">📎 Assegnazioni esterne</label>
+      <label for="assegnazioniEsterneCheckbox">📤 Assegna a destinatario esterno</label>
     </div>
   </div>
   <div id="messageArea"></div>
@@ -309,18 +309,6 @@
   <h3>➕ Nuovo Kit</h3>
   <div id="assegnazioneSection" style="display:none;" class="assignment-group">
     <div class="form-row-5col">
-      <div class="form-group">
-        <label>Sorgente (da cui prelevare i componenti)</label>
-        <select id="sourceTipo">
-          <option value="PROMOTER">👤 Promoter</option>
-          <option value="NEGOZIO">🏪 Negozio</option>
-          <option value="CLIENTE">👥 Cliente</option>
-          <option value="AGENTE">🤝 Agente</option>
-        </select>
-        <select id="sourceId" style="margin-top:4px;">
-          <option value="">Seleziona...</option>
-        </select>
-      </div>
       <div class="form-group">
         <label>Destinazione (dove assegnare il kit)</label>
         <select id="destinazioneTipo">
@@ -334,7 +322,7 @@
         </select>
       </div>
     </div>
-    <div class="info-note" style="text-align:left;">Se non specifichi una destinazione, il kit rimarrà in magazzino.</div>
+    <div class="info-note" style="text-align:left;">Il kit verrà creato nel magazzino e subito assegnato al soggetto selezionato.</div>
   </div>
 
   <form id="kitForm" onsubmit="return false;" autocomplete="off">
@@ -506,7 +494,7 @@
   let sortColumn = 'id';
   let sortAsc = true;
 
-  // Cache per oggetti assegnati (articoli e kit)
+  // Cache per oggetti assegnati (articoli e kit) – non più usata per creazione, ma serve per la tabella
   let cachedAssignedKits = null;
   let lastSourceKey = null;
 
@@ -520,11 +508,9 @@
   const filtroLung = document.getElementById('filtroLunghezza');
   const filtroDur = document.getElementById('filtroDurezza');
 
-  // Elementi esterni
+  // Elementi esterni (solo destinazione)
   const externalCheckbox = document.getElementById('assegnazioniEsterneCheckbox');
   const assegnazioneSection = document.getElementById('assegnazioneSection');
-  const sourceTipo = document.getElementById('sourceTipo');
-  const sourceId = document.getElementById('sourceId');
   const destinazioneTipo = document.getElementById('destinazioneTipo');
   const destinazioneId = document.getElementById('destinazioneId');
 
@@ -823,6 +809,7 @@
     return [];
   }
 
+  // Questa funzione non serve più per la creazione, ma è ancora usata per la tabella in modalità esterna
   async function getKitsAssegnati(sourceTipoVal, sourceIdVal) {
     const key = `${sourceTipoVal}|${sourceIdVal}`;
     if (cachedAssignedKits !== null && lastSourceKey === key) {
@@ -892,16 +879,17 @@
       }
       let articoli = [];
       if (externalCheckbox.checked) {
-        let srcTipo = sourceTipo.value;
-        let srcId = sourceId.value;
-        if (!srcId) {
-          console.warn(`Sorgente non selezionata per ${datalistId}`);
+        // In modalità esterna (che ora significa solo destinazione), NON usiamo più i datalist da assegnati
+        // Per la creazione del kit, i componenti vengono sempre dal magazzino.
+        // Quindi qui dovremmo comportarci come se fosse false.
+        let magazzinoId = overrideMagazzinoId !== null ? overrideMagazzinoId : kitMagazzinoSelect.value;
+        if (!magazzinoId) {
+          console.warn(`Magazzino non selezionato per ${datalistId}`);
           const datalist = document.getElementById(datalistId);
           if (datalist) datalist.innerHTML = '';
           return;
         }
-        console.log(`Popolo ${datalistId} con oggetti assegnati a ${srcTipo} ${srcId}`);
-        articoli = await getArticoliPerDatalistAssegnati(tipo, srcTipo, srcId);
+        articoli = await getArticoliPerDatalist(tipo, magazzinoId);
       } else {
         let magazzinoId = overrideMagazzinoId !== null ? overrideMagazzinoId : kitMagazzinoSelect.value;
         if (!magazzinoId) {
@@ -934,6 +922,7 @@
       popolaDatalistTipo('attacchi', 'attacchiList'),
       popolaDatalistTipo('skistopper', 'skistopperList')
     ]);
+    // Non serve più getKitsAssegnati per la creazione, ma lo teniamo per la tabella in modalità esterna
     if (externalCheckbox.checked && sourceId.value) {
       await getKitsAssegnati(sourceTipo.value, sourceId.value);
     } else {
@@ -1028,9 +1017,9 @@
           }
         }
       }
-      if (externalCheckbox.checked && sourceId.value) {
-        await getKitsAssegnati(sourceTipo.value, sourceId.value);
-      }
+      // Per la tabella, se la checkbox è attiva e c'è una sorgente? In realtà ora la checkbox serve solo per destinazione.
+      // Manteniamo la logica per mostrare i kit assegnati al soggetto selezionato? Non c'è più un soggetto sorgente.
+      // Quindi disabilitiamo questa parte o la teniamo per compatibilità? Rimuoviamo getKitsAssegnati.
       filtraKit();
     } catch (err) {
       showMessage('Errore caricamento kit: ' + err.message, 'error');
@@ -1048,18 +1037,11 @@
     const lunghezza = filtroLung.value;
     const durezza = filtroDur.value;
 
-    let baseList;
-    if (externalCheckbox.checked && sourceId.value) {
-      baseList = allKits.filter(k => cachedAssignedKits.includes(k.id));
-      console.log('Base list in modalità esterna (da allKits filtrata per cachedAssignedKits):', baseList.map(k => k.id));
-    } else {
-      baseList = kitList;
-    }
+    let baseList = kitList; // sempre e solo kit con quantità > 0 (in magazzino)
+    // Se in futuro volessimo mostrare kit assegnati, si potrebbe fare con un'altra checkbox
 
     kitFiltrati = baseList.filter(kit => {
-      if (!externalCheckbox.checked || !sourceId.value) {
-        if (magazzino && kit.magazzino !== magazzino) return false;
-      }
+      if (magazzino && kit.magazzino !== magazzino) return false;
       const sci = articoliDettaglioCache.get(kit.id_sci);
       const att = articoliDettaglioCache.get(kit.id_attacchi);
       if (!sci || !att) return false;
@@ -1078,11 +1060,8 @@
       const baseMatch = matchAttributi(sci);
       if (!baseMatch) return false;
 
-      if (externalCheckbox.checked && sourceId.value) {
-        return true;
-      } else {
-        return !kit.assegnato_a;
-      }
+      // Nella tabella mostriamo sia kit in magazzino che quelli assegnati? Per ora mostriamo tutti.
+      return true;
     });
     popolaTabellaKit();
   }
@@ -1215,7 +1194,7 @@
       row.insertCell(3).innerText = k.sigla || '-';
       row.insertCell(4).innerText = k.descrizione;
       row.insertCell(5).innerText = mag;
-      row.insertCell(6).innerText = sciDisplay;   // ora mostra sigla + descrizione + lunghezza + durezza
+      row.insertCell(6).innerText = sciDisplay;
       row.insertCell(7).innerText = attDesc;
       row.insertCell(8).innerText = skDesc;
       row.insertCell(9).innerText = quantitaDisplay;
@@ -1281,25 +1260,7 @@
     });
   }
 
-  // ---------- GESTIONE SORGENTI E DESTINAZIONI ----------
-  async function caricaSorgenti() {
-    const tipo = sourceTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      sourceId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        sourceId.appendChild(new Option(testo, item.id));
-      });
-      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      if (externalCheckbox.checked) {
-        await refreshComponentDatalists();
-      }
-    } catch (err) {
-      showMessage('Errore caricamento sorgenti: ' + err.message, 'error');
-    }
-  }
-
+  // ---------- GESTIONE DESTINAZIONE (per assegnazione alla creazione) ----------
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
@@ -1319,62 +1280,21 @@
     const isPromoterLiv1 = currentUser.ruolo === 'promoter' && currentUser.livello === 1;
     canUseWarehouse = isAdmin || isPromoterLiv1;
 
-    if (!canUseWarehouse) {
-      externalCheckbox.checked = true;
-      externalCheckbox.disabled = true;
-      assegnazioneSection.style.display = 'block';
-      sourceTipo.value = currentUser.ruolo.toUpperCase();
-      sourceTipo.disabled = true;
-      caricaSorgenti().then(() => {
-        if (sourceId.options.length) {
-          for (let i = 0; i < sourceId.options.length; i++) {
-            if (sourceId.options[i].value == currentUser.riferimento_id) {
-              sourceId.value = currentUser.riferimento_id;
-              break;
-            }
-          }
-        }
-        refreshComponentDatalists();
-      });
-      destinazioneTipo.disabled = false;
-      destinazioneId.disabled = false;
-      caricaDestinazioni();
-    } else {
-      externalCheckbox.disabled = false;
-      sourceTipo.disabled = false;
-      sourceId.disabled = false;
-      destinazioneTipo.disabled = false;
-      destinazioneId.disabled = false;
-
-      sourceTipo.addEventListener('change', () => {
-        if (externalCheckbox.checked) {
-          caricaSorgenti().then(() => refreshComponentDatalists());
-        }
-      });
-      destinazioneTipo.addEventListener('change', () => {
-        if (externalCheckbox.checked) caricaDestinazioni();
-      });
-      externalCheckbox.addEventListener('change', () => {
-        if (externalCheckbox.checked) {
-          assegnazioneSection.style.display = 'block';
-          Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => refreshComponentDatalists());
-        } else {
-          assegnazioneSection.style.display = 'none';
-          cachedAssignedKits = null;
-          lastSourceKey = null;
-          refreshComponentDatalists();
-        }
-      });
+    externalCheckbox.disabled = false;
+    externalCheckbox.addEventListener('change', () => {
       if (externalCheckbox.checked) {
         assegnazioneSection.style.display = 'block';
-        Promise.all([caricaSorgenti(), caricaDestinazioni()]).then(() => refreshComponentDatalists());
+        caricaDestinazioni();
       } else {
         assegnazioneSection.style.display = 'none';
       }
-    }
-    sourceId.addEventListener('change', () => {
-      if (externalCheckbox.checked) refreshComponentDatalists();
     });
+    if (externalCheckbox.checked) {
+      assegnazioneSection.style.display = 'block';
+      caricaDestinazioni();
+    } else {
+      assegnazioneSection.style.display = 'none';
+    }
   }
 
   // ---------- CREAZIONE KIT ----------
@@ -1420,18 +1340,19 @@
       id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
       sigla: null,
       note: note || null,
-      componiDaAssegnati: externalCheckbox.checked
+      componiDaAssegnati: false   // i componenti vengono prelevati dal magazzino
     };
+
+    // Se la checkbox è attiva, assegna il kit alla destinazione scelta
     if (externalCheckbox.checked) {
-      if (!canUseWarehouse) {
-        payload.sourceTipo = currentUser.ruolo.toUpperCase();
-        payload.sourceId = parseInt(currentUser.riferimento_id);
-      } else {
-        payload.sourceTipo = sourceTipo.value;
-        payload.sourceId = sourceId.value ? parseInt(sourceId.value) : null;
+      const destinazioneTipoVal = destinazioneTipo.value;
+      const destinazioneIdVal = destinazioneId.value;
+      if (!destinazioneIdVal) {
+        showMessage('Seleziona una destinazione per l\'assegnazione', 'error');
+        return;
       }
-      payload.destinazioneTipo = destinazioneTipo.value;
-      payload.destinazioneId = destinazioneId.value ? parseInt(destinazioneId.value) : null;
+      payload.destinazioneTipo = destinazioneTipoVal;
+      payload.destinazioneId = parseInt(destinazioneIdVal);
     }
 
     const saveBtn = document.getElementById('saveKitBtn');
