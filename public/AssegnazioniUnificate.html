@@ -471,7 +471,7 @@
     }
   }
 
-  // ---------- FORMATTA OGGETTO PER LA TABELLA (con giacenza reale) ----------
+  // ========== FORMATTA OGGETTO PER LA TABELLA (CON SIGLA PER KIT) ==========
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -479,7 +479,7 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      // Per i kit: usa la sigla dello sci se disponibile
+      // Per i kit: usa la sigla dello sci se disponibile, altrimenti il codice kit
       const sciSigla = item.sci_sigla || '';
       const kitDesc = item.descrizione || '';
       if (sciSigla) {
@@ -488,14 +488,13 @@
         codice = item.codice_kit || `Kit ${id}`;
       }
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
-      // Per i kit, la giacenza reale è la quantità nel magazzino (item.quantita)
       disponibile = item.quantita || 0;
     } else {
-      // Per gli articoli: mostra la sigla tra parentesi quadre
+      // Per gli articoli: mostra la sigla tra parentesi quadre, poi il codice
       codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
-      // Calcola giacenza reale: quantita_totale - quantita_in_kit
+      // Calcola giacenza reale per articoli (quantita_totale - quantita_in_kit)
       const tot = item.quantita_totale || 0;
       const inKit = item.quantita_in_kit || 0;
       disponibile = tot - inKit;
@@ -640,7 +639,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA (con checkbox disabilitate se disponibile = 0) ----------
+  // ---------- POPOLA TABELLA ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
@@ -655,10 +654,7 @@
       cb.type = 'checkbox';
       cb.className = 'select-item';
       cb.dataset.idx = idx;
-      // Disabilita se disponibile <= 0
-      if (obj.disponibile <= 0) {
-        cb.disabled = true;
-      }
+      if (obj.disponibile <= 0) cb.disabled = true;
       row.insertCell(0).appendChild(cb);
       row.insertCell(1).innerText = obj.codice;
       row.insertCell(2).innerText = obj.descrizione;
