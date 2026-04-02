@@ -179,11 +179,13 @@ router.post('/', verifyToken, async (req, res) => {
       const art = existing[0];
       const nuovaQta = (art.quantita_totale || 0) + quantita;
       const descrizioneCompleta = buildDescrizioneCompleta(descrizione, lunghezza, durezza);
+      // Calcola nuova giacenza_reale (quantita_totale - quantita_in_kit)
+      const nuovaGiacenza = nuovaQta - (art.quantita_in_kit || 0);
       await connection.query(`
         UPDATE articoli 
-        SET quantita_totale = ?, descrizione_completa = ?, data_modifica = ?, note = ?
+        SET quantita_totale = ?, descrizione_completa = ?, data_modifica = ?, note = ?, giacenza_reale = ?
         WHERE articolo_id = ?
-      `, [nuovaQta, descrizioneCompleta, now, note, art.articolo_id]);
+      `, [nuovaQta, descrizioneCompleta, now, note, nuovaGiacenza, art.articolo_id]);
       await connection.commit();
       return res.json({ success: true, message: `Quantità aggiornata: ${art.quantita_totale} → ${nuovaQta}`, id: art.articolo_id });
     }
@@ -191,15 +193,17 @@ router.post('/', verifyToken, async (req, res) => {
     const newId = (maxId || 0) + 1;
     const codiceGenerato = codice || generateArticleCode({ categoriaNome: '', marcaNome: '', lunghezza, durezza }, newId);
     const descrizioneCompleta = buildDescrizioneCompleta(descrizione, lunghezza, durezza);
+    // giacenza_reale = quantita (poiché quantita_in_kit = 0)
+    const giacenzaReale = quantita;
     await connection.query(`
       INSERT INTO articoli 
       (articolo_id, codice, descrizione, descrizione_completa, magazzino, settore, categoria, marca, 
        lunghezza, durezza, quantita_totale, quantita_in_kit, versione, stato, 
-       data_inserimento, data_modifica, note, quantita_obsoleta, sigla, codice_modello)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 0, ?, ?)
+       data_inserimento, data_modifica, note, quantita_obsoleta, sigla, codice_modello, giacenza_reale)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 0, ?, ?, ?)
     `, [newId, codiceGenerato, descrizione, descrizioneCompleta, magazzino, settore, categoria, marca,
         lunghezza || '', durezza || '', quantita, versione || '1.0', stato || 'Disponibile',
-        now, now, note || '', sigla || null, codiceModello || null]);
+        now, now, note || '', sigla || null, codiceModello || null, giacenzaReale]);
     await connection.commit();
     res.json({ success: true, message: 'Articolo creato', id: newId, codice: codiceGenerato });
   } catch (error) {
@@ -217,21 +221,24 @@ router.put('/:id', verifyToken, async (req, res) => {
           magazzino, settore, categoria, marca } = req.body;
   const connection = await db.getConnection();
   try {
-    const [rows] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id]);
+    const [rows] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ? FOR UPDATE', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Articolo non trovato' });
     }
+    const old = rows[0];
     const now = new Date();
     const descrizioneCompleta = buildDescrizioneCompleta(descrizione, lunghezza, durezza);
+    // Calcola nuova giacenza_reale: quantita_totale - quantita_in_kit (che non cambia in questa update)
+    const nuovaGiacenza = quantita_totale - (old.quantita_in_kit || 0);
     await connection.query(`
       UPDATE articoli SET 
         descrizione = ?, descrizione_completa = ?, lunghezza = ?, durezza = ?,
         quantita_totale = ?, versione = ?, stato = ?, data_modifica = ?, note = ?,
         sigla = ?, codice_modello = ?,
-        magazzino = ?, settore = ?, categoria = ?, marca = ?
+        magazzino = ?, settore = ?, categoria = ?, marca = ?, giacenza_reale = ?
       WHERE articolo_id = ?
     `, [descrizione, descrizioneCompleta, lunghezza, durezza, quantita_totale, versione, stato, now, note,
-        sigla, codiceModello, magazzino, settore, categoria, marca, id]);
+        sigla, codiceModello, magazzino, settore, categoria, marca, nuovaGiacenza, id]);
     await connection.commit();
     res.json({ success: true, message: 'Articolo aggiornato' });
   } catch (error) {

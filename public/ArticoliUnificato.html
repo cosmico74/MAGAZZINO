@@ -834,7 +834,9 @@
       const mar = marche.find(m => m.id == a.marca)?.nome || a.marca;
       
       // Calcola giacenza reale in modo robusto (ignora GIACENZA_REALE dal backend)
-      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+      const giacenza = a.giacenza_reale !== undefined && a.giacenza_reale !== null
+  ? a.giacenza_reale
+  : (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
       
       const row = tbody.insertRow();
       row.insertCell(0).innerText = a.id;
