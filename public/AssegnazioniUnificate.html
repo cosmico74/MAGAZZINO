@@ -190,6 +190,7 @@
       <span id="loginInfo" class="login-info"></span>
       <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
       <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+      <button class="btn btn-secondary" onclick="caricaOggetti()" style="background:#6c757d;">🔄 Ricarica</button>
     </div>
   </div>
 
@@ -285,10 +286,14 @@
     <table id="tabellaOggetti">
       <thead>
          <th style="width:30px"><input type="checkbox" id="selectAll"></th>
-         <th>Codice / Sigla</th><th>Descrizione</th><th>Disponibile</th><th>Quantità da inviare</th>
+         <th>Codice / Sigla</th>
+         <th>Descrizione</th>
+         <th>Disponibile</th>
+         <th>Quantità da inviare</th>
+         <th>Assegnato a</th>
       </thead>
       <tbody id="tabellaBody">
-         <td colspan="5" class="text-center">Caricamento...<\/td>
+         <td colspan="6" class="text-center">Caricamento...<\/td>
       </tbody>
     表格
   </div>
@@ -479,7 +484,6 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      // Per i kit: cerca la sigla dello sci in diversi formati (sci_sigla, SCI_SIGLA)
       const sciSigla = item.sci_sigla || item.SCI_SIGLA || '';
       const kitDesc = item.descrizione || '';
       if (sciSigla) {
@@ -490,13 +494,10 @@
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
       disponibile = item.quantita || 0;
     } else {
-      // Per gli articoli: cerca la sigla (sigla o SIGLA)
       const sigla = item.sigla || item.SIGLA || '';
       codice = sigla ? `[${sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
-      // Per gli articoli in magazzino: usa quantita_totale - quantita_in_kit
-      // Per gli articoli in carico: usa item.quantita (già fornita)
       if (item.quantita_totale !== undefined) {
         const tot = item.quantita_totale || 0;
         const inKit = item.quantita_in_kit || 0;
@@ -505,8 +506,15 @@
         disponibile = item.quantita || 0;
       }
     }
-    console.log(`[DEBUG] formatOggetto: tipo=${tipo}, codice=${codice}, disponibile=${disponibile}`, item);
-    return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
+    // Per oggetti referenziati, forziamo disponibile a 0 e non saranno selezionabili
+    const isReferenced = item.tipoAssegnazione === 'referente';
+    if (isReferenced) disponibile = 0;
+
+    return { id, tipo, codice, descrizione, disponibile, 
+             destinazioneTipo: item.destinazioneTipo, 
+             destinazioneId: item.destinazioneId,
+             destinatarioNome: item.destinatarioNome,
+             tipoAssegnazione: item.tipoAssegnazione };
   }
 
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
@@ -541,7 +549,7 @@
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
-        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO' })));
+        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
       }
 
       if (tipo === '' || tipo === 'KIT') {
@@ -551,7 +559,7 @@
         console.log(`[DEBUG] Kit totali: ${kits.length}`);
         kits = kits.filter(k => k.magazzino == magId);
         console.log(`[DEBUG] Kit dopo filtro magazzino ${magId}: ${kits.length}`);
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT' })));
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me' })));
       }
 
       console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
@@ -651,7 +659,7 @@
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>';
+      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>';
       return;
     }
     tbody.innerHTML = '';
@@ -661,19 +669,34 @@
       cb.type = 'checkbox';
       cb.className = 'select-item';
       cb.dataset.idx = idx;
-      if (obj.disponibile <= 0) cb.disabled = true;
+      
+      // Disabilita se disponibile <= 0 o se è un oggetto referenziato
+      const isReferenced = obj.tipoAssegnazione === 'referente';
+      const isDisabled = obj.disponibile <= 0 || isReferenced;
+      if (isDisabled) cb.disabled = true;
+      
       row.insertCell(0).appendChild(cb);
       row.insertCell(1).innerText = obj.codice;
       row.insertCell(2).innerText = obj.descrizione;
       row.insertCell(3).innerText = obj.disponibile;
+      
       const qtaInput = document.createElement('input');
       qtaInput.type = 'number';
       qtaInput.min = 1;
       qtaInput.max = obj.disponibile;
       qtaInput.value = 1;
       qtaInput.style.width = '80px';
-      if (obj.disponibile <= 0) qtaInput.disabled = true;
+      if (isDisabled) qtaInput.disabled = true;
       row.insertCell(4).appendChild(qtaInput);
+      
+      // Colonna "Assegnato a" (per i referenziati mostra il destinatario, per gli altri magazzino)
+      let assegnatoANome = '';
+      if (isReferenced && obj.destinatarioNome) {
+        assegnatoANome = obj.destinatarioNome;
+      } else {
+        assegnatoANome = 'Magazzino';
+      }
+      row.insertCell(5).innerText = assegnatoANome;
     });
     document.getElementById('selectAll').onclick = () => toggleSelectAll();
     aggiornaSelezione();
@@ -844,6 +867,8 @@
           let qta = parseInt(qtaInput.value);
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
+          // Non permettere selezioni su oggetti referenziati (dovrebbero essere già disabilitati)
+          if (obj.tipoAssegnazione === 'referente') return;
           selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
         }
       });
