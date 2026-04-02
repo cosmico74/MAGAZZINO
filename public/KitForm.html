@@ -398,7 +398,7 @@
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
-    表格
+    </table>
   </div>
 </div>
 
@@ -1115,11 +1115,15 @@
         valA = magazzini.find(m => m.id == a.magazzino)?.nome || '';
         valB = magazzini.find(m => m.id == b.magazzino)?.nome || ''; break;
       case 'sci_desc':
-        valA = articoliDettaglioCache.get(a.id_sci)?.descrizione || '';
-        valB = articoliDettaglioCache.get(b.id_sci)?.descrizione || ''; break;
+        const sciA = articoliDettaglioCache.get(a.id_sci);
+        const sciB = articoliDettaglioCache.get(b.id_sci);
+        valA = sciA ? formatArticleDisplay(sciA) : '';
+        valB = sciB ? formatArticleDisplay(sciB) : '';
+        break;
       case 'attacchi_desc':
         valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || '';
-        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || ''; break;
+        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || '';
+        break;
       case 'skistopper_desc':
         valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-';
         valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-'; break;
@@ -1184,7 +1188,8 @@
     }
     kitFiltrati.forEach(k => {
       const mag = magazzini.find(m => m.id == k.magazzino)?.nome || k.magazzino;
-      const sciDesc = articoliDettaglioCache.get(k.id_sci)?.descrizione || k.id_sci;
+      const sci = articoliDettaglioCache.get(k.id_sci);
+      const sciDisplay = sci ? formatArticleDisplay(sci) : k.id_sci;
       const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione || k.id_attacchi;
       const skDesc = k.id_skistopper ? (articoliDettaglioCache.get(k.id_skistopper)?.descrizione || k.id_skistopper) : '-';
       const assegnato = k.assegnato_a ? k.assegnato_a.nome : 'Magazzino';
@@ -1210,7 +1215,7 @@
       row.insertCell(3).innerText = k.sigla || '-';
       row.insertCell(4).innerText = k.descrizione;
       row.insertCell(5).innerText = mag;
-      row.insertCell(6).innerText = sciDesc;
+      row.insertCell(6).innerText = sciDisplay;   // ora mostra sigla + descrizione + lunghezza + durezza
       row.insertCell(7).innerText = attDesc;
       row.insertCell(8).innerText = skDesc;
       row.insertCell(9).innerText = quantitaDisplay;
