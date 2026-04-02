@@ -471,7 +471,7 @@
     }
   }
 
-  // ---------- FORMATTA OGGETTO PER LA TABELLA (con sigla sci per i kit) ----------
+  // ---------- FORMATTA OGGETTO PER LA TABELLA ----------
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -479,7 +479,7 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      // Per i kit: usa la sigla dello sci se presente
+      // Per i kit: usa la sigla dello sci se disponibile
       const sciSigla = item.sci_sigla || '';
       const kitDesc = item.descrizione || '';
       if (sciSigla) {
@@ -490,6 +490,7 @@
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
       disponibile = item.quantita || 0;
     } else {
+      // Per gli articoli: mostra la sigla tra parentesi quadre
       codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
