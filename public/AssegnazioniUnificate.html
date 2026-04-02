@@ -479,12 +479,19 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
+        // Per i kit: usa la sigla dello sci (se presente) al posto del codice kit
         const sciSigla = item.sci_sigla || '';
         const kitDesc = item.descrizione || '';
-        codice = sciSigla ? `[${sciSigla}]` : (item.codice_kit || `Kit ${id}`);
+        // Codice = [sigla sci] (senza codice kit)
+        if (sciSigla) {
+            codice = `[${sciSigla}]`;
+        } else {
+            codice = item.codice_kit || `Kit ${id}`;
+        }
         descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
         disponibile = item.quantita || 0;
     } else {
+        // Per gli articoli: mostra la sigla tra parentesi quadre
         codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
         if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
         descrizione = item.descrizione || '';
@@ -492,61 +499,6 @@
     }
     return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
 }
-  // ---------- CARICAMENTO DAL MAGAZZINO ----------
-  async function caricaOggettiDaMagazzino() {
-    const magId = magazzinoSelect.value;
-    console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
-    if (!magId) {
-      oggetti = [];
-      popolaTabella();
-      showMessage('Seleziona un magazzino', 'info');
-      return;
-    }
-
-    const tipo = tipoOggettoSelect.value;
-    console.log(`[DEBUG] caricaOggettiDaMagazzino - tipo = ${tipo}`);
-    let lista = [];
-
-    try {
-      const paramsArticoli = new URLSearchParams();
-      paramsArticoli.append('magazzino', magId);
-      if (settoreSelect.value) paramsArticoli.append('settore', settoreSelect.value);
-      if (marcaSelect.value) paramsArticoli.append('marca', marcaSelect.value);
-      if (filtroDescrizione.value) paramsArticoli.append('descrizione', filtroDescrizione.value);
-      if (filtroLunghezza.value) paramsArticoli.append('lunghezza', filtroLunghezza.value);
-      if (filtroDurezza.value) paramsArticoli.append('durezza', filtroDurezza.value);
-      if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
-      paramsArticoli.append('min_giacenza', '1');
-
-      if (tipo === '' || tipo === 'ARTICOLO') {
-        const urlArticoli = `/api/articoli?${paramsArticoli.toString()}`;
-        console.log(`[DEBUG] Chiamata articoli: ${urlArticoli}`);
-        const resArticoli = await apiFetch(urlArticoli);
-        let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
-        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
-        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO' })));
-      }
-
-      if (tipo === '' || tipo === 'KIT') {
-        console.log(`[DEBUG] Caricamento kit da /api/kit`);
-        const resKit = await apiFetch('/api/kit');
-        let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
-        console.log(`[DEBUG] Kit totali: ${kits.length}`);
-        kits = kits.filter(k => k.magazzino == magId && k.quantita > 0);
-        console.log(`[DEBUG] Kit dopo filtro magazzino ${magId} e quantita>0: ${kits.length}`);
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT' })));
-      }
-
-      console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
-      oggetti = lista.map(item => formatOggetto(item, item.tipo));
-      console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
-      popolaTabella();
-      assegnaBtn.disabled = false;
-    } catch (err) {
-      console.error('Errore caricaOggettiDaMagazzino:', err);
-      showMessage('Errore caricamento oggetti: ' + err.message, 'error');
-    }
-  }
 
   // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
   async function caricaOggettiInCarico() {
