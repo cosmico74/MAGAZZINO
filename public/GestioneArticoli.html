@@ -264,7 +264,7 @@
       <thead>
          <th data-sort="id">ID</th>
          <th data-sort="codice">Codice</th>
-         <th data-sort="sigla">Sigla</th>
+         <th data-sort="sigla">Sigla</th>   <!-- COLONNA SIGLA -->
          <th data-sort="descrizione">Descrizione</th>
          <th data-sort="descrizione_completa">Descrizione Completa</th>
          <th data-sort="magazzino_nome">Magazzino</th>
@@ -466,7 +466,7 @@
       const row = tbody.insertRow();
       row.insertCell(0).innerText = a.id;
       row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.sigla || '-';
+      row.insertCell(2).innerText = a.sigla || '-';   // SIGLA
       row.insertCell(3).innerText = a.descrizione;
       row.insertCell(4).innerText = a.descrizione_completa;
       row.insertCell(5).innerText = mag;
