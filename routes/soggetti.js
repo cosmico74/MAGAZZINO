@@ -6,7 +6,6 @@ const bcrypt = require('bcrypt');
 
 // ========== HELPER PER SINCRONIZZARE I REFERENTI ==========
 async function syncSoggettiReferenti(connection, soggettoId, referenteStr) {
-  // Elimina i vecchi riferimenti
   await connection.query('DELETE FROM soggetti_referenti WHERE soggetto_id = ?', [soggettoId]);
   if (referenteStr && referenteStr.trim() !== '') {
     const referentiIds = referenteStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
@@ -38,20 +37,26 @@ router.get('/tipo/:tipo', verifyToken, async (req, res) => {
   }
 });
 
-// GET tutti i soggetti (con utente associato e referenti)
+// GET tutti i soggetti (con utente associato)
 router.get('/', verifyToken, async (req, res) => {
   try {
+    // Prima otteniamo i soggetti con i loro utenti associati
     const [rows] = await db.query(`
-      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo,
-             GROUP_CONCAT(r.referente_id) AS referenti_ids
+      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo
       FROM soggetti s
       LEFT JOIN utenti u ON u.riferimento_id = s.id
-      LEFT JOIN soggetti_referenti r ON r.soggetto_id = s.id
-      GROUP BY s.id
       ORDER BY s.tipo, s.nome, s.cognome
     `);
-    const soggettiConUtente = rows.map(row => {
-      const { utente_id, utente_username, utente_ruolo, referenti_ids, ...soggetto } = row;
+    
+    // Poi per ogni soggetto recuperiamo i referenti (separatamente per evitare problemi di GROUP_CONCAT)
+    const soggettiConReferenti = [];
+    for (const row of rows) {
+      const [refRows] = await db.query(
+        'SELECT referente_id FROM soggetti_referenti WHERE soggetto_id = ?',
+        [row.id]
+      );
+      const referentiIds = refRows.map(r => r.referente_id);
+      const { utente_id, utente_username, utente_ruolo, ...soggetto } = row;
       if (utente_id) {
         soggetto.utenteAssociato = {
           id: utente_id,
@@ -59,35 +64,37 @@ router.get('/', verifyToken, async (req, res) => {
           ruolo: utente_ruolo
         };
       }
-      soggetto.referenti = referenti_ids ? referenti_ids.split(',').map(Number) : [];
-      return soggetto;
-    });
-    res.json(soggettiConUtente);
+      soggetto.referenti = referentiIds;
+      soggettiConReferenti.push(soggetto);
+    }
+    res.json(soggettiConReferenti);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Errore database' });
   }
 });
 
-// GET singolo soggetto (con utente associato e referenti)
+// GET singolo soggetto (con utente associato)
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo,
-             GROUP_CONCAT(r.referente_id) AS referenti_ids
+      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo
       FROM soggetti s
       LEFT JOIN utenti u ON u.riferimento_id = s.id
-      LEFT JOIN soggetti_referenti r ON r.soggetto_id = s.id
       WHERE s.id = ?
-      GROUP BY s.id
     `, [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Soggetto non trovato' });
     const row = rows[0];
-    const { utente_id, utente_username, utente_ruolo, referenti_ids, ...soggetto } = row;
+    const [refRows] = await db.query(
+      'SELECT referente_id FROM soggetti_referenti WHERE soggetto_id = ?',
+      [req.params.id]
+    );
+    const referentiIds = refRows.map(r => r.referente_id);
+    const { utente_id, utente_username, utente_ruolo, ...soggetto } = row;
     if (utente_id) {
       soggetto.utenteAssociato = { id: utente_id, username: utente_username, ruolo: utente_ruolo };
     }
-    soggetto.referenti = referenti_ids ? referenti_ids.split(',').map(Number) : [];
+    soggetto.referenti = referentiIds;
     res.json(soggetto);
   } catch (err) {
     console.error(err);
@@ -104,7 +111,6 @@ router.post('/', verifyToken, async (req, res) => {
   const connection = await db.getConnection();
   await connection.beginTransaction();
   try {
-    // referente: stringa di ID separati da virgola
     let referenteStr = null;
     if (referente) {
       if (Array.isArray(referente)) {
@@ -120,7 +126,6 @@ router.post('/', verifyToken, async (req, res) => {
     );
     const soggettoId = result.insertId;
 
-    // Salva i referenti nella tabella soggetti_referenti
     await syncSoggettiReferenti(connection, soggettoId, referenteStr);
 
     let utenteCreato = null;
@@ -176,10 +181,8 @@ router.put('/:id', verifyToken, async (req, res) => {
       [tipo, nome, cognome || null, email || null, telefono || null, indirizzo || null, citta || null, cap || null, regione || null, referenteStr, note || null, attivo, livello || null, req.params.id]
     );
 
-    // Aggiorna i referenti nella tabella soggetti_referenti
     await syncSoggettiReferenti(connection, req.params.id, referenteStr);
 
-    // Gestisci associazione utente
     if (utenteAssociato) {
       await connection.query('UPDATE utenti SET riferimento_id = NULL WHERE riferimento_id = ?', [req.params.id]);
       const [userExists] = await connection.query('SELECT id FROM utenti WHERE id = ? AND (riferimento_id IS NULL OR riferimento_id = ?)', [utenteAssociato, req.params.id]);
