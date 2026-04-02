@@ -472,28 +472,26 @@
   }
 
   // ---------- FORMATTA OGGETTO PER LA TABELLA (con sigla per kit) ----------
-  function formatOggetto(item, tipo) {
+ function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
     let disponibile = 0;
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      const sciSigla = item.SCI_SIGLA || '';
-      const kitCodice = item.codice_kit || `Kit ${id}`;
-      // Mostra [sigla] + codice kit
-      codice = sciSigla ? `[${sciSigla}] ${kitCodice}` : kitCodice;
-      descrizione = item.descrizione || '';
-      disponibile = item.quantita || 0;
+        const sciSigla = item.sci_sigla || '';
+        const kitDesc = item.descrizione || '';
+        codice = sciSigla ? `[${sciSigla}]` : (item.codice_kit || `Kit ${id}`);
+        descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
+        disponibile = item.quantita || 0;
     } else {
-      codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
-      if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
-      descrizione = item.descrizione || '';
-      disponibile = item.quantita || 0;
+        codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
+        if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
+        descrizione = item.descrizione || '';
+        disponibile = item.quantita || 0;
     }
     return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
-  }
-
+}
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;

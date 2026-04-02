@@ -349,4 +349,36 @@ router.post('/spacchetta', verifyToken, async (req, res) => {
   }
 });
 
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT k.*,
+             cs.destinazione_tipo AS assegnato_tipo,
+             cs.destinazione_id AS assegnato_id,
+             cs.quantita AS assegnato_quantita,
+             s.nome AS assegnato_nome,
+             s.cognome AS assegnato_cognome,
+             sci.sigla AS sci_sigla
+      FROM kit k
+      LEFT JOIN carico_sintesi cs ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id AND cs.quantita > 0
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+      LEFT JOIN articoli sci ON k.id_sci = sci.articolo_id
+    `;
+    const [rows] = await db.query(query);
+    const kits = rows.map(k => ({
+      ...k,
+      sci_sigla: k.sci_sigla,
+      assegnato_a: k.assegnato_tipo ? {
+        tipo: k.assegnato_tipo,
+        id: k.assegnato_id,
+        nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome}`.trim() : k.assegnato_nome,
+        quantita: k.assegnato_quantita
+      } : null
+    }));
+    res.json(kits);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore database' });
+  }
+});
 module.exports = router;
