@@ -30,6 +30,7 @@ router.get('/', verifyToken, async (req, res) => {
         id: k.assegnato_id,
         nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome}`.trim() : k.assegnato_nome,
         quantita: k.assegnato_quantita
+        
       } : null
     }));
     res.json(kits);

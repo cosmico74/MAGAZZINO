@@ -471,7 +471,7 @@
     }
   }
 
-  // ========== FORMATTA OGGETTO PER LA TABELLA (CON SIGLA PER KIT) ==========
+  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla per kit e articoli) ==========
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -479,8 +479,8 @@
     let id = item.id || item.ID;
 
     if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      // Per i kit: usa la sigla dello sci se disponibile, altrimenti il codice kit
-      const sciSigla = item.sci_sigla || '';
+      // Per i kit: cerca la sigla dello sci in diversi formati (sci_sigla, SCI_SIGLA)
+      const sciSigla = item.sci_sigla || item.SCI_SIGLA || '';
       const kitDesc = item.descrizione || '';
       if (sciSigla) {
         codice = `[${sciSigla}]`;
@@ -490,15 +490,22 @@
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
       disponibile = item.quantita || 0;
     } else {
-      // Per gli articoli: mostra la sigla tra parentesi quadre, poi il codice
-      codice = item.sigla ? `[${item.sigla}]` : (item.codice || '');
+      // Per gli articoli: cerca la sigla (sigla o SIGLA)
+      const sigla = item.sigla || item.SIGLA || '';
+      codice = sigla ? `[${sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
       descrizione = item.descrizione || '';
-      // Calcola giacenza reale per articoli (quantita_totale - quantita_in_kit)
-      const tot = item.quantita_totale || 0;
-      const inKit = item.quantita_in_kit || 0;
-      disponibile = tot - inKit;
+      // Per gli articoli in magazzino: usa quantita_totale - quantita_in_kit
+      // Per gli articoli in carico: usa item.quantita (già fornita)
+      if (item.quantita_totale !== undefined) {
+        const tot = item.quantita_totale || 0;
+        const inKit = item.quantita_in_kit || 0;
+        disponibile = tot - inKit;
+      } else {
+        disponibile = item.quantita || 0;
+      }
     }
+    console.log(`[DEBUG] formatOggetto: tipo=${tipo}, codice=${codice}, disponibile=${disponibile}`, item);
     return { id, tipo, codice, descrizione, disponibile, destinazioneTipo: item.destinazioneTipo, destinazioneId: item.destinazioneId };
   }
 
