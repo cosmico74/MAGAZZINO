@@ -416,9 +416,6 @@
     } else if (column === 'quantita_totale' || column === 'quantita_in_kit' || column === 'giacenza') {
       valA = Number(valA) || 0;
       valB = Number(valB) || 0;
-    } else if (column === 'sigla') {
-      valA = (valA || '').toString().toLowerCase();
-      valB = (valB || '').toString().toLowerCase();
     } else {
       valA = (valA || '').toString().toLowerCase();
       valB = (valB || '').toString().toLowerCase();
