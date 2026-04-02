@@ -165,6 +165,7 @@ router.post('/', verifyToken, async (req, res) => {
     // 5. Se è stata specificata una destinazione finale, assegna il kit
     if (destinazioneTipo && destinazioneId) {
       const { registraUscitaTransazionale } = require('./assegnazioni');
+      console.log(`[DEBUG] Assegnazione kit ID ${kitId} a ${destinazioneTipo} ${destinazioneId} con quantità ${quantita}`);
       await registraUscitaTransazionale(connection, {
         magazzinoId: magazzino,
         tipoOggetto: 'KIT',

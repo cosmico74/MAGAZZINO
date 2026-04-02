@@ -163,7 +163,10 @@ async function registraUscitaTransazionale(connection, params) {
   } else {
     const [kit] = await connection.query('SELECT quantita FROM kit WHERE id = ? FOR UPDATE', [oggettoId]);
     if (!kit.length || kit[0].quantita < quantita) throw new Error('Quantità kit insufficiente');
+    console.log(`[DEBUG] Kit ${oggettoId} aveva quantità ${kit[0].quantita}, riduco di ${quantita}`);
     await connection.query('UPDATE kit SET quantita = quantita - ?, data_modifica = NOW() WHERE id = ?', [quantita, oggettoId]);
+    const [updatedKit] = await connection.query('SELECT quantita FROM kit WHERE id = ?', [oggettoId]);
+    console.log(`[DEBUG] Nuova quantità kit ${oggettoId}: ${updatedKit[0].quantita}`);
   }
   await connection.query(
     `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
