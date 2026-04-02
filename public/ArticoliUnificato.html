@@ -832,6 +832,10 @@
       const mag = magazzini.find(m => m.id == a.magazzino)?.nome || a.magazzino;
       const cat = categorieCompleto.find(c => c.id == a.categoria)?.nome || a.categoria;
       const mar = marche.find(m => m.id == a.marca)?.nome || a.marca;
+      
+      // Calcola giacenza reale in modo robusto (ignora GIACENZA_REALE dal backend)
+      const giacenza = (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+      
       const row = tbody.insertRow();
       row.insertCell(0).innerText = a.id;
       row.insertCell(1).innerText = a.codice;
@@ -845,7 +849,7 @@
       row.insertCell(9).innerText = a.durezza || '';
       row.insertCell(10).innerText = a.quantita_totale;
       row.insertCell(11).innerText = a.quantita_in_kit;
-      row.insertCell(12).innerText = a.GIACENZA_REALE;
+      row.insertCell(12).innerText = giacenza;
       row.insertCell(13).innerText = a.stato;
       const actions = row.insertCell(14);
       actions.className = 'action-buttons';
