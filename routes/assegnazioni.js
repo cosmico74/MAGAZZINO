@@ -95,12 +95,13 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
           (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id),
           (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
         )
-        WHEN cs.tipo_oggetto = 'KIT' THEN k.sigla
+        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT sigla FROM sigle_articoli WHERE id = k.sigla_id)
       END AS SIGLA,
       a.settore AS SETTORE,
       a.marca AS MARCA,
       a.codice_modello AS CODICE_MODELLO,
-      a.categoria AS CATEGORIA
+      a.categoria AS CATEGORIA,
+      k.id_sci AS KIT_ID_SCI
     FROM carico_sintesi cs
     LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
     LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -128,7 +129,8 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     CODICE_MODELLO: row.CODICE_MODELLO,
     CATEGORIA: row.CATEGORIA,
     destinazioneTipo: row.destinazione_tipo,
-    destinazioneId: row.destinazione_id
+    destinazioneId: row.destinazione_id,
+    kitIdSci: row.KIT_ID_SCI
   }));
 }
 
@@ -224,11 +226,12 @@ router.post('/oggetti', verifyToken, async (req, res) => {
                 (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id),
                 (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
               )
-              ELSE k.sigla
+              ELSE (SELECT sigla FROM sigle_articoli WHERE id = k.sigla_id)
             END AS SIGLA,
             a.settore AS SETTORE,
             a.marca AS MARCA,
-            a.codice_modello AS CODICE_MODELLO
+            a.codice_modello AS CODICE_MODELLO,
+            k.id_sci AS KIT_ID_SCI
           FROM carico_sintesi cs
           LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
           LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -266,7 +269,8 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             CODICE_MODELLO: row.CODICE_MODELLO,
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
-            destinatarioNome
+            destinatarioNome,
+            kitIdSci: row.KIT_ID_SCI
           };
         });
         return res.json({ success: true, oggetti: tutte });
