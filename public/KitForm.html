@@ -1070,7 +1070,7 @@
   }
 
   // ---------- POPOLA TABELLA (MODIFICATA: gestione kit esauriti) ----------
-function popolaTabellaKit() {
+ function popolaTabellaKit() {
     sortKitList();
     const tbody = document.querySelector('#tabellaKit tbody');
     if (!tbody) return;
@@ -1166,98 +1166,6 @@ function popolaTabellaKit() {
     });
     aggiornaIndicatoriOrdine();
 }
-    sortKitList();
-    const tbody = document.querySelector('#tabellaKit tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="13" class="text-center">Nessun kit trovato</td></tr>';
-      return;
-    }
-    kitFiltrati.forEach(k => {
-      const mag = magazzini.find(m => m.id == k.magazzino)?.nome || k.magazzino;
-      const sci = articoliDettaglioCache.get(k.id_sci);
-      const sciDisplay = sci ? formatArticleDisplay(sci) : k.id_sci;
-      const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione || k.id_attacchi;
-      const skDesc = k.id_skistopper ? (articoliDettaglioCache.get(k.id_skistopper)?.descrizione || k.id_skistopper) : '-';
-
-      const isAssigned = !!k.assegnato_a;
-      const quantitaMagazzino = k.quantita;
-      const isEsaurito = (!isAssigned && quantitaMagazzino === 0);
-
-      const row = tbody.insertRow();
-      if (isEsaurito) row.classList.add('kit-esaurito');
-
-      const cbCell = row.insertCell(0);
-      cbCell.className = 'checkbox-column';
-      if (isAssigned) {
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'kit-checkbox';
-        cb.setAttribute('data-kit-id', k.id);
-        cbCell.appendChild(cb);
-      } else {
-        cbCell.innerText = '';
-      }
-
-      row.insertCell(1).innerText = k.id;
-      row.insertCell(2).innerText = k.codice_kit;
-      row.insertCell(3).innerText = k.sigla || '-';
-      row.insertCell(4).innerText = k.descrizione;
-      row.insertCell(5).innerText = mag;
-      row.insertCell(6).innerText = sciDisplay;
-      row.insertCell(7).innerText = attDesc;
-      row.insertCell(8).innerText = skDesc;
-      row.insertCell(9).innerText = quantitaMagazzino;
-
-      let assegnatoANome = 'Magazzino';
-      if (isAssigned) {
-        assegnatoANome = k.assegnato_a.nome;
-      }
-      row.insertCell(10).innerText = assegnatoANome;
-
-      const unpackCell = row.insertCell(11);
-      if (isAssigned && k.assegnato_a.quantita > 0) {
-        const maxQty = k.assegnato_a.quantita;
-        const qtyInput = document.createElement('input');
-        qtyInput.type = 'number';
-        qtyInput.value = 1;
-        qtyInput.min = 1;
-        qtyInput.max = maxQty;
-        qtyInput.step = 1;
-        qtyInput.style.width = '70px';
-        qtyInput.style.marginRight = '4px';
-        const unpackBtn = document.createElement('button');
-        unpackBtn.textContent = '🔓';
-        unpackBtn.className = 'btn btn-danger btn-sm';
-        unpackBtn.onclick = () => {
-          const qty = parseInt(qtyInput.value);
-          if (isNaN(qty) || qty < 1 || qty > maxQty) {
-            showMessage('Quantità non valida', 'error');
-            return;
-          }
-          spacchettaKit(k.id, qty, k.assegnato_a.tipo, k.assegnato_a.id);
-        };
-        unpackCell.appendChild(qtyInput);
-        unpackCell.appendChild(unpackBtn);
-      } else if (isAssigned && k.assegnato_a.quantita === 0) {
-        unpackCell.innerText = 'Assegnato 0';
-      } else if (isEsaurito) {
-        unpackCell.innerText = 'Esaurito';
-      } else {
-        unpackCell.innerText = '-';
-      }
-
-      const actions = row.insertCell(12);
-      actions.className = 'action-buttons';
-      actions.innerHTML = `
-        <button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''} title="${isEsaurito ? 'Kit esaurito' : 'Modifica'}">✏️</button>
-        <button class="btn btn-danger" onclick="eliminaKit(${k.id})" ${isEsaurito ? 'disabled' : ''} title="${isEsaurito ? 'Kit esaurito' : 'Elimina'}">🗑️</button>
-      `;
-    });
-    aggiornaIndicatoriOrdine();
-  }
-
   function handleSort(column) {
     if (sortColumn === column) {
       sortAsc = !sortAsc;
