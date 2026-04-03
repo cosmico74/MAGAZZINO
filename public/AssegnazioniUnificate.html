@@ -476,7 +476,8 @@
     }
   }
 
-  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla per kit e articoli) ==========
+  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla corretta) ==========
+  // Ora la sigla viene recuperata dalla tabella sigle_articoli (se presente)
   function formatOggetto(item, tipo) {
     let codice = '';
     let descrizione = '';
@@ -494,6 +495,8 @@
       descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
       disponibile = item.quantita || 0;
     } else {
+      // Per articolo: la sigla può essere nel campo item.sigla (se già unita) oppure dobbiamo recuperarla
+      // Il backend ci passa già la sigla come item.sigla (presa da sigle_articoli tramite JOIN)
       const sigla = item.sigla || item.SIGLA || '';
       codice = sigla ? `[${sigla}]` : (item.codice || '');
       if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
@@ -506,7 +509,6 @@
         disponibile = item.quantita || 0;
       }
     }
-    // Per oggetti referenziati, forziamo disponibile a 0 e non saranno selezionabili
     const isReferenced = item.tipoAssegnazione === 'referente';
     if (isReferenced) disponibile = 0;
 
@@ -517,7 +519,7 @@
              tipoAssegnazione: item.tipoAssegnazione };
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO ----------
+  // ---------- CARICAMENTO DAL MAGAZZINO (usa api/articoli che ora include le sigle) ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
@@ -670,7 +672,6 @@
       cb.className = 'select-item';
       cb.dataset.idx = idx;
       
-      // Disabilita se disponibile <= 0 o se è un oggetto referenziato
       const isReferenced = obj.tipoAssegnazione === 'referente';
       const isDisabled = obj.disponibile <= 0 || isReferenced;
       if (isDisabled) cb.disabled = true;
@@ -689,7 +690,6 @@
       if (isDisabled) qtaInput.disabled = true;
       row.insertCell(4).appendChild(qtaInput);
       
-      // Colonna "Assegnato a" (per i referenziati mostra il destinatario, per gli altri magazzino)
       let assegnatoANome = '';
       if (isReferenced && obj.destinatarioNome) {
         assegnatoANome = obj.destinatarioNome;
@@ -867,7 +867,6 @@
           let qta = parseInt(qtaInput.value);
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
-          // Non permettere selezioni su oggetti referenziati (dovrebbero essere già disabilitati)
           if (obj.tipoAssegnazione === 'referente') return;
           selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
         }
@@ -1095,7 +1094,7 @@
     document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
 
     await caricaAnagrafiche();
-    await caricaDestinazioni();   // carica iniziale
+    await caricaDestinazioni();
     attachFilterEvents();
     setupExternalMode();
 
