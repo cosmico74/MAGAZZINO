@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - con Sigle</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle (kit inclusi)</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -466,15 +466,34 @@
   }
 
   // ========== FUNZIONE PER ARRICCHIRE UN ARTICOLO CON LE SUE SIGLE ==========
-  async function arricchisciConSigle(articolo) {
-    try {
-      const sigle = await apiFetch(`/api/articoli/${articolo.id}/sigle`);
-      articolo.sigleDisponibili = sigle;
-    } catch(e) {
-      console.warn(`Errore caricamento sigle per articolo ${articolo.id}`, e);
-      articolo.sigleDisponibili = [];
+  async function arricchisciConSigle(oggetto, tipo) {
+    if (tipo === 'ARTICOLO') {
+      try {
+        const sigle = await apiFetch(`/api/articoli/${oggetto.id}/sigle`);
+        oggetto.sigleDisponibili = sigle;
+      } catch(e) {
+        console.warn(`Errore caricamento sigle per articolo ${oggetto.id}`, e);
+        oggetto.sigleDisponibili = [];
+      }
+    } else if (tipo === 'KIT') {
+      // Per i kit: recupera le sigle dello sci associato
+      try {
+        // Otteniamo il kit dal backend (o abbiamo già id_sci? Nell'oggetto in carico non c'è id_sci)
+        // Dobbiamo prima recuperare i dettagli del kit per sapere id_sci
+        const kitDetails = await apiFetch(`/api/kit/${oggetto.id}`);
+        const idSci = kitDetails.id_sci;
+        if (idSci) {
+          const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
+          oggetto.sigleDisponibili = sigle;
+        } else {
+          oggetto.sigleDisponibili = [];
+        }
+      } catch(e) {
+        console.warn(`Errore caricamento sigle per kit ${oggetto.id}`, e);
+        oggetto.sigleDisponibili = [];
+      }
     }
-    return articolo;
+    return oggetto;
   }
 
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
@@ -509,9 +528,8 @@
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
-        // Arricchisci ogni articolo con le sue sigle
         for (let a of articoli) {
-          await arricchisciConSigle(a);
+          await arricchisciConSigle(a, 'ARTICOLO');
         }
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
       }
@@ -523,32 +541,28 @@
         console.log(`[DEBUG] Kit totali: ${kits.length}`);
         kits = kits.filter(k => k.magazzino == magId);
         console.log(`[DEBUG] Kit dopo filtro magazzino ${magId}: ${kits.length}`);
+        for (let k of kits) {
+          await arricchisciConSigle(k, 'KIT');
+        }
         lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me' })));
       }
 
       console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
       oggetti = lista.map(item => {
+        const base = {
+          id: item.id,
+          tipo: item.tipo,
+          descrizione: item.descrizione,
+          disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
+          sigleDisponibili: item.sigleDisponibili || [],
+          siglaId: null
+        };
         if (item.tipo === 'ARTICOLO') {
-          return {
-            id: item.id,
-            tipo: item.tipo,
-            codice: item.codice,
-            descrizione: item.descrizione,
-            disponibile: (item.quantita_totale - item.quantita_in_kit),
-            sigleDisponibili: item.sigleDisponibili || [],
-            siglaId: null  // inizialmente nessuna sigla selezionata
-          };
+          base.codice = item.codice;
         } else {
-          return {
-            id: item.id,
-            tipo: item.tipo,
-            codice: item.codice_kit,
-            descrizione: item.descrizione,
-            disponibile: item.quantita,
-            sigleDisponibili: [],
-            siglaId: null
-          };
+          base.codice = item.codice_kit;
         }
+        return base;
       });
       console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
       popolaTabella();
@@ -559,7 +573,7 @@
     }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) CON SIGLE ----------
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) CON SIGLE PER KIT ----------
   async function caricaOggettiInCarico() {
     console.log('[DEBUG] caricaOggettiInCarico - inizio');
     const body = {};
@@ -627,7 +641,7 @@
           tutti = tutti.filter(o => o.SIGLA == filtroSigla.value);
           console.log(`[DEBUG] Dopo filtro sigla: ${old} -> ${tutti.length}`);
         }
-        // Per ogni articolo, carica le sigle disponibili (se non già presenti)
+        // Per ogni oggetto, carica le sigle disponibili (articoli o kit)
         for (let obj of tutti) {
           if (obj.tipo === 'ARTICOLO') {
             if (!obj.sigleDisponibili) {
@@ -637,6 +651,21 @@
               } catch(e) {
                 obj.sigleDisponibili = [];
               }
+            }
+          } else if (obj.tipo === 'KIT') {
+            // Per i kit: recupera id_sci e poi sigle
+            try {
+              const kitDetails = await apiFetch(`/api/kit/${obj.ID}`);
+              const idSci = kitDetails.id_sci;
+              if (idSci) {
+                const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
+                obj.sigleDisponibili = sigle;
+              } else {
+                obj.sigleDisponibili = [];
+              }
+            } catch(e) {
+              console.warn(`Errore caricamento sigle per kit ${obj.ID}`, e);
+              obj.sigleDisponibili = [];
             }
           } else {
             obj.sigleDisponibili = [];
@@ -667,7 +696,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA (con select per sigle) ----------
+  // ---------- POPOLA TABELLA (con select per sigle, sia per articoli che per kit) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
@@ -689,9 +718,9 @@
       
       row.insertCell(0).appendChild(cb);
       
-      // Colonna "Codice / Sigla": se articolo con sigle disponibili, mostra select
+      // Colonna "Codice / Sigla": se ci sono sigle disponibili (sia per articoli che per kit), mostra select
       const cellCodice = row.insertCell(1);
-      if (obj.tipo === 'ARTICOLO' && obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
+      if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
         const select = document.createElement('select');
         select.className = 'sigla-select';
         select.innerHTML = '<option value="">Nessuna sigla</option>';
@@ -705,7 +734,6 @@
           if (obj.siglaId && obj.siglaId == s.id) opt.selected = true;
           select.appendChild(opt);
         });
-        // Aggiorna l'oggetto quando cambia la selezione
         select.addEventListener('change', (e) => {
           obj.siglaId = e.target.value ? parseInt(e.target.value) : null;
         });
@@ -872,7 +900,7 @@
     await caricaOggetti();
   }
 
-  // ---------- ASSEGNAZIONE (trasferimento) CON SIGLA ----------
+  // ---------- ASSEGNAZIONE (trasferimento) CON SIGLA (per articoli e kit) ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -905,7 +933,6 @@
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
           if (obj.tipoAssegnazione === 'referente') return;
-          // Recupera la sigla selezionata (se presente)
           const selectSigla = row.querySelector('.sigla-select');
           const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : obj.siglaId;
           selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
