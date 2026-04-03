@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -21,12 +21,7 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
       padding: 25px;
     }
-    h2 {
-      margin-top: 0;
-      border-left: 5px solid #1a73e8;
-      padding-left: 15px;
-      color: #1e2a3a;
-    }
+    h2 { margin-top: 0; border-left: 5px solid #1a73e8; padding-left: 15px; color: #1e2a3a; }
     .source-selector {
       background: #f8f9fa;
       border-radius: 12px;
@@ -36,15 +31,8 @@
       gap: 20px;
       align-items: center;
     }
-    .source-option {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .source-option input {
-      width: auto;
-      margin: 0;
-    }
+    .source-option { display: flex; align-items: center; gap: 8px; }
+    .source-option input { width: auto; margin: 0; }
     .filters {
       background: #f8f9fa;
       border-radius: 12px;
@@ -99,14 +87,8 @@
       text-align: left;
       vertical-align: middle;
     }
-    th {
-      background: #f8f9fa;
-      font-weight: 600;
-    }
-    .table-wrapper {
-      overflow-x: auto;
-      margin-bottom: 20px;
-    }
+    th { background: #f8f9fa; font-weight: 600; }
+    .table-wrapper { overflow-x: auto; margin-bottom: 20px; }
     .selected-info {
       background: #e8f0fe;
       padding: 10px;
@@ -180,9 +162,10 @@
       gap: 5px;
     }
     .sigla-select {
-      width: 130px;
+      width: 140px;
       padding: 4px;
       font-size: 0.8rem;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -482,50 +465,19 @@
     }
   }
 
-  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla per kit e articoli) ==========
-  // Ora la sigla viene recuperata dalla tabella sigle_articoli (se presente)
-  function formatOggetto(item, tipo) {
-    let codice = '';
-    let descrizione = '';
-    let disponibile = 0;
-    let id = item.id || item.ID;
-
-    if (tipo === 'KIT' || (tipo === undefined && item.tipo === 'KIT')) {
-      const sciSigla = item.sci_sigla || item.SCI_SIGLA || '';
-      const kitDesc = item.descrizione || '';
-      if (sciSigla) {
-        codice = `[${sciSigla}]`;
-      } else {
-        codice = item.codice_kit || `Kit ${id}`;
-      }
-      descrizione = kitDesc.replace(/\[[^\]]*\]/g, '').trim() || `Kit ${id}`;
-      disponibile = item.quantita || 0;
-    } else {
-      // Per articolo: la sigla può essere nel campo item.sigla (se già unita) oppure dobbiamo recuperarla
-      // Il backend ci passa già la sigla come item.sigla (presa da sigle_articoli tramite JOIN)
-      const sigla = item.sigla || item.SIGLA || '';
-      codice = sigla ? `[${sigla}]` : (item.codice || '');
-      if (item.codice && !codice.includes(item.codice)) codice += ` ${item.codice}`;
-      descrizione = item.descrizione || '';
-      if (item.quantita_totale !== undefined) {
-        const tot = item.quantita_totale || 0;
-        const inKit = item.quantita_in_kit || 0;
-        disponibile = tot - inKit;
-      } else {
-        disponibile = item.quantita || 0;
-      }
+  // ========== FUNZIONE PER ARRICCHIRE UN ARTICOLO CON LE SUE SIGLE ==========
+  async function arricchisciConSigle(articolo) {
+    try {
+      const sigle = await apiFetch(`/api/articoli/${articolo.id}/sigle`);
+      articolo.sigleDisponibili = sigle;
+    } catch(e) {
+      console.warn(`Errore caricamento sigle per articolo ${articolo.id}`, e);
+      articolo.sigleDisponibili = [];
     }
-    const isReferenced = item.tipoAssegnazione === 'referente';
-    if (isReferenced) disponibile = 0;
-
-    return { id, tipo, codice, descrizione, disponibile, 
-             destinazioneTipo: item.destinazioneTipo, 
-             destinazioneId: item.destinazioneId,
-             destinatarioNome: item.destinatarioNome,
-             tipoAssegnazione: item.tipoAssegnazione };
+    return articolo;
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO (con sigle) ----------
+  // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
@@ -557,12 +509,9 @@
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
-        // Per ogni articolo, carica le sigle disponibili
+        // Arricchisci ogni articolo con le sue sigle
         for (let a of articoli) {
-          try {
-            const sigle = await apiFetch(`/api/articoli/${a.id}/sigle`);
-            a.sigleDisponibili = sigle;
-          } catch(e) { a.sigleDisponibili = []; }
+          await arricchisciConSigle(a);
         }
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
       }
@@ -578,16 +527,29 @@
       }
 
       console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
-      oggetti = lista.map(item => ({
-        id: item.id,
-        tipo: item.tipo,
-        codice: item.codice,
-        descrizione: item.descrizione,
-        disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
-        sigleDisponibili: item.sigleDisponibili || [],
-        siglaId: null,
-        tipoAssegnazione: item.tipoAssegnazione
-      }));
+      oggetti = lista.map(item => {
+        if (item.tipo === 'ARTICOLO') {
+          return {
+            id: item.id,
+            tipo: item.tipo,
+            codice: item.codice,
+            descrizione: item.descrizione,
+            disponibile: (item.quantita_totale - item.quantita_in_kit),
+            sigleDisponibili: item.sigleDisponibili || [],
+            siglaId: null  // inizialmente nessuna sigla selezionata
+          };
+        } else {
+          return {
+            id: item.id,
+            tipo: item.tipo,
+            codice: item.codice_kit,
+            descrizione: item.descrizione,
+            disponibile: item.quantita,
+            sigleDisponibili: [],
+            siglaId: null
+          };
+        }
+      });
       console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
       popolaTabella();
       assegnaBtn.disabled = false;
@@ -597,7 +559,7 @@
     }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) CON SIGLE ----------
   async function caricaOggettiInCarico() {
     console.log('[DEBUG] caricaOggettiInCarico - inizio');
     const body = {};
@@ -665,15 +627,33 @@
           tutti = tutti.filter(o => o.SIGLA == filtroSigla.value);
           console.log(`[DEBUG] Dopo filtro sigla: ${old} -> ${tutti.length}`);
         }
-        oggetti = tutti.map(item => ({
-          id: item.ID,
-          tipo: item.tipo,
-          codice: item.codice,
-          descrizione: item.descrizione,
-          disponibile: item.quantita,
-          siglaId: item.siglaId,
-          sigleDisponibili: [],
-          tipoAssegnazione: item.tipoAssegnazione || 'me'
+        // Per ogni articolo, carica le sigle disponibili (se non già presenti)
+        for (let obj of tutti) {
+          if (obj.tipo === 'ARTICOLO') {
+            if (!obj.sigleDisponibili) {
+              try {
+                const sigle = await apiFetch(`/api/articoli/${obj.ID}/sigle`);
+                obj.sigleDisponibili = sigle;
+              } catch(e) {
+                obj.sigleDisponibili = [];
+              }
+            }
+          } else {
+            obj.sigleDisponibili = [];
+          }
+        }
+        oggetti = tutti.map(obj => ({
+          id: obj.ID,
+          tipo: obj.tipo,
+          codice: obj.codice,
+          descrizione: obj.descrizione,
+          disponibile: obj.quantita,
+          sigleDisponibili: obj.sigleDisponibili || [],
+          siglaId: obj.siglaId || null,
+          destinazioneTipo: obj.destinazioneTipo,
+          destinazioneId: obj.destinazioneId,
+          destinatarioNome: obj.destinatarioNome,
+          tipoAssegnazione: obj.tipoAssegnazione
         }));
         console.log(`[DEBUG] Oggetti finali: ${oggetti.length}`);
         popolaTabella();
@@ -687,7 +667,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA CON SELECT PER SIGLA ----------
+  // ---------- POPOLA TABELLA (con select per sigle) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
@@ -709,7 +689,7 @@
       
       row.insertCell(0).appendChild(cb);
       
-      // Colonna Codice/Sigla: se articolo con sigle multiple, mostra select
+      // Colonna "Codice / Sigla": se articolo con sigle disponibili, mostra select
       const cellCodice = row.insertCell(1);
       if (obj.tipo === 'ARTICOLO' && obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
         const select = document.createElement('select');
@@ -718,10 +698,14 @@
         obj.sigleDisponibili.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
-          opt.textContent = s.sigla + (s.durezza ? ` (${s.durezza})` : '');
+          let testo = s.sigla;
+          if (s.durezza) testo += ` (${s.durezza})`;
+          if (s.lunghezza) testo += ` - ${s.lunghezza}cm`;
+          opt.textContent = testo;
           if (obj.siglaId && obj.siglaId == s.id) opt.selected = true;
           select.appendChild(opt);
         });
+        // Aggiorna l'oggetto quando cambia la selezione
         select.addEventListener('change', (e) => {
           obj.siglaId = e.target.value ? parseInt(e.target.value) : null;
         });
@@ -742,6 +726,7 @@
       if (isDisabled) qtaInput.disabled = true;
       row.insertCell(4).appendChild(qtaInput);
       
+      // Colonna "Assegnato a"
       let assegnatoANome = '';
       if (isReferenced && obj.destinatarioNome) {
         assegnatoANome = obj.destinatarioNome;
@@ -887,7 +872,7 @@
     await caricaOggetti();
   }
 
-  // ---------- ASSEGNAZIONE (con supporto siglaId) ----------
+  // ---------- ASSEGNAZIONE (trasferimento) CON SIGLA ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -987,7 +972,7 @@
     finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
   }
 
-  // ---------- RIENTRO IN MAGAZZINO ----------
+  // ---------- RIENTRO IN MAGAZZINO (con sigla) ----------
   async function rientraSelezionati() {
     if (!radioCarico.checked) {
       showMessage('La funzione "Rientra in magazzino" è disponibile solo in modalità "In carico".', 'error');
@@ -1153,7 +1138,7 @@
     document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
 
     await caricaAnagrafiche();
-    await caricaDestinazioni();
+    await caricaDestinazioni();   // carica iniziale
     attachFilterEvents();
     setupExternalMode();
 
