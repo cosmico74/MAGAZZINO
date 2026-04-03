@@ -5,7 +5,7 @@ const { aggiornaSintesiCarico } = require('./assegnazioni');
 
 const router = express.Router();
 
-// GET all kits
+// GET all kits (senza JOIN su sigla dell'articolo, usa il campo sigla del kit)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
@@ -14,17 +14,14 @@ router.get('/', verifyToken, async (req, res) => {
              cs.destinazione_id AS assegnato_id,
              cs.quantita AS assegnato_quantita,
              s.nome AS assegnato_nome,
-             s.cognome AS assegnato_cognome,
-             sci.sigla AS sci_sigla
+             s.cognome AS assegnato_cognome
       FROM kit k
       LEFT JOIN carico_sintesi cs ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id AND cs.quantita > 0
       LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
-      LEFT JOIN articoli sci ON k.id_sci = sci.articolo_id
     `;
     const [rows] = await db.query(query);
     const kits = rows.map(k => ({
       ...k,
-      sci_sigla: k.sci_sigla,
       assegnato_a: k.assegnato_tipo ? {
         tipo: k.assegnato_tipo,
         id: k.assegnato_id,
@@ -51,7 +48,7 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST create kit
+// POST create kit (con supporto sigle)
 router.post('/', verifyToken, async (req, res) => {
   const {
     magazzino, quantita, id_sci, sigla_sci_id,
@@ -64,7 +61,7 @@ router.post('/', verifyToken, async (req, res) => {
   await connection.beginTransaction();
 
   try {
-    // Consuma i componenti dal magazzino
+    // 1. Consuma i componenti dal magazzino
     const consumaComponente = async (idComponente) => {
       const [art] = await connection.query(
         'SELECT (quantita_totale - quantita_in_kit) AS giacenza_reale FROM articoli WHERE articolo_id = ? FOR UPDATE',
@@ -83,7 +80,7 @@ router.post('/', verifyToken, async (req, res) => {
     await consumaComponente(id_attacchi);
     if (id_skistopper) await consumaComponente(id_skistopper);
 
-    // Genera codice kit
+    // 2. Genera codice kit
     const [maxSeqRow] = await connection.query(`
       SELECT MAX(CAST(SUBSTRING(codice_kit, LOCATE('-', codice_kit, LOCATE('-', codice_kit)+1)+1) AS UNSIGNED)) AS max_seq
       FROM kit
@@ -92,7 +89,7 @@ router.post('/', verifyToken, async (req, res) => {
     const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
     const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
 
-    // Recupera dettagli sci e sigla
+    // 3. Recupera dettagli sci e sigla
     const [sci] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_sci]);
     let sciSigla = null;
     let sciLunghezza = sci[0].lunghezza;
@@ -134,7 +131,7 @@ router.post('/', verifyToken, async (req, res) => {
       descrizioneKit += ` + ${skDesc}`;
     }
 
-    // Inserisci kit
+    // 4. Inserisci il kit (campo sigla = sigla dello sci scelta)
     const [kitResult] = await connection.query(
       `INSERT INTO kit (codice_kit, descrizione, id_sci, id_attacchi, id_skistopper, quantita, magazzino, sigla, note, data_creazione, data_modifica)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
@@ -148,7 +145,7 @@ router.post('/', verifyToken, async (req, res) => {
     );
     const kitId = kitResult.insertId;
 
-    // Assegnazione esterna
+    // 5. Assegnazione esterna se richiesta
     if (destinazioneTipo && destinazioneId) {
       await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'KIT', kitId, +quantita);
       await connection.query(
@@ -158,7 +155,7 @@ router.post('/', verifyToken, async (req, res) => {
       );
     }
 
-    // Movimento composizione
+    // 6. Movimento di composizione
     await connection.query(
       `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
        VALUES (NOW(), 'COMPOSIZIONE', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
