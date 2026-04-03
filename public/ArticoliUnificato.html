@@ -4,36 +4,58 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Gestione Articoli - Inserisci e Modifica</title>
+  <title>📦 Gestione Articoli</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 15px;
+      padding: 0;
       height: 100vh;
       overflow: hidden;
     }
+    /* layout come kitform */
+    .compact-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      border-radius: 0 0 12px 12px;
+      padding: 4px 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .btn-secondary {
+      background: #6c757d;
+      border: none;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
     .container {
-      max-width: 1600px;
-      margin: 0 auto;
-      background: rgba(255,255,255,0.98);
-      border-radius: 20px;
-      box-shadow: 0 20px 35px rgba(0,0,0,0.2);
-      padding: 15px 20px;
-      height: 100%;
+      flex: 1;
       display: flex;
       flex-direction: column;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      padding: 2px 20px 20px 20px;
+      height: calc(100vh - 50px);
       overflow: hidden;
     }
     h2 {
-      margin: 0 0 12px 0;
-      font-size: 1.4rem;
+      margin: 5px 0 8px 0;
+      font-size: 1.3rem;
       border-left: 5px solid #1a73e8;
       padding-left: 12px;
       color: #1e2a3a;
+      display: inline-block;
     }
-    /* Form compattato */
+    /* form compatto */
     .form-row-5col, .form-row-3col, .form-row-4col-slim, .form-row-2col {
       display: grid;
       gap: 8px;
@@ -43,15 +65,13 @@
     .form-row-3col { grid-template-columns: 2fr 1fr 1fr; }
     .form-row-4col-slim { grid-template-columns: 1fr 1fr auto auto; }
     .form-row-2col { grid-template-columns: 2fr 1fr 1fr; }
-    .form-group {
-      margin-bottom: 0;
-    }
+    .form-group { margin-bottom: 0; }
     label {
-      display: block;
       font-weight: 600;
-      margin-bottom: 2px;
-      color: #2c3e50;
       font-size: 0.7rem;
+      margin-bottom: 2px;
+      display: block;
+      color: #2c3e50;
     }
     input, select, textarea {
       width: 100%;
@@ -118,7 +138,7 @@
     }
     .message {
       padding: 6px 10px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       border-radius: 8px;
       font-size: 0.75rem;
     }
@@ -178,37 +198,34 @@
       gap: 10px;
       margin-bottom: 10px;
     }
-    .text-center { text-align: center; }
+    .sigle-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+    .sigle-table th, .sigle-table td { padding: 5px; border: 1px solid #ddd; }
     .header-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
-    .logo img { height: 32px; }
-    .menu-btn {
-      background: #6c757d;
-      border: none;
-      padding: 4px 12px;
-      border-radius: 30px;
-      color: white;
-      cursor: pointer;
-    }
-    .sigle-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
-    .sigle-table th, .sigle-table td { padding: 5px; border: 1px solid #ddd; }
+    .logo img { height: 28px; }
   </style>
 </head>
 <body>
 
+<div class="compact-bar">
+  <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
+  <div style="display: flex; gap: 6px;">
+    <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
+</div>
+
 <div class="container">
   <div class="header-bar">
-    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
-    <button class="menu-btn" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <h2>📦 Gestione Articoli</h2>
   </div>
-  <h2>📦 Gestione Articoli</h2>
   <div id="messageArea"></div>
 
-  <!-- Form di inserimento (senza campo sigla) -->
+  <!-- Form di inserimento (compattato) -->
   <form id="articleForm" onsubmit="return false;">
     <div class="form-row-5col">
       <div class="form-group"><label>Magazzino *</label><select id="magazzino" required></select></div>
@@ -337,13 +354,17 @@
     return res.json();
   }
   function restoreSession() { return !!localStorage.getItem('token'); }
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
 
   // ========== GLOBALI ==========
   let magazzini = [], settori = [], categorie = [], marche = [];
   let articoliCorrente = [];
   let sortColumn = 'id', sortAsc = true;
 
-  // Elementi
   const magazzinoSelect = document.getElementById('magazzino');
   const settoreSelect = document.getElementById('settore');
   const categoriaSelect = document.getElementById('categoria');
@@ -472,7 +493,7 @@
     ordinaArticoli();
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
-    if (!articoliCorrente.length) { tbody.innerHTML = '<tr><td colspan="15">Nessun articolo</td></tr>'; return; }
+    if (!articoliCorrente.length) { tbody.innerHTML = '<td><td colspan="15">Nessun articolo</td></tr>'; return; }
     articoliCorrente.forEach(a => {
       const mag = magazzini.find(m=>m.id==a.magazzino)?.nome || a.magazzino;
       const cat = categorie.find(c=>c.id==a.categoria)?.nome || a.categoria;
@@ -492,7 +513,7 @@
       row.insertCell(10).innerText = a.quantita_in_kit;
       row.insertCell(11).innerText = giac;
       row.insertCell(12).innerText = a.stato;
-      const btnSigle = document.createElement('button'); btnSigle.textContent = '🔖'; btnSigle.className = 'btn'; btnSigle.onclick = () => apriGestioneSigle(a.id, a.descrizione);
+      const btnSigle = document.createElement('button'); btnSigle.textContent = '🔖'; btnSigle.className = 'btn'; btnSigle.style.background = '#6c757d'; btnSigle.style.padding = '2px 6px'; btnSigle.onclick = () => apriGestioneSigle(a.id, a.descrizione);
       row.insertCell(13).appendChild(btnSigle);
       const actions = row.insertCell(14);
       actions.className = 'action-buttons';
@@ -662,7 +683,7 @@
     currentSigleArticoloId = articoloId;
     document.getElementById('sigleArticoloDesc').innerText = descrizione;
     await caricaSigleArticolo(articoloId);
-    // popola datalist modelli (opzionale)
+    // popola datalist modelli
     try {
       const res = await apiFetch(`/api/articoli/valori/modelli?descrizione=${encodeURIComponent(descrizione)}`);
       const dl = document.getElementById('modelliList');

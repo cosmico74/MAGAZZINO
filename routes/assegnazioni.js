@@ -29,8 +29,9 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN sci.durezza
       END AS DUREZZA,
+      -- per gli articoli la sigla la recuperiamo dalla tabella sigle_articoli (la prima)
       CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.sigla
+        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
         WHEN cs.tipo_oggetto = 'KIT' THEN k.sigla
       END AS SIGLA,
       CASE 
@@ -86,47 +87,18 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
 
 // ========== HELPER: RICORSIVO PER OTTENERE TUTTI I SOGGETTI REFERENZIATI ==========
 async function getSoggettiReferenziati(soggettoId) {
-  console.log(`[DEBUG] getSoggettiReferenziati per soggettoId = ${soggettoId}`);
   const [diretti] = await pool.query(
     'SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?',
     [soggettoId]
   );
   let result = diretti.map(r => r.soggetto_id);
-  console.log(`[DEBUG] Referenti diretti: ${JSON.stringify(result)}`);
   for (const id of result) {
     const sub = await getSoggettiReferenziati(id);
     result = result.concat(sub);
   }
-  console.log(`[DEBUG] Tutti i referenti (ricorsivo): ${JSON.stringify(result)}`);
   return result;
 }
 
-async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null) {
-  console.log(`[DEBUG] getOggettiPerSoggettoConReferenti: tipo=${tipo}, id=${id}, magazzinoFiltro=${magazzinoFiltro}`);
-  let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
-  oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta' }));
-  console.log(`[DEBUG] Oggetti diretti: ${oggetti.length}`);
-
-  const referentiIds = await getSoggettiReferenziati(id);
-  console.log(`[DEBUG] Referenti IDs: ${referentiIds}`);
-  for (const refId of referentiIds) {
-    const [sog] = await pool.query('SELECT tipo FROM soggetti WHERE id = ?', [refId]);
-    if (sog.length === 0) continue;
-    const tipoRef = sog[0].tipo;
-    console.log(`[DEBUG] Carico oggetti per referente ${tipoRef} ${refId}`);
-    const oggettiRef = await getOggettiInCarico(tipoRef, refId, magazzinoFiltro);
-    oggetti.push(...oggettiRef.map(o => ({
-      ...o,
-      destinazioneTipo: tipoRef,
-      destinazioneId: refId,
-      tipoAssegnazione: 'referente'
-    })));
-  }
-  console.log(`[DEBUG] Totale oggetti (con referenti): ${oggetti.length}`);
-  // ... resto invariato
-}
-
-// ========== HELPER: OTTIENI OGGETTI IN CARICO PER UN SOGGETTO + REFERENTI ==========
 async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null) {
   let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
   oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta' }));
@@ -180,7 +152,7 @@ async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneI
   }
 }
 
-// ========== OPERAZIONI TRANSIZIONALI (esportate) ==========
+// ========== OPERAZIONI TRANSIZIONALI ==========
 async function registraUscitaTransazionale(connection, params) {
   const { magazzinoId, tipoOggetto, oggettoId, quantita, destinazioneTipo, destinazioneId, note, operatore, userId } = params;
   if (tipoOggetto === 'ARTICOLO') {
@@ -190,10 +162,7 @@ async function registraUscitaTransazionale(connection, params) {
   } else {
     const [kit] = await connection.query('SELECT quantita FROM kit WHERE id = ? FOR UPDATE', [oggettoId]);
     if (!kit.length || kit[0].quantita < quantita) throw new Error('Quantità kit insufficiente');
-    console.log(`[DEBUG] Kit ${oggettoId} aveva quantità ${kit[0].quantita}, riduco di ${quantita}`);
     await connection.query('UPDATE kit SET quantita = quantita - ?, data_modifica = NOW() WHERE id = ?', [quantita, oggettoId]);
-    const [updatedKit] = await connection.query('SELECT quantita FROM kit WHERE id = ?', [oggettoId]);
-    console.log(`[DEBUG] Nuova quantità kit ${oggettoId}: ${updatedKit[0].quantita}`);
   }
   await connection.query(
     `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
@@ -233,10 +202,8 @@ router.post('/oggetti', verifyToken, async (req, res) => {
       if (targetTipo && targetId) {
         let oggetti;
         if (includeReferenced) {
-          console.log(`[DEBUG] includeReferenced=true, chiamo getOggettiPerSoggettoConReferenti`)
           oggetti = await getOggettiPerSoggettoConReferenti(targetTipo, targetId, magazzino);
         } else {
-           console.log(`[DEBUG] includeReferenced=false, solo getOggettiInCarico`);
           oggetti = await getOggettiInCarico(targetTipo, targetId, magazzino);
           const [sog] = await pool.query('SELECT * FROM soggetti WHERE id = ?', [targetId]);
           let destinatarioNome = '';
@@ -268,7 +235,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
               ELSE sci.durezza
             END AS DUREZZA,
             CASE 
-              WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.sigla
+              WHEN cs.tipo_oggetto = 'ARTICOLO' THEN (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
               ELSE k.sigla
             END AS SIGLA,
             CASE 
