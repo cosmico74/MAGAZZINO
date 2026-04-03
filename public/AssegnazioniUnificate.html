@@ -467,34 +467,38 @@
 
   // ========== FUNZIONE PER ARRICCHIRE UN ARTICOLO CON LE SUE SIGLE ==========
   async function arricchisciConSigle(oggetto, tipo) {
-    if (tipo === 'ARTICOLO') {
-      try {
-        const sigle = await apiFetch(`/api/articoli/${oggetto.id}/sigle`);
-        oggetto.sigleDisponibili = sigle;
-      } catch(e) {
-        console.warn(`Errore caricamento sigle per articolo ${oggetto.id}`, e);
-        oggetto.sigleDisponibili = [];
-      }
-    } else if (tipo === 'KIT') {
-      // Per i kit: recupera le sigle dello sci associato
-      try {
-        // Otteniamo il kit dal backend (o abbiamo già id_sci? Nell'oggetto in carico non c'è id_sci)
-        // Dobbiamo prima recuperare i dettagli del kit per sapere id_sci
-        const kitDetails = await apiFetch(`/api/kit/${oggetto.id}`);
-        const idSci = kitDetails.id_sci;
-        if (idSci) {
-          const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
+  if (tipo === 'ARTICOLO') {
+    try {
+      const sigle = await apiFetch(`/api/articoli/${oggetto.id}/sigle`);
+      // Per un articolo, la giacenza è già nota (oggetto.disponibile)
+      // Non filtriamo le sigle perché l'articolo è già disponibile
+      oggetto.sigleDisponibili = sigle;
+    } catch(e) {
+      oggetto.sigleDisponibili = [];
+    }
+  } else if (tipo === 'KIT') {
+    try {
+      const kitDetails = await apiFetch(`/api/kit/${oggetto.id}`);
+      const idSci = kitDetails.id_sci;
+      if (idSci) {
+        const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
+        const giacenzaSci = await getGiacenzaArticolo(idSci);
+        // Filtra le sigle solo se lo sci ha giacenza > 0
+        if (giacenzaSci > 0) {
           oggetto.sigleDisponibili = sigle;
         } else {
           oggetto.sigleDisponibili = [];
         }
-      } catch(e) {
-        console.warn(`Errore caricamento sigle per kit ${oggetto.id}`, e);
+      } else {
         oggetto.sigleDisponibili = [];
       }
+    } catch(e) {
+      console.warn(`Errore caricamento sigle per kit ${oggetto.id}`, e);
+      oggetto.sigleDisponibili = [];
     }
-    return oggetto;
   }
+  return oggetto;
+}
 
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
@@ -1172,6 +1176,16 @@
     await refreshFilterDatalists();
     await caricaOggetti();
   };
+  async function getGiacenzaArticolo(articoloId) {
+  try {
+    const res = await apiFetch(`/api/articoli/${articoloId}`);
+    const giacenza = (res.quantita_totale || 0) - (res.quantita_in_kit || 0);
+    return giacenza;
+  } catch(e) {
+    console.warn(`Errore recupero giacenza per articolo ${articoloId}`, e);
+    return 0;
+  }
+}
 </script>
 </body>
 </html>

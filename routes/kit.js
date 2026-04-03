@@ -5,7 +5,7 @@ const { aggiornaSintesiCarico } = require('./assegnazioni');
 
 const router = express.Router();
 
-// GET all kits (senza JOIN su sigla dell'articolo, usa il campo sigla del kit)
+// GET all kits (con sigla associata)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
@@ -14,14 +14,19 @@ router.get('/', verifyToken, async (req, res) => {
              cs.destinazione_id AS assegnato_id,
              cs.quantita AS assegnato_quantita,
              s.nome AS assegnato_nome,
-             s.cognome AS assegnato_cognome
+             s.cognome AS assegnato_cognome,
+             sig.sigla AS sci_sigla,
+             sig.durezza AS sci_sigla_durezza,
+             sig.lunghezza AS sci_sigla_lunghezza
       FROM kit k
       LEFT JOIN carico_sintesi cs ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id AND cs.quantita > 0
       LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+      LEFT JOIN sigle_articoli sig ON k.sigla_id = sig.id
     `;
     const [rows] = await db.query(query);
     const kits = rows.map(k => ({
       ...k,
+      sci_sigla: k.sci_sigla,
       assegnato_a: k.assegnato_tipo ? {
         tipo: k.assegnato_tipo,
         id: k.assegnato_id,
@@ -48,7 +53,7 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST create kit (con supporto sigle)
+// POST create kit (con sigla_id)
 router.post('/', verifyToken, async (req, res) => {
   const {
     magazzino, quantita, id_sci, sigla_sci_id,
@@ -61,7 +66,7 @@ router.post('/', verifyToken, async (req, res) => {
   await connection.beginTransaction();
 
   try {
-    // 1. Consuma i componenti dal magazzino
+    // Consuma i componenti dal magazzino
     const consumaComponente = async (idComponente) => {
       const [art] = await connection.query(
         'SELECT (quantita_totale - quantita_in_kit) AS giacenza_reale FROM articoli WHERE articolo_id = ? FOR UPDATE',
@@ -80,7 +85,7 @@ router.post('/', verifyToken, async (req, res) => {
     await consumaComponente(id_attacchi);
     if (id_skistopper) await consumaComponente(id_skistopper);
 
-    // 2. Genera codice kit
+    // Genera codice kit
     const [maxSeqRow] = await connection.query(`
       SELECT MAX(CAST(SUBSTRING(codice_kit, LOCATE('-', codice_kit, LOCATE('-', codice_kit)+1)+1) AS UNSIGNED)) AS max_seq
       FROM kit
@@ -89,63 +94,43 @@ router.post('/', verifyToken, async (req, res) => {
     const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
     const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
 
-    // 3. Recupera dettagli sci e sigla
+    // Recupera dettagli sci (per descrizione, senza sigla)
     const [sci] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_sci]);
-    let sciSigla = null;
-    let sciLunghezza = sci[0].lunghezza;
-    let sciDurezza = sci[0].durezza;
-    let sciDescrizione = sci[0].descrizione;
-    if (sigla_sci_id) {
-      const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_sci_id]);
-      if (siglaRow.length) {
-        sciSigla = siglaRow[0].sigla;
-        sciLunghezza = siglaRow[0].lunghezza || sciLunghezza;
-        sciDurezza = siglaRow[0].durezza || sciDurezza;
-      }
-    }
+    const sciLunghezza = sci[0].lunghezza;
+    const sciDurezza = sci[0].durezza;
+    const sciDescrizione = sci[0].descrizione;
 
     // Attacchi
     const [att] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_attacchi]);
-    let attSigla = null;
-    if (sigla_attacchi_id) {
-      const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_attacchi_id]);
-      if (siglaRow.length) attSigla = siglaRow[0].sigla;
-    }
+    const attDescrizione = att[0].descrizione;
 
     // Skistopper
-    let skSigla = null;
+    let skDescrizione = null;
     if (id_skistopper) {
       const [sk] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_skistopper]);
-      if (sigla_skistopper_id) {
-        const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_skistopper_id]);
-        if (siglaRow.length) skSigla = siglaRow[0].sigla;
-      }
+      skDescrizione = sk[0].descrizione;
     }
 
-    // Costruisci descrizione kit
-    const sciDisplay = `${sciSigla ? `[${sciSigla}] ` : ''}${sciDescrizione} ${sciLunghezza || ''} ${sciDurezza || ''}`.trim();
-    const attDisplay = attSigla ? `[${attSigla}] ${att[0].descrizione}` : att[0].descrizione;
-    let descrizioneKit = `Kit: ${sciDisplay} + ${attDisplay}`;
-    if (id_skistopper) {
-      const skDesc = skSigla ? `[${skSigla}] ${sk[0].descrizione}` : sk[0].descrizione;
-      descrizioneKit += ` + ${skDesc}`;
-    }
+    // Costruisci descrizione kit SENZA sigla tra parentesi
+    const sciDisplay = `${sciDescrizione} ${sciLunghezza || ''} ${sciDurezza || ''}`.trim();
+    let descrizioneKit = `Kit: ${sciDisplay} + ${attDescrizione}`;
+    if (skDescrizione) descrizioneKit += ` + ${skDescrizione}`;
 
-    // 4. Inserisci il kit (campo sigla = sigla dello sci scelta)
+    // Inserisci il kit con sigla_id (non sigla)
     const [kitResult] = await connection.query(
-      `INSERT INTO kit (codice_kit, descrizione, id_sci, id_attacchi, id_skistopper, quantita, magazzino, sigla, note, data_creazione, data_modifica)
+      `INSERT INTO kit (codice_kit, descrizione, id_sci, id_attacchi, id_skistopper, quantita, magazzino, sigla_id, note, data_creazione, data_modifica)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         codiceKit, descrizioneKit,
         id_sci, id_attacchi, id_skistopper || null,
         quantita, magazzino,
-        sciSigla || null,
+        sigla_sci_id || null,
         note || null
       ]
     );
     const kitId = kitResult.insertId;
 
-    // 5. Assegnazione esterna se richiesta
+    // Assegnazione esterna se richiesta
     if (destinazioneTipo && destinazioneId) {
       await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'KIT', kitId, +quantita);
       await connection.query(
@@ -155,7 +140,7 @@ router.post('/', verifyToken, async (req, res) => {
       );
     }
 
-    // 6. Movimento di composizione
+    // Movimento di composizione
     await connection.query(
       `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
        VALUES (NOW(), 'COMPOSIZIONE', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
@@ -176,7 +161,7 @@ router.post('/', verifyToken, async (req, res) => {
 
 // PUT update kit
 router.put('/:id', verifyToken, async (req, res) => {
-  const { magazzino, quantita, id_sci, id_attacchi, id_skistopper, sigla, note } = req.body;
+  const { magazzino, quantita, id_sci, id_attacchi, id_skistopper, sigla_id, note } = req.body;
   const connection = await db.getConnection();
   await connection.beginTransaction();
 
@@ -185,9 +170,9 @@ router.put('/:id', verifyToken, async (req, res) => {
     if (kitRows.length === 0) throw new Error('Kit non trovato');
 
     await connection.query(
-      `UPDATE kit SET magazzino = ?, quantita = ?, id_sci = ?, id_attacchi = ?, id_skistopper = ?, sigla = ?, note = ?, data_modifica = NOW()
+      `UPDATE kit SET magazzino = ?, quantita = ?, id_sci = ?, id_attacchi = ?, id_skistopper = ?, sigla_id = ?, note = ?, data_modifica = NOW()
        WHERE id = ?`,
-      [magazzino, quantita, id_sci, id_attacchi, id_skistopper || null, sigla || null, note || null, req.params.id]
+      [magazzino, quantita, id_sci, id_attacchi, id_skistopper || null, sigla_id || null, note || null, req.params.id]
     );
 
     await connection.commit();
