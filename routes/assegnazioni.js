@@ -29,19 +29,11 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN sci.durezza
       END AS DUREZZA,
-      -- per gli articoli la sigla la recuperiamo dalla tabella sigle_articoli (la prima)
+      -- per articoli: sigla dalla tabella sigle_articoli (la prima)
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
         WHEN cs.tipo_oggetto = 'KIT' THEN k.sigla
       END AS SIGLA,
-      CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN NULL
-        WHEN cs.tipo_oggetto = 'KIT' THEN sci.sigla
-      END AS SCI_SIGLA,
-      CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN NULL
-        WHEN cs.tipo_oggetto = 'KIT' THEN sci.descrizione
-      END AS SCI_DESCRIZIONE,
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.magazzino
         WHEN cs.tipo_oggetto = 'KIT' THEN k.magazzino
@@ -71,10 +63,6 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     LUNGHEZZA: row.LUNGHEZZA || '',
     DUREZZA: row.DUREZZA || '',
     SIGLA: row.SIGLA || '',
-    SCI_SIGLA: row.SCI_SIGLA || '',
-    SCI_DESCRIZIONE: row.SCI_DESCRIZIONE || '',
-    SCI_LUNGHEZZA: row.LUNGHEZZA || '',
-    SCI_DUREZZA: row.DUREZZA || '',
     MAGAZZINO: row.MAGAZZINO,
     SETTORE: row.SETTORE,
     MARCA: row.MARCA,
@@ -239,14 +227,6 @@ router.post('/oggetti', verifyToken, async (req, res) => {
               ELSE k.sigla
             END AS SIGLA,
             CASE 
-              WHEN cs.tipo_oggetto = 'ARTICOLO' THEN NULL
-              ELSE sci.sigla
-            END AS SCI_SIGLA,
-            CASE 
-              WHEN cs.tipo_oggetto = 'ARTICOLO' THEN NULL
-              ELSE sci.descrizione
-            END AS SCI_DESCRIZIONE,
-            CASE 
               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.magazzino
               ELSE k.magazzino
             END AS MAGAZZINO,
@@ -284,10 +264,6 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             LUNGHEZZA: row.LUNGHEZZA || '',
             DUREZZA: row.DUREZZA || '',
             SIGLA: row.SIGLA || '',
-            SCI_SIGLA: row.SCI_SIGLA || '',
-            SCI_DESCRIZIONE: row.SCI_DESCRIZIONE || '',
-            SCI_LUNGHEZZA: row.LUNGHEZZA || '',
-            SCI_DUREZZA: row.DUREZZA || '',
             MAGAZZINO: row.MAGAZZINO,
             SETTORE: row.SETTORE,
             MARCA: row.MARCA,
