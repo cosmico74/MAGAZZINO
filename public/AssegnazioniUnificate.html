@@ -97,6 +97,7 @@
       border: 1px solid #ddd;
       padding: 8px;
       text-align: left;
+      vertical-align: middle;
     }
     th {
       background: #f8f9fa;
@@ -177,6 +178,11 @@
       display: flex;
       align-items: flex-end;
       gap: 5px;
+    }
+    .sigla-select {
+      width: 130px;
+      padding: 4px;
+      font-size: 0.8rem;
     }
   </style>
 </head>
@@ -476,7 +482,7 @@
     }
   }
 
-  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla corretta) ==========
+  // ========== FORMATTA OGGETTO PER LA TABELLA (con sigla per kit e articoli) ==========
   // Ora la sigla viene recuperata dalla tabella sigle_articoli (se presente)
   function formatOggetto(item, tipo) {
     let codice = '';
@@ -519,7 +525,7 @@
              tipoAssegnazione: item.tipoAssegnazione };
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO (usa api/articoli che ora include le sigle) ----------
+  // ---------- CARICAMENTO DAL MAGAZZINO (con sigle) ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
@@ -551,6 +557,13 @@
         const resArticoli = await apiFetch(urlArticoli);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
+        // Per ogni articolo, carica le sigle disponibili
+        for (let a of articoli) {
+          try {
+            const sigle = await apiFetch(`/api/articoli/${a.id}/sigle`);
+            a.sigleDisponibili = sigle;
+          } catch(e) { a.sigleDisponibili = []; }
+        }
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
       }
 
@@ -565,7 +578,16 @@
       }
 
       console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
-      oggetti = lista.map(item => formatOggetto(item, item.tipo));
+      oggetti = lista.map(item => ({
+        id: item.id,
+        tipo: item.tipo,
+        codice: item.codice,
+        descrizione: item.descrizione,
+        disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
+        sigleDisponibili: item.sigleDisponibili || [],
+        siglaId: null,
+        tipoAssegnazione: item.tipoAssegnazione
+      }));
       console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
       popolaTabella();
       assegnaBtn.disabled = false;
@@ -643,7 +665,16 @@
           tutti = tutti.filter(o => o.SIGLA == filtroSigla.value);
           console.log(`[DEBUG] Dopo filtro sigla: ${old} -> ${tutti.length}`);
         }
-        oggetti = tutti.map(item => formatOggetto(item, item.tipo));
+        oggetti = tutti.map(item => ({
+          id: item.ID,
+          tipo: item.tipo,
+          codice: item.codice,
+          descrizione: item.descrizione,
+          disponibile: item.quantita,
+          siglaId: item.siglaId,
+          sigleDisponibili: [],
+          tipoAssegnazione: item.tipoAssegnazione || 'me'
+        }));
         console.log(`[DEBUG] Oggetti finali: ${oggetti.length}`);
         popolaTabella();
         assegnaBtn.disabled = false;
@@ -656,7 +687,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA ----------
+  // ---------- POPOLA TABELLA CON SELECT PER SIGLA ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
@@ -677,7 +708,28 @@
       if (isDisabled) cb.disabled = true;
       
       row.insertCell(0).appendChild(cb);
-      row.insertCell(1).innerText = obj.codice;
+      
+      // Colonna Codice/Sigla: se articolo con sigle multiple, mostra select
+      const cellCodice = row.insertCell(1);
+      if (obj.tipo === 'ARTICOLO' && obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
+        const select = document.createElement('select');
+        select.className = 'sigla-select';
+        select.innerHTML = '<option value="">Nessuna sigla</option>';
+        obj.sigleDisponibili.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.sigla + (s.durezza ? ` (${s.durezza})` : '');
+          if (obj.siglaId && obj.siglaId == s.id) opt.selected = true;
+          select.appendChild(opt);
+        });
+        select.addEventListener('change', (e) => {
+          obj.siglaId = e.target.value ? parseInt(e.target.value) : null;
+        });
+        cellCodice.appendChild(select);
+      } else {
+        cellCodice.innerText = obj.codice || '-';
+      }
+      
       row.insertCell(2).innerText = obj.descrizione;
       row.insertCell(3).innerText = obj.disponibile;
       
@@ -835,7 +887,7 @@
     await caricaOggetti();
   }
 
-  // ---------- ASSEGNAZIONE (trasferimento) ----------
+  // ---------- ASSEGNAZIONE (con supporto siglaId) ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -868,7 +920,10 @@
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
           if (obj.tipoAssegnazione === 'referente') return;
-          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+          // Recupera la sigla selezionata (se presente)
+          const selectSigla = row.querySelector('.sigla-select');
+          const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : obj.siglaId;
+          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
         }
       });
       if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -908,7 +963,9 @@
         const max = parseInt(qtaInput.max);
         if (qta > max) qta = max;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+        const selectSigla = row.querySelector('.sigla-select');
+        const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : obj.siglaId;
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
       }
     });
     if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -967,7 +1024,9 @@
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, quantita: qta });
+        const selectSigla = row.querySelector('.sigla-select');
+        const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : obj.siglaId;
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
       }
     });
     if (selezionati.length === 0) {
