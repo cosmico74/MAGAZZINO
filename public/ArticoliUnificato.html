@@ -6,12 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📦 Gestione Articoli - Inserisci e Modifica</title>
   <style>
-    * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -91,25 +86,12 @@
       align-items: center;
       gap: 4px;
     }
-    .btn:hover {
-      background: #0f5bb5;
-    }
-    .btn-primary {
-      background: #1a73e8;
-      width: 100%;
-    }
-    .btn-danger {
-      background: #dc3545;
-    }
-    .btn-danger:hover {
-      background: #bb2d3b;
-    }
-    .btn-secondary {
-      background: #6c757d;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
-    }
+    .btn:hover { background: #0f5bb5; }
+    .btn-primary { background: #1a73e8; width: 100%; }
+    .btn-danger { background: #dc3545; }
+    .btn-danger:hover { background: #bb2d3b; }
+    .btn-secondary { background: #6c757d; }
+    .btn-secondary:hover { background: #5a6268; }
     .toolbar {
       display: flex;
       gap: 10px;
@@ -234,6 +216,9 @@
       color: white;
       font-size: 0.75rem;
     }
+    /* Stile per la tabella delle sigle */
+    .sigle-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+    .sigle-table th, .sigle-table td { padding: 4px; border: 1px solid #ddd; font-size: 0.7rem; }
   </style>
 </head>
 <body>
@@ -248,7 +233,7 @@
   </div>
   <div id="messageArea"></div>
 
-  <!-- Form di inserimento -->
+  <!-- Form di inserimento (rimossa la sigla) -->
   <form id="articleForm" onsubmit="return false;">
     <div class="form-row-5col">
       <div class="form-group">
@@ -295,19 +280,14 @@
         <datalist id="codice_modelloList"></datalist>
       </div>
       <div class="form-group">
-        <label>Sigla</label>
-        <input type="text" id="sigla" list="siglaList" autocomplete="off">
-        <datalist id="siglaList"></datalist>
-      </div>
-    </div>
-
-    <div class="form-row-4col-slim">
-      <div class="form-group" id="gruppoLunghezza">
         <label>Lunghezza (cm)</label>
         <input type="text" id="lunghezza" list="lunghezzaList" autocomplete="off">
         <datalist id="lunghezzaList"></datalist>
       </div>
-      <div class="form-group" id="gruppoDurezza">
+    </div>
+
+    <div class="form-row-4col-slim">
+      <div class="form-group">
         <label>Durezza</label>
         <input type="text" id="durezza" list="durezzaList" autocomplete="off">
         <datalist id="durezzaList"></datalist>
@@ -320,19 +300,20 @@
         <label>Versione</label>
         <input type="text" id="versione" value="1.0">
       </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="note" rows="1"></textarea>
+      </div>
     </div>
 
     <div class="form-row-2col">
-      <div class="form-group">
-        <label>Note</label>
-        <textarea id="note" rows="2"></textarea>
-      </div>
       <div class="form-group">
         <button type="button" class="btn btn-primary" id="saveBtn" onclick="salvaArticolo()">💾 Salva</button>
       </div>
       <div class="form-group">
         <button type="button" class="btn btn-secondary" onclick="resetFiltri()" style="width:100%">🔄 Reset</button>
       </div>
+      <div class="form-group"></div>
     </div>
 
     <div id="assegnaSection" style="display:none;" class="assignment-group">
@@ -360,13 +341,12 @@
     </div>
   </form>
 
-  <!-- Tabella articoli scrollabile -->
+  <!-- Tabella articoli -->
   <div class="table-wrapper">
     <table id="tabellaArticoli">
       <thead>
          <th data-sort="id">ID</th>
          <th data-sort="codice">Codice</th>
-         <th data-sort="sigla">Sigla</th>
          <th data-sort="descrizione">Descrizione</th>
          <th data-sort="descrizione_completa">Descrizione Completa</th>
          <th data-sort="magazzino_nome">Magazzino</th>
@@ -378,6 +358,7 @@
          <th data-sort="quantita_in_kit">In Kit</th>
          <th data-sort="giacenza">Giacenza</th>
          <th data-sort="stato">Stato</th>
+         <th>Sigle</th>
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
@@ -385,7 +366,7 @@
   </div>
 </div>
 
-<!-- Modal Modifica -->
+<!-- Modal Modifica Articolo -->
 <div id="modalEdit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Articolo</h3>
@@ -400,19 +381,43 @@
       <div class="form-group"><label>Descrizione *</label><input type="text" id="editDescrizione" list="editDescrizioneList" required autocomplete="off"><datalist id="editDescrizioneList"></datalist></div>
       <div class="form-row">
         <div class="form-group"><label>Codice Modello</label><input type="text" id="editCodiceModello" list="editModelloList"><datalist id="editModelloList"></datalist></div>
-        <div class="form-group"><label>Sigla</label><input type="text" id="editSigla" list="editSiglaList"><datalist id="editSiglaList"></datalist></div>
+        <div class="form-group"><label>Lunghezza (cm)</label><input type="text" id="editLunghezza" list="editLunghezzaList"><datalist id="editLunghezzaList"></datalist></div>
       </div>
       <div class="form-row">
-        <div class="form-group" id="editGruppoLunghezza"><label>Lunghezza (cm)</label><input type="text" id="editLunghezza" list="editLunghezzaList"><datalist id="editLunghezzaList"></datalist></div>
-        <div class="form-group" id="editGruppoDurezza"><label>Durezza</label><input type="text" id="editDurezza" list="editDurezzaList"><datalist id="editDurezzaList"></datalist></div>
+        <div class="form-group"><label>Durezza</label><input type="text" id="editDurezza" list="editDurezzaList"><datalist id="editDurezzaList"></datalist></div>
+        <div class="form-group"><label>Quantità Totale *</label><input type="number" id="editQuantita" required step="1" min="0"></div>
       </div>
-      <div class="form-group"><label>Quantità Totale *</label><input type="number" id="editQuantita" required step="1" min="0"></div>
       <div class="form-group"><label>Note</label><textarea id="editNote" rows="2"></textarea></div>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModifica()">💾 Salva</button>
         <button type="button" class="btn btn-danger" onclick="chiudiModale()">Annulla</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal Gestione Sigle -->
+<div id="modalSigle" class="modal">
+  <div class="modal-content">
+    <h3>🔖 Gestione Sigle</h3>
+    <p><strong>Articolo:</strong> <span id="sigleArticoloDesc"></span></p>
+    <div style="margin: 10px 0;">
+      <table class="sigle-table">
+        <thead><tr><th>Sigla</th><th>Lunghezza</th><th>Durezza</th><th>Codice Modello</th><th>Note</th><th></th></tr></thead>
+        <tbody id="sigleTableBody"></tbody>
+      </table>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nuova Sigla</label><input type="text" id="nuovaSigla" placeholder="Sigla"></div>
+      <div class="form-group"><label>Lunghezza</label><input type="text" id="nuovaSiglaLunghezza"></div>
+      <div class="form-group"><label>Durezza</label><input type="text" id="nuovaSiglaDurezza"></div>
+      <div class="form-group"><label>Codice Modello</label><input type="text" id="nuovaSiglaModello"></div>
+      <div class="form-group"><label>Note</label><input type="text" id="nuovaSiglaNote"></div>
+      <div class="form-group"><button class="btn" onclick="aggiungiSigla()">➕ Aggiungi</button></div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="chiudiModalSigle()">Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -463,7 +468,6 @@
   const categoriaSelect = document.getElementById('categoria');
   const marcaSelect = document.getElementById('marca');
   const descrizioneInput = document.getElementById('descrizione');
-  const siglaInput = document.getElementById('sigla');
   const codiceModelloInput = document.getElementById('codice_modello');
   const lunghezzaInput = document.getElementById('lunghezza');
   const durezzaInput = document.getElementById('durezza');
@@ -494,8 +498,6 @@
       setDefaultSelect(settoreSelect, ['sci alpino', 'alpino']);
       setDefaultSelect(categoriaSelect, ['sci']);
       setDefaultSelect(marcaSelect, ['kastle', 'Kastle']);
-
-      toggleLunghezzaDurezza();
     } catch (err) {
       console.error(err);
       showMessage('Errore caricamento dati anagrafici', 'error');
@@ -516,20 +518,10 @@
     return false;
   }
 
-  function toggleLunghezzaDurezza() {
-    const catId = categoriaSelect.value;
-    const categoria = categorieCompleto.find(c => c.id == catId);
-    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : false;
-    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : false;
-    document.getElementById('gruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
-    document.getElementById('gruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
-  }
-
   // ========== DATALIST ==========
-  const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+  const filterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'lunghezza', 'durezza', 'codice_modello'];
   const endpointMap = {
     descrizione: '/api/articoli/valori/descrizioni',
-    sigla: '/api/articoli/valori/sigle',
     lunghezza: '/api/articoli/valori/lunghezze',
     durezza: '/api/articoli/valori/durezze',
     codice_modello: '/api/articoli/valori/modelli'
@@ -590,12 +582,11 @@
     const selects = [magazzinoSelect, settoreSelect, categoriaSelect, marcaSelect];
     selects.forEach(select => {
       select.addEventListener('change', () => {
-        if (select.id === 'categoria') toggleLunghezzaDurezza();
         refreshAllDatalists();
         refreshTabellaDebounced();
       });
     });
-    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+    const textFields = ['descrizione', 'lunghezza', 'durezza', 'codice_modello'];
     textFields.forEach(field => {
       const input = document.getElementById(field);
       if (input) {
@@ -639,8 +630,7 @@
   destinazioneTipo.addEventListener('change', () => {
     if (assegnaCheckbox.checked) caricaDestinazioni();
   });
-
-  // ========== SALVATAGGIO ARTICOLO ==========
+    // ========== SALVATAGGIO ARTICOLO (senza sigla) ==========
   async function salvaArticolo() {
     const descrizione = descrizioneInput.value.trim();
     const magazzino = magazzinoSelect.value;
@@ -652,7 +642,6 @@
     const quantita = parseInt(document.getElementById('quantita').value);
     const versione = document.getElementById('versione').value.trim();
     const note = document.getElementById('note').value.trim();
-    const sigla = siglaInput.value.trim();
     const codiceModello = codiceModelloInput.value.trim();
 
     if (!descrizione || !magazzino || !settore || !categoria || !marca || !quantita) {
@@ -671,7 +660,6 @@
       quantita,
       versione: versione || '1.0',
       note: note || '',
-      sigla: sigla || null,
       codiceModello: codiceModello || null
     };
 
@@ -718,7 +706,6 @@
       }
 
       descrizioneInput.value = '';
-      siglaInput.value = '';
       lunghezzaInput.value = '';
       durezzaInput.value = '';
       codiceModelloInput.value = '';
@@ -745,7 +732,6 @@
       if (categoriaSelect.value) params.append('categoria', categoriaSelect.value);
       if (marcaSelect.value) params.append('marca', marcaSelect.value);
       if (descrizioneInput.value) params.append('descrizione', descrizioneInput.value);
-      if (siglaInput.value) params.append('sigla', siglaInput.value);
       if (codiceModelloInput.value) params.append('codice_modello', codiceModelloInput.value);
       if (lunghezzaInput.value) params.append('lunghezza', lunghezzaInput.value);
       if (durezzaInput.value) params.append('durezza', durezzaInput.value);
@@ -768,7 +754,6 @@
     categoriaSelect.value = '';
     marcaSelect.value = '';
     descrizioneInput.value = '';
-    siglaInput.value = '';
     codiceModelloInput.value = '';
     lunghezzaInput.value = '';
     durezzaInput.value = '';
@@ -832,27 +817,33 @@
       const mag = magazzini.find(m => m.id == a.magazzino)?.nome || a.magazzino;
       const cat = categorieCompleto.find(c => c.id == a.categoria)?.nome || a.categoria;
       const mar = marche.find(m => m.id == a.marca)?.nome || a.marca;
-      
-      // Calcola giacenza reale in modo robusto (ignora GIACENZA_REALE dal backend)
       const giacenza = a.giacenza_reale !== undefined && a.giacenza_reale !== null
-  ? a.giacenza_reale
-  : (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
+        ? a.giacenza_reale
+        : (a.quantita_totale || 0) - (a.quantita_in_kit || 0);
       
       const row = tbody.insertRow();
       row.insertCell(0).innerText = a.id;
       row.insertCell(1).innerText = a.codice;
-      row.insertCell(2).innerText = a.sigla || '-';
-      row.insertCell(3).innerText = a.descrizione;
-      row.insertCell(4).innerText = a.descrizione_completa;
-      row.insertCell(5).innerText = mag;
-      row.insertCell(6).innerText = cat;
-      row.insertCell(7).innerText = mar;
-      row.insertCell(8).innerText = a.lunghezza || '';
-      row.insertCell(9).innerText = a.durezza || '';
-      row.insertCell(10).innerText = a.quantita_totale;
-      row.insertCell(11).innerText = a.quantita_in_kit;
-      row.insertCell(12).innerText = giacenza;
-      row.insertCell(13).innerText = a.stato;
+      row.insertCell(2).innerText = a.descrizione;
+      row.insertCell(3).innerText = a.descrizione_completa;
+      row.insertCell(4).innerText = mag;
+      row.insertCell(5).innerText = cat;
+      row.insertCell(6).innerText = mar;
+      row.insertCell(7).innerText = a.lunghezza || '';
+      row.insertCell(8).innerText = a.durezza || '';
+      row.insertCell(9).innerText = a.quantita_totale;
+      row.insertCell(10).innerText = a.quantita_in_kit;
+      row.insertCell(11).innerText = giacenza;
+      row.insertCell(12).innerText = a.stato;
+      
+      // Bottone per gestire le sigle
+      const sigleCell = row.insertCell(13);
+      const sigleBtn = document.createElement('button');
+      sigleBtn.textContent = '🔖';
+      sigleBtn.className = 'btn';
+      sigleBtn.onclick = () => apriGestioneSigle(a.id, a.descrizione);
+      sigleCell.appendChild(sigleBtn);
+      
       const actions = row.insertCell(14);
       actions.className = 'action-buttons';
       actions.innerHTML = `
@@ -898,7 +889,7 @@
     }
   }
 
-  // ========== MODALE MODIFICA ==========
+  // ========== MODALE MODIFICA ARTICOLO ==========
   let currentEditId = null;
 
   async function caricaSelectsModale() {
@@ -937,14 +928,12 @@
       document.getElementById('editCategoria').value = articolo.categoria;
       document.getElementById('editMarca').value = articolo.marca;
       document.getElementById('editDescrizione').value = articolo.descrizione || '';
-      document.getElementById('editSigla').value = articolo.sigla || '';
       document.getElementById('editLunghezza').value = articolo.lunghezza || '';
       document.getElementById('editDurezza').value = articolo.durezza || '';
       document.getElementById('editCodiceModello').value = articolo.codice_modello || '';
       document.getElementById('editQuantita').value = articolo.quantita_totale;
       document.getElementById('editNote').value = articolo.note || '';
 
-      toggleEditLunghezzaDurezza();
       attachEditEvents();
       await refreshEditDatalists();
 
@@ -954,19 +943,9 @@
     }
   }
 
-  function toggleEditLunghezzaDurezza() {
-    const catId = document.getElementById('editCategoria').value;
-    const categoria = categorieCompleto.find(c => c.id == catId);
-    const mostraLunghezza = categoria ? categoria.mostra_lunghezza === 'SI' : true;
-    const mostraDurezza = categoria ? categoria.mostra_durezza === 'SI' : true;
-    document.getElementById('editGruppoLunghezza').style.display = mostraLunghezza ? 'block' : 'none';
-    document.getElementById('editGruppoDurezza').style.display = mostraDurezza ? 'block' : 'none';
-  }
-
-  const editFilterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+  const editFilterFields = ['magazzino', 'settore', 'categoria', 'marca', 'descrizione', 'lunghezza', 'durezza', 'codice_modello'];
   const editEndpointMap = {
     descrizione: '/api/articoli/valori/descrizioni',
-    sigla: '/api/articoli/valori/sigle',
     lunghezza: '/api/articoli/valori/lunghezze',
     durezza: '/api/articoli/valori/durezze',
     codice_modello: '/api/articoli/valori/modelli'
@@ -1022,7 +1001,7 @@
       el.removeEventListener('change', handleEditChange);
       el.addEventListener('change', handleEditChange);
     });
-    const textFields = ['descrizione', 'sigla', 'lunghezza', 'durezza', 'codice_modello'];
+    const textFields = ['descrizione', 'lunghezza', 'durezza', 'codice_modello'];
     textFields.forEach(field => {
       const input = document.getElementById(`edit${field.charAt(0).toUpperCase() + field.slice(1)}`);
       if (input) {
@@ -1033,7 +1012,6 @@
   }
 
   async function handleEditChange(e) {
-    if (e.target.id === 'editCategoria') toggleEditLunghezzaDurezza();
     await refreshEditDatalists();
   }
 
@@ -1045,7 +1023,6 @@
       durezza: document.getElementById('editDurezza').value.trim(),
       quantita_totale: parseInt(document.getElementById('editQuantita').value),
       note: document.getElementById('editNote').value.trim(),
-      sigla: document.getElementById('editSigla').value.trim(),
       codiceModello: document.getElementById('editCodiceModello').value.trim()
     };
     if (!dati.descrizione) {
@@ -1077,6 +1054,79 @@
 
   function chiudiModale() {
     document.getElementById('modalEdit').style.display = 'none';
+  }
+
+  // ========== GESTIONE SIGLE ==========
+  let currentSigleArticoloId = null;
+
+  async function apriGestioneSigle(articoloId, descrizione) {
+    currentSigleArticoloId = articoloId;
+    document.getElementById('sigleArticoloDesc').innerText = descrizione;
+    await caricaSigleArticolo(articoloId);
+    document.getElementById('modalSigle').style.display = 'flex';
+  }
+
+  async function caricaSigleArticolo(articoloId) {
+    try {
+      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+      const tbody = document.getElementById('sigleTableBody');
+      tbody.innerHTML = '';
+      sigle.forEach(s => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = s.sigla;
+        row.insertCell(1).innerText = s.lunghezza || '';
+        row.insertCell(2).innerText = s.durezza || '';
+        row.insertCell(3).innerText = s.codice_modello || '';
+        row.insertCell(4).innerText = s.note || '';
+        const actions = row.insertCell(5);
+        actions.innerHTML = `<button class="btn" onclick="modificaSigla(${s.id}, '${s.sigla}')">✏️</button>
+                             <button class="btn btn-danger" onclick="eliminaSigla(${s.id})">🗑️</button>`;
+      });
+    } catch(err) { showMessage('Errore caricamento sigle', 'error'); }
+  }
+
+  async function aggiungiSigla() {
+    const sigla = document.getElementById('nuovaSigla').value.trim();
+    if (!sigla) { showMessage('Inserisci una sigla', 'error'); return; }
+    const payload = {
+      sigla,
+      lunghezza: document.getElementById('nuovaSiglaLunghezza').value.trim(),
+      durezza: document.getElementById('nuovaSiglaDurezza').value.trim(),
+      codice_modello: document.getElementById('nuovaSiglaModello').value.trim(),
+      note: document.getElementById('nuovaSiglaNote').value.trim()
+    };
+    try {
+      await apiFetch(`/api/articoli/${currentSigleArticoloId}/sigle`, { method: 'POST', body: JSON.stringify(payload) });
+      showMessage('Sigla aggiunta', 'success');
+      document.getElementById('nuovaSigla').value = '';
+      document.getElementById('nuovaSiglaLunghezza').value = '';
+      document.getElementById('nuovaSiglaDurezza').value = '';
+      document.getElementById('nuovaSiglaModello').value = '';
+      document.getElementById('nuovaSiglaNote').value = '';
+      await caricaSigleArticolo(currentSigleArticoloId);
+    } catch(err) { showMessage(err.message, 'error'); }
+  }
+
+  async function modificaSigla(id, vecchiaSigla) {
+    const nuovaSigla = prompt('Modifica sigla:', vecchiaSigla);
+    if (!nuovaSigla || nuovaSigla === vecchiaSigla) return;
+    try {
+      await apiFetch(`/api/sigle/${id}`, { method: 'PUT', body: JSON.stringify({ sigla: nuovaSigla }) });
+      await caricaSigleArticolo(currentSigleArticoloId);
+    } catch(err) { showMessage(err.message, 'error'); }
+  }
+
+  async function eliminaSigla(id) {
+    if (!confirm('Eliminare questa sigla?')) return;
+    try {
+      await apiFetch(`/api/sigle/${id}`, { method: 'DELETE' });
+      await caricaSigleArticolo(currentSigleArticoloId);
+    } catch(err) { showMessage(err.message, 'error'); }
+  }
+
+  function chiudiModalSigle() {
+    document.getElementById('modalSigle').style.display = 'none';
+    currentSigleArticoloId = null;
   }
 
   function logout() {

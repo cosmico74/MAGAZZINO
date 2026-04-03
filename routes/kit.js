@@ -5,7 +5,7 @@ const { aggiornaSintesiCarico } = require('./assegnazioni');
 
 const router = express.Router();
 
-// GET all kits (con informazioni su eventuale assegnazione corrente e sigla dello sci)
+// GET all kits
 router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
@@ -30,7 +30,6 @@ router.get('/', verifyToken, async (req, res) => {
         id: k.assegnato_id,
         nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome}`.trim() : k.assegnato_nome,
         quantita: k.assegnato_quantita
-        
       } : null
     }));
     res.json(kits);
@@ -55,64 +54,17 @@ router.get('/:id', verifyToken, async (req, res) => {
 // POST create kit
 router.post('/', verifyToken, async (req, res) => {
   const {
-    magazzino, quantita, id_sci, id_attacchi, id_skistopper,
-    sigla, note, componiDaAssegnati, sourceTipo, sourceId,
-    destinazioneTipo, destinazioneId
+    magazzino, quantita, id_sci, sigla_sci_id,
+    id_attacchi, sigla_attacchi_id,
+    id_skistopper, sigla_skistopper_id,
+    note, destinazioneTipo, destinazioneId
   } = req.body;
 
   const connection = await db.getConnection();
   await connection.beginTransaction();
 
   try {
-    // 1. Se compone da oggetti assegnati, rientra i componenti dal soggetto sorgente al magazzino
-    if (componiDaAssegnati) {
-      if (!sourceTipo || !sourceId) {
-        throw new Error('Per comporre da assegnati serve sourceTipo e sourceId');
-      }
-      const [mag] = await connection.query('SELECT magazzino_id FROM magazzini WHERE magazzino_id = ?', [magazzino]);
-      if (!mag.length) throw new Error('Magazzino non trovato');
-
-      const { registraRientroTransazionale } = require('./assegnazioni');
-      await registraRientroTransazionale(connection, {
-        daTipo: sourceTipo,
-        daId: sourceId,
-        magazzinoId: magazzino,
-        tipoOggetto: 'ARTICOLO',
-        oggettoId: id_sci,
-        quantita: quantita,
-        note: `Rientro per composizione kit (sci)`,
-        operatore: req.userId,
-        userId: req.userId
-      });
-
-      await registraRientroTransazionale(connection, {
-        daTipo: sourceTipo,
-        daId: sourceId,
-        magazzinoId: magazzino,
-        tipoOggetto: 'ARTICOLO',
-        oggettoId: id_attacchi,
-        quantita: quantita,
-        note: `Rientro per composizione kit (attacchi)`,
-        operatore: req.userId,
-        userId: req.userId
-      });
-
-      if (id_skistopper) {
-        await registraRientroTransazionale(connection, {
-          daTipo: sourceTipo,
-          daId: sourceId,
-          magazzinoId: magazzino,
-          tipoOggetto: 'ARTICOLO',
-          oggettoId: id_skistopper,
-          quantita: quantita,
-          note: `Rientro per composizione kit (skistopper)`,
-          operatore: req.userId,
-          userId: req.userId
-        });
-      }
-    }
-
-    // 2. Consuma i componenti dal magazzino
+    // Consuma i componenti dal magazzino
     const consumaComponente = async (idComponente) => {
       const [art] = await connection.query(
         'SELECT (quantita_totale - quantita_in_kit) AS giacenza_reale FROM articoli WHERE articolo_id = ? FOR UPDATE',
@@ -131,7 +83,7 @@ router.post('/', verifyToken, async (req, res) => {
     await consumaComponente(id_attacchi);
     if (id_skistopper) await consumaComponente(id_skistopper);
 
-    // 3. Genera codice kit e descrizione
+    // Genera codice kit
     const [maxSeqRow] = await connection.query(`
       SELECT MAX(CAST(SUBSTRING(codice_kit, LOCATE('-', codice_kit, LOCATE('-', codice_kit)+1)+1) AS UNSIGNED)) AS max_seq
       FROM kit
@@ -140,19 +92,49 @@ router.post('/', verifyToken, async (req, res) => {
     const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
     const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
 
-    const [sci] = await connection.query('SELECT sigla, descrizione, lunghezza, durezza FROM articoli WHERE articolo_id = ?', [id_sci]);
-    const [att] = await connection.query('SELECT sigla, descrizione FROM articoli WHERE articolo_id = ?', [id_attacchi]);
-    let sk = null;
-    if (id_skistopper) {
-      [sk] = await connection.query('SELECT sigla, descrizione FROM articoli WHERE articolo_id = ?', [id_skistopper]);
+    // Recupera dettagli sci e sigla
+    const [sci] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_sci]);
+    let sciSigla = null;
+    let sciLunghezza = sci[0].lunghezza;
+    let sciDurezza = sci[0].durezza;
+    let sciDescrizione = sci[0].descrizione;
+    if (sigla_sci_id) {
+      const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_sci_id]);
+      if (siglaRow.length) {
+        sciSigla = siglaRow[0].sigla;
+        sciLunghezza = siglaRow[0].lunghezza || sciLunghezza;
+        sciDurezza = siglaRow[0].durezza || sciDurezza;
+      }
     }
 
-    const sciDisplay = `[${sci[0].sigla}] ${sci[0].descrizione} ${sci[0].lunghezza || ''} ${sci[0].durezza || ''}`.trim();
-    const attDisplay = att[0].sigla ? `[${att[0].sigla}] ${att[0].descrizione}` : att[0].descrizione;
-    const skDisplay = sk ? (sk[0].sigla ? `[${sk[0].sigla}] ${sk[0].descrizione}` : sk[0].descrizione) : null;
-    let descrizioneKit = `Kit: ${sciDisplay} + ${attDisplay}`;
-    if (skDisplay) descrizioneKit += ` + ${skDisplay}`;
+    // Attacchi
+    const [att] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_attacchi]);
+    let attSigla = null;
+    if (sigla_attacchi_id) {
+      const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_attacchi_id]);
+      if (siglaRow.length) attSigla = siglaRow[0].sigla;
+    }
 
+    // Skistopper
+    let skSigla = null;
+    if (id_skistopper) {
+      const [sk] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ?', [id_skistopper]);
+      if (sigla_skistopper_id) {
+        const [siglaRow] = await connection.query('SELECT * FROM sigle_articoli WHERE id = ?', [sigla_skistopper_id]);
+        if (siglaRow.length) skSigla = siglaRow[0].sigla;
+      }
+    }
+
+    // Costruisci descrizione kit
+    const sciDisplay = `${sciSigla ? `[${sciSigla}] ` : ''}${sciDescrizione} ${sciLunghezza || ''} ${sciDurezza || ''}`.trim();
+    const attDisplay = attSigla ? `[${attSigla}] ${att[0].descrizione}` : att[0].descrizione;
+    let descrizioneKit = `Kit: ${sciDisplay} + ${attDisplay}`;
+    if (id_skistopper) {
+      const skDesc = skSigla ? `[${skSigla}] ${sk[0].descrizione}` : sk[0].descrizione;
+      descrizioneKit += ` + ${skDesc}`;
+    }
+
+    // Inserisci kit
     const [kitResult] = await connection.query(
       `INSERT INTO kit (codice_kit, descrizione, id_sci, id_attacchi, id_skistopper, quantita, magazzino, sigla, note, data_creazione, data_modifica)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
@@ -160,28 +142,23 @@ router.post('/', verifyToken, async (req, res) => {
         codiceKit, descrizioneKit,
         id_sci, id_attacchi, id_skistopper || null,
         quantita, magazzino,
-        sigla || null, note || null
+        sciSigla || null,
+        note || null
       ]
     );
     const kitId = kitResult.insertId;
 
-    // 5. Se è stata specificata una destinazione finale, assegna il kit
+    // Assegnazione esterna
     if (destinazioneTipo && destinazioneId) {
-      const { registraUscitaTransazionale } = require('./assegnazioni');
-      await registraUscitaTransazionale(connection, {
-        magazzinoId: magazzino,
-        tipoOggetto: 'KIT',
-        oggettoId: kitId,
-        quantita: quantita,
-        destinazioneTipo,
-        destinazioneId,
-        note: note || 'Assegnazione automatica da composizione kit',
-        operatore: req.userId,
-        userId: req.userId
-      });
+      await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'KIT', kitId, +quantita);
+      await connection.query(
+        `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
+         VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
+        [`MAGAZZINO-${magazzino}`, `${destinazioneTipo}-${destinazioneId}`, kitId, 'KIT', quantita, req.userId, note || 'Assegnazione kit', req.userId]
+      );
     }
 
-    // 6. Registra movimento di composizione
+    // Movimento composizione
     await connection.query(
       `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
        VALUES (NOW(), 'COMPOSIZIONE', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
@@ -232,9 +209,13 @@ router.delete('/:id', verifyToken, async (req, res) => {
   const connection = await db.getConnection();
   await connection.beginTransaction();
   try {
-    const [kitRows] = await connection.query('SELECT * FROM kit WHERE id = ? FOR UPDATE', [req.params.id]);
-    if (kitRows.length === 0) throw new Error('Kit non trovato');
-    // TODO: verificare che non sia assegnato (carico_sintesi) o eventualmente gestire
+    const [assegnato] = await connection.query(
+      'SELECT SUM(quantita) AS tot FROM carico_sintesi WHERE tipo_oggetto = "KIT" AND oggetto_id = ?',
+      [req.params.id]
+    );
+    if (assegnato[0].tot > 0) {
+      throw new Error('Impossibile eliminare: il kit è ancora assegnato a soggetti');
+    }
     await connection.query('DELETE FROM kit WHERE id = ?', [req.params.id]);
     await connection.commit();
     res.json({ success: true, message: 'Kit eliminato' });
@@ -247,7 +228,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// ========== SPACCHETTAMENTO KIT ==========
+// SPACCHETTAMENTO
 router.post('/spacchetta', verifyToken, async (req, res) => {
   const { kitId, quantita, destinazioneTipo, destinazioneId } = req.body;
   if (!kitId || !quantita || !destinazioneTipo || !destinazioneId) {
@@ -258,37 +239,18 @@ router.post('/spacchetta', verifyToken, async (req, res) => {
   await connection.beginTransaction();
 
   try {
-    // 1. Verifica che il kit sia assegnato al soggetto e che la quantità richiesta sia disponibile
     const [carico] = await connection.query(
       'SELECT quantita FROM carico_sintesi WHERE destinazione_tipo = ? AND destinazione_id = ? AND tipo_oggetto = "KIT" AND oggetto_id = ? FOR UPDATE',
       [destinazioneTipo, destinazioneId, kitId]
     );
-    if (carico.length === 0) {
-      throw new Error('Il kit non è assegnato al soggetto specificato');
-    }
-    if (carico[0].quantita < quantita) {
-      throw new Error(`Quantità insufficiente: disponibili ${carico[0].quantita}, richieste ${quantita}`);
-    }
+    if (carico.length === 0) throw new Error('Kit non assegnato a questo soggetto');
+    if (carico[0].quantita < quantita) throw new Error('Quantità insufficiente');
 
-    // 2. Ottieni i dettagli del kit
     const [kitRows] = await connection.query('SELECT * FROM kit WHERE id = ? FOR UPDATE', [kitId]);
     if (kitRows.length === 0) throw new Error('Kit non trovato');
     const kit = kitRows[0];
-    if (kit.quantita < quantita) {
-      throw new Error(`Kit ha quantità ${kit.quantita}, richieste ${quantita}`);
-    }
 
-    // 3. Recupera gli articoli componenti (sci, attacchi, skistopper)
-    const [sciRow] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ? FOR UPDATE', [kit.id_sci]);
-    const [attRow] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ? FOR UPDATE', [kit.id_attacchi]);
-    let skRow = null;
-    if (kit.id_skistopper) {
-      [skRow] = await connection.query('SELECT * FROM articoli WHERE articolo_id = ? FOR UPDATE', [kit.id_skistopper]);
-    }
-
-    if (!sciRow || !attRow) throw new Error('Componenti del kit non trovati');
-
-    // 4. Riduci la quantità del kit nella sintesi carico
+    // Riduci quantità nella sintesi carico
     const nuovaQuantitaCarico = carico[0].quantita - quantita;
     if (nuovaQuantitaCarico === 0) {
       await connection.query(
@@ -302,49 +264,32 @@ router.post('/spacchetta', verifyToken, async (req, res) => {
       );
     }
 
-    // 5. Aumenta la quantità degli articoli componenti nella sintesi carico (assegnali al soggetto)
+    // Aggiungi componenti al carico del soggetto
     await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'ARTICOLO', kit.id_sci, +quantita);
     await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'ARTICOLO', kit.id_attacchi, +quantita);
     if (kit.id_skistopper) {
       await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'ARTICOLO', kit.id_skistopper, +quantita);
     }
 
-    // 6. Aggiorna la tabella articoli: riduci quantita_in_kit
-    await connection.query(
-      'UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?',
-      [quantita, kit.id_sci]
-    );
-    await connection.query(
-      'UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?',
-      [quantita, kit.id_attacchi]
-    );
+    // Aggiorna quantita_in_kit degli articoli
+    await connection.query('UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?', [quantita, kit.id_sci]);
+    await connection.query('UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?', [quantita, kit.id_attacchi]);
     if (kit.id_skistopper) {
-      await connection.query(
-        'UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?',
-        [quantita, kit.id_skistopper]
-      );
+      await connection.query('UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?', [quantita, kit.id_skistopper]);
     }
 
-    // 7. Aggiorna la quantità del kit nella tabella kit
-    const nuovaQuantitaKit = kit.quantita - quantita;
-    if (nuovaQuantitaKit === 0) {
-      await connection.query('DELETE FROM kit WHERE id = ?', [kitId]);
-    } else {
-      await connection.query('UPDATE kit SET quantita = ?, data_modifica = NOW() WHERE id = ?', [nuovaQuantitaKit, kitId]);
-    }
-
-    // 8. Registra un movimento di spacchettamento
+    // Movimento
     await connection.query(
       `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
        VALUES (NOW(), 'SPACCHETTAMENTO', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
-      [`${destinazioneTipo}-${destinazioneId}`, `KIT-${kitId}`, kitId, 'KIT', quantita, req.userId, `Spacchettamento di ${quantita} kit per ${destinazioneTipo} ${destinazioneId}`, req.userId]
+      [`${destinazioneTipo}-${destinazioneId}`, `KIT-${kitId}`, kitId, 'KIT', quantita, req.userId, `Spacchettamento di ${quantita} kit`, req.userId]
     );
 
     await connection.commit();
-    res.json({ success: true, message: `Kit spacchettato con successo (${quantita} unità)` });
+    res.json({ success: true, message: `Kit spacchettato (${quantita} unità)` });
   } catch (err) {
     await connection.rollback();
-    console.error('Errore spacchettamento kit:', err);
+    console.error('Errore spacchettamento:', err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     connection.release();
