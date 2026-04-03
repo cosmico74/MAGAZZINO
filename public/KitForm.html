@@ -911,34 +911,33 @@
   }
 
   // ---------- CARICAMENTO SIGLE PER UN ARTICOLO ----------
-  async function caricaSigle(articoloId, selectId, groupId) {
-    const group = document.getElementById(groupId);
-    const select = document.getElementById(selectId);
-    if (!articoloId) {
+ async function caricaSigle(articoloId, selectId, groupId) {
+  const group = document.getElementById(groupId);
+  const select = document.getElementById(selectId);
+  if (!articoloId) {
+    group.style.display = 'none';
+    select.innerHTML = '<option value="">Nessuna sigla</option>';
+    return;
+  }
+  try {
+    const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+    if (sigle.length === 0) {
       group.style.display = 'none';
       select.innerHTML = '<option value="">Nessuna sigla</option>';
-      return;
+    } else {
+      group.style.display = 'block';
+      select.innerHTML = '<option value="">Nessuna sigla</option>';
+      sigle.forEach(s => {
+        let testo = s.sigla;
+        if (s.durezza) testo += ` - ${s.durezza}`;   // solo durezza, senza lunghezza
+        select.appendChild(new Option(testo, s.id));
+      });
     }
-    try {
-      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-      if (sigle.length === 0) {
-        group.style.display = 'none';
-        select.innerHTML = '<option value="">Nessuna sigla</option>';
-      } else {
-        group.style.display = 'block';
-        select.innerHTML = '<option value="">Nessuna sigla</option>';
-        sigle.forEach(s => {
-          let testo = s.sigla;
-          if (s.lunghezza) testo += ` (${s.lunghezza})`;
-          if (s.durezza) testo += ` - ${s.durezza}`;
-          select.appendChild(new Option(testo, s.id));
-        });
-      }
-    } catch (err) {
-      console.error('Errore caricamento sigle:', err);
-      group.style.display = 'none';
-    }
+  } catch (err) {
+    console.error('Errore caricamento sigle:', err);
+    group.style.display = 'none';
   }
+}
 
   function setupArticoloConSigle(inputId, siglaSelectId, siglaGroupId) {
     const input = document.getElementById(inputId);

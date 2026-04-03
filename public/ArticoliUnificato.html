@@ -102,12 +102,14 @@
       overflow-x: auto;
       overflow-y: auto;
       flex: 1;
+      min-height: 0;
       margin-top: 8px;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
     }
     table {
       width: 100%;
+      min-width: 800px;
       border-collapse: collapse;
       font-size: 0.7rem;
     }
@@ -403,16 +405,18 @@
     <p><strong>Articolo:</strong> <span id="sigleArticoloDesc"></span></p>
     <div style="margin: 10px 0;">
       <table class="sigle-table">
-        <thead><tr><th>Sigla</th><th>Lunghezza</th><th>Durezza</th><th>Codice Modello</th><th>Note</th><th></th></tr></thead>
+        <thead><tr><th>Sigla</th><th>Durezza</th><th>Codice Modello</th><th>Note</th><th></th></tr></thead>
         <tbody id="sigleTableBody"></tbody>
       </table>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Nuova Sigla</label><input type="text" id="nuovaSigla" placeholder="Sigla"></div>
-      <div class="form-group"><label>Lunghezza</label><input type="text" id="nuovaSiglaLunghezza"></div>
-      <div class="form-group"><label>Durezza</label><input type="text" id="nuovaSiglaDurezza"></div>
-      <div class="form-group"><label>Codice Modello</label><input type="text" id="nuovaSiglaModello"></div>
-      <div class="form-group"><label>Note</label><input type="text" id="nuovaSiglaNote"></div>
+      <div class="form-group"><label>Nuova Sigla</label><input type="text" id="nuovaSigla" placeholder="Sigla" required></div>
+      <div class="form-group"><label>Durezza</label><input type="text" id="nuovaSiglaDurezza" placeholder="Durezza"></div>
+      <div class="form-group"><label>Codice Modello</label>
+        <input type="text" id="nuovaSiglaModello" list="modelliList" placeholder="Codice modello">
+        <datalist id="modelliList"></datalist>
+      </div>
+      <div class="form-group"><label>Note</label><input type="text" id="nuovaSiglaNote" placeholder="Note"></div>
       <div class="form-group"><button class="btn" onclick="aggiungiSigla()">➕ Aggiungi</button></div>
     </div>
     <div class="modal-buttons">
@@ -1059,53 +1063,68 @@
   // ========== GESTIONE SIGLE ==========
   let currentSigleArticoloId = null;
 
-  async function apriGestioneSigle(articoloId, descrizione) {
-    currentSigleArticoloId = articoloId;
-    document.getElementById('sigleArticoloDesc').innerText = descrizione;
-    await caricaSigleArticolo(articoloId);
-    document.getElementById('modalSigle').style.display = 'flex';
-  }
+// Popola il datalist dei codici modello in base alla descrizione dell'articolo
+async function popolaDatalistModelli(descrizioneArticolo) {
+  if (!descrizioneArticolo) return;
+  try {
+    const res = await apiFetch(`/api/articoli/valori/modelli?descrizione=${encodeURIComponent(descrizioneArticolo)}`);
+    const datalist = document.getElementById('modelliList');
+    datalist.innerHTML = '';
+    res.forEach(item => {
+      if (item.codice_modello) {
+        const option = document.createElement('option');
+        option.value = item.codice_modello;
+        datalist.appendChild(option);
+      }
+    });
+  } catch(err) { console.error(err); }
+}
 
+// Modifica apriGestioneSigle per popolare il datalist
+async function apriGestioneSigle(articoloId, descrizione) {
+  currentSigleArticoloId = articoloId;
+  document.getElementById('sigleArticoloDesc').innerText = descrizione;
+  await caricaSigleArticolo(articoloId);
+  await popolaDatalistModelli(descrizione);
+  document.getElementById('modalSigle').style.display = 'flex';
+}
   async function caricaSigleArticolo(articoloId) {
-    try {
-      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-      const tbody = document.getElementById('sigleTableBody');
-      tbody.innerHTML = '';
-      sigle.forEach(s => {
-        const row = tbody.insertRow();
-        row.insertCell(0).innerText = s.sigla;
-        row.insertCell(1).innerText = s.lunghezza || '';
-        row.insertCell(2).innerText = s.durezza || '';
-        row.insertCell(3).innerText = s.codice_modello || '';
-        row.insertCell(4).innerText = s.note || '';
-        const actions = row.insertCell(5);
-        actions.innerHTML = `<button class="btn" onclick="modificaSigla(${s.id}, '${s.sigla}')">✏️</button>
-                             <button class="btn btn-danger" onclick="eliminaSigla(${s.id})">🗑️</button>`;
-      });
-    } catch(err) { showMessage('Errore caricamento sigle', 'error'); }
-  }
+  try {
+    const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+    const tbody = document.getElementById('sigleTableBody');
+    tbody.innerHTML = '';
+    sigle.forEach(s => {
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = s.sigla;
+      row.insertCell(1).innerText = s.durezza || '';
+      row.insertCell(2).innerText = s.codice_modello || '';
+      row.insertCell(3).innerText = s.note || '';
+      const actions = row.insertCell(4);
+      actions.innerHTML = `<button class="btn" onclick="modificaSigla(${s.id}, '${s.sigla}')">✏️</button>
+                           <button class="btn btn-danger" onclick="eliminaSigla(${s.id})">🗑️</button>`;
+    });
+  } catch(err) { showMessage('Errore caricamento sigle', 'error'); }
+}
 
   async function aggiungiSigla() {
-    const sigla = document.getElementById('nuovaSigla').value.trim();
-    if (!sigla) { showMessage('Inserisci una sigla', 'error'); return; }
-    const payload = {
-      sigla,
-      lunghezza: document.getElementById('nuovaSiglaLunghezza').value.trim(),
-      durezza: document.getElementById('nuovaSiglaDurezza').value.trim(),
-      codice_modello: document.getElementById('nuovaSiglaModello').value.trim(),
-      note: document.getElementById('nuovaSiglaNote').value.trim()
-    };
-    try {
-      await apiFetch(`/api/articoli/${currentSigleArticoloId}/sigle`, { method: 'POST', body: JSON.stringify(payload) });
-      showMessage('Sigla aggiunta', 'success');
-      document.getElementById('nuovaSigla').value = '';
-      document.getElementById('nuovaSiglaLunghezza').value = '';
-      document.getElementById('nuovaSiglaDurezza').value = '';
-      document.getElementById('nuovaSiglaModello').value = '';
-      document.getElementById('nuovaSiglaNote').value = '';
-      await caricaSigleArticolo(currentSigleArticoloId);
-    } catch(err) { showMessage(err.message, 'error'); }
-  }
+  const sigla = document.getElementById('nuovaSigla').value.trim();
+  if (!sigla) { showMessage('Inserisci una sigla', 'error'); return; }
+  const payload = {
+    sigla,
+    durezza: document.getElementById('nuovaSiglaDurezza').value.trim(),
+    codice_modello: document.getElementById('nuovaSiglaModello').value.trim(),
+    note: document.getElementById('nuovaSiglaNote').value.trim()
+  };
+  try {
+    await apiFetch(`/api/articoli/${currentSigleArticoloId}/sigle`, { method: 'POST', body: JSON.stringify(payload) });
+    showMessage('Sigla aggiunta', 'success');
+    document.getElementById('nuovaSigla').value = '';
+    document.getElementById('nuovaSiglaDurezza').value = '';
+    document.getElementById('nuovaSiglaModello').value = '';
+    document.getElementById('nuovaSiglaNote').value = '';
+    await caricaSigleArticolo(currentSigleArticoloId);
+  } catch(err) { showMessage(err.message, 'error'); }
+}
 
   async function modificaSigla(id, vecchiaSigla) {
     const nuovaSigla = prompt('Modifica sigla:', vecchiaSigla);
