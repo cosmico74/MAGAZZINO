@@ -99,20 +99,18 @@
       justify-content: flex-end;
     }
     .table-wrapper {
-      overflow-x: auto;
-      overflow-y: auto;
-      flex: 1;
-      min-height: 0;
-      margin-top: 8px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-    table {
-      width: 100%;
-      min-width: 800px;
-      border-collapse: collapse;
-      font-size: 0.7rem;
-    }
+    overflow-x: auto;   /* scroll orizzontale */
+    overflow-y: auto;   /* scroll verticale */
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    min-width: 1200px;  /* forza la larghezza minima per attivare lo scroll orizzontale */
+    border-collapse: collapse;
+}
     th, td {
       padding: 4px 6px;
       border: 1px solid #ddd;
