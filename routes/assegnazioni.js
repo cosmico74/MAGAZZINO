@@ -4,7 +4,7 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// ========== HELPER: AGGIORNA SINTESI CARICO CON SIGLA ==========
+// ========== HELPER: AGGIORNA SINTESI CARICO ==========
 async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione) {
   const query = `
     INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita)
@@ -63,7 +63,7 @@ async function registraRientroTransazionale(connection, params) {
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
-// ========== OTTIENI OGGETTI IN CARICO (CON SIGLE) ==========
+// ========== OTTIENI OGGETTI IN CARICO (con sigle) ==========
 async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null) {
   let query = `
     SELECT 
@@ -89,7 +89,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN sci.durezza
       END AS DUREZZA,
-      -- Sigla visualizzata: se c'è sigla_id la usiamo, altrimenti la prima disponibile
+      -- Sigla per articoli e kit (da sigle_articoli)
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN COALESCE(
           (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id),
@@ -100,8 +100,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
       a.settore AS SETTORE,
       a.marca AS MARCA,
       a.codice_modello AS CODICE_MODELLO,
-      a.categoria AS CATEGORIA,
-      k.id_sci AS KIT_ID_SCI
+      a.categoria AS CATEGORIA
     FROM carico_sintesi cs
     LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
     LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -129,12 +128,11 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     CODICE_MODELLO: row.CODICE_MODELLO,
     CATEGORIA: row.CATEGORIA,
     destinazioneTipo: row.destinazione_tipo,
-    destinazioneId: row.destinazione_id,
-    kitIdSci: row.KIT_ID_SCI
+    destinazioneId: row.destinazione_id
   }));
 }
 
-// ========== REFERENTI RICORSIVI ==========
+// ========== REFERENTI RICORSIVI (stessa logica) ==========
 async function getSoggettiReferenziati(soggettoId) {
   const [diretti] = await pool.query('SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?', [soggettoId]);
   let result = diretti.map(r => r.soggetto_id);
@@ -176,7 +174,7 @@ async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = nul
   return oggetti;
 }
 
-// ========== ROTTA PRINCIPALE: OTTIENI OGGETTI ==========
+// ========== ROTTA PRINCIPALE ==========
 router.post('/oggetti', verifyToken, async (req, res) => {
   try {
     const { magazzino, targetTipo, targetId, includeReferenced } = req.body;
@@ -230,8 +228,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             END AS SIGLA,
             a.settore AS SETTORE,
             a.marca AS MARCA,
-            a.codice_modello AS CODICE_MODELLO,
-            k.id_sci AS KIT_ID_SCI
+            a.codice_modello AS CODICE_MODELLO
           FROM carico_sintesi cs
           LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
           LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -269,8 +266,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             CODICE_MODELLO: row.CODICE_MODELLO,
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
-            destinatarioNome,
-            kitIdSci: row.KIT_ID_SCI
+            destinatarioNome
           };
         });
         return res.json({ success: true, oggetti: tutte });

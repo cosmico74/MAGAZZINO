@@ -1206,7 +1206,7 @@
       const mag = magazzini.find(m => m.id == k.magazzino)?.nome || k.magazzino;
       const sci = articoliDettaglioCache.get(k.id_sci);
       const sciDisplay = sci ? formatArticleDisplay(sci) : k.id_sci;
-      const sciSigla = k.sigla || '';
+      const sciSigla = k.sci_sigla || '';
       const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione || k.id_attacchi;
       const skDesc = k.id_skistopper ? (articoliDettaglioCache.get(k.id_skistopper)?.descrizione || k.id_skistopper) : '-';
 
