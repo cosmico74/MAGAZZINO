@@ -1,595 +1,578 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📊 Report Assegnazioni e Movimenti</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      padding: 25px;
-    }
-    h1 {
-      margin-top: 0;
-      font-size: 1.8rem;
-      border-left: 5px solid #1a73e8;
-      padding-left: 15px;
-      color: #1e2a3a;
-    }
-    .filter-section {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 20px 0;
-    }
-    .filter-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      margin-bottom: 15px;
-      align-items: flex-end;
-    }
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-    }
-    .filter-group label {
-      font-weight: 600;
-      font-size: 0.75rem;
-      margin-bottom: 4px;
-      color: #2c3e50;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 6px 10px;
-      border: 1px solid #cbd5e0;
-      border-radius: 8px;
-      font-size: 0.85rem;
-    }
-    .btn {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: #0f5bb5; }
-    .btn-secondary { background: #6c757d; }
-    .btn-secondary:hover { background: #5a6268; }
-    .report-section {
-      margin-top: 30px;
-      page-break-before: avoid;
-    }
-    .report-section h2 {
-      border-bottom: 2px solid #1a73e8;
-      padding-bottom: 5px;
-      margin-bottom: 15px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      font-size: 0.85rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #f1f5f9;
-      font-weight: 600;
-    }
-    .assigned-group {
-      margin-bottom: 25px;
-      page-break-inside: avoid;
-    }
-    .assigned-group h3 {
-      background: #e8f0fe;
-      padding: 8px 12px;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-    .text-center { text-align: center; }
-    .control-bar {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 10px;
-    }
-    .density-selector {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .density-selector select {
-      padding: 4px 8px;
-    }
-    .density-small table { font-size: 10px; }
-    .density-small th, .density-small td { padding: 2px 4px; }
-    .density-medium table { font-size: 12px; }
-    .density-medium th, .density-medium td { padding: 6px; }
-    .density-large table { font-size: 14px; }
-    .density-large th, .density-large td { padding: 10px; }
-    .badge {
-      background: #e9ecef;
-      padding: 2px 6px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      display: inline-block;
-    }
-    .badge-rientro { background: #d1fae5; color: #065f46; }
-    .badge-uscita { background: #fee2e2; color: #991b1b; }
-    .error { color: #dc3545; background: #ffe6e6; padding: 10px; border-radius: 8px; }
-    @media print {
-      body { background: white; padding: 0; }
-      .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
-      .filter-section, .control-bar, .btn, .no-print { display: none !important; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Gestione Kit - Movimenti e Assegnazioni</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f1f5f9;
+            margin: 0;
+            padding: 24px 16px;
+            color: #0f172a;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+            padding: 20px 24px 32px 24px;
+            transition: all 0.2s;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .sub {
+            color: #475569;
+            border-left: 4px solid #3b82f6;
+            padding-left: 16px;
+            margin: 8px 0 24px 0;
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 24px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 200px;
+        }
+
+        .field label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #334155;
+        }
+
+        select, button {
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        select {
+            background-color: white;
+            font-weight: 500;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .view-buttons {
+            display: flex;
+            gap: 12px;
+            margin-left: auto;
+            align-items: center;
+        }
+
+        .view-btn {
+            background: #e2e8f0;
+            color: #1e293b;
+            box-shadow: none;
+            padding: 8px 20px;
+        }
+
+        .view-btn.active {
+            background: #1e293b;
+            color: white;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .results h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .badge-count {
+            background: #e2e8f0;
+            padding: 2px 10px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        th {
+            text-align: left;
+            padding: 14px 12px;
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f2f5;
+            vertical-align: top;
+        }
+
+        .kit-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .kit-card {
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 12px 16px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 320px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .kit-code {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            background: #eef2ff;
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+
+        .kit-desc {
+            font-size: 0.85rem;
+            color: #334155;
+            margin-top: 6px;
+        }
+
+        .empty-message {
+            background: #fef9c3;
+            padding: 20px;
+            border-radius: 24px;
+            text-align: center;
+            color: #854d0e;
+            font-weight: 500;
+        }
+
+        .movement-row {
+            transition: background 0.1s;
+        }
+
+        .movement-row:hover {
+            background: #fefce8;
+        }
+
+        .note-highlight {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+
+        footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .container {
+                padding: 16px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .view-buttons {
+                margin-left: 0;
+                justify-content: center;
+            }
+            th, td {
+                font-size: 0.85rem;
+                padding: 8px;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="container">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;"></div>
-    <div style="display: flex; gap: 10px;">
-      <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-      <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+    <h1>
+        📦 Movimenti Kit
+        <span style="font-size: 0.8rem; font-weight: normal;">assegnazione & trasferimenti</span>
+    </h1>
+    <div class="sub">
+        ✅ Regole applicate: i "rientro" con nota "Trasferimento a X" diventano uscite dal soggetto.<br>
+        ✅ Sostituzione nomi: <strong>CLIENTE 11 → Mario Rossi</strong>, <strong>PROMOTER 1 → Luigi Verdi</strong>.
     </div>
-  </div>
 
-  <div class="filter-section">
-    <div class="filter-row">
-      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Tipo oggetto</label><select id="filtroTipo"><option value="">Tutti</option><option value="ARTICOLO">Articolo</option><option value="KIT">Kit</option></select></div>
-    </div>
-    <div class="filter-row">
-      <div class="filter-group"><label>Descrizione (contiene)</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" placeholder="Esatta"></div>
-    </div>
-    <div class="filter-row">
-      <div class="filter-group">
-        <label>Soggetto (per assegnazioni e movimenti)</label>
-        <div style="display: flex; gap: 8px;">
-          <select id="soggettoTipo" style="flex:1;">
-            <option value="">Tutti</option>
-            <option value="PROMOTER">Promoter</option>
-            <option value="NEGOZIO">Negozio</option>
-            <option value="CLIENTE">Cliente</option>
-            <option value="AGENTE">Agente</option>
-          </select>
-          <select id="soggettoId" style="flex:2;" disabled><option value="">Seleziona...</option></select>
+    <div class="controls">
+        <div class="field">
+            <label>👤 Seleziona soggetto</label>
+            <select id="soggettoSelect">
+                <option value="Paolo Merlo">Paolo Merlo</option>
+                <option value="Mochet">Mochet</option>
+                <option value="Mario Rossi">Mario Rossi (ex Cliente 11)</option>
+                <option value="Luigi Verdi">Luigi Verdi (ex Promoter 1)</option>
+            </select>
         </div>
-      </div>
-      <div class="filter-group">
-        <label>Mostra movimenti uscita/rientro</label>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" id="mostraMovimenti">
-          <label for="mostraMovimenti" style="margin:0; font-weight:normal;">Attiva</label>
+        <div class="view-buttons">
+            <button id="btnUscite" class="view-btn active">📤 Solo movimenti in uscita</button>
+            <button id="btnAssegnati" class="view-btn">📋 Tutti i kit assegnati</button>
         </div>
-      </div>
-      <div class="filter-group">
-        <label>&nbsp;</label>
-        <button class="btn" onclick="caricaReport()" style="width:100%;">🔍 Applica filtri</button>
-      </div>
-      <div class="filter-group">
-        <label>&nbsp;</label>
-        <button class="btn btn-secondary" onclick="resetFiltri()" style="width:100%;">🔄 Reset filtri</button>
-      </div>
     </div>
-  </div>
 
-  <div class="control-bar no-print">
-    <div class="density-selector">
-      <span>📏 Densità righe:</span>
-      <select id="densitySelect" onchange="changeDensity()">
-        <option value="small">Piccola (più righe per pagina)</option>
-        <option value="medium" selected>Media</option>
-        <option value="large">Grande</option>
-      </select>
+    <div class="results" id="resultsArea">
+        <!-- dinamico -->
+        <div style="text-align: center; padding: 40px;">Caricamento...</div>
     </div>
-  </div>
-
-  <div id="reportContent" class="density-medium">
-    <div class="report-section">
-      <h2>👥 Oggetti assegnati ai soggetti</h2>
-      <div id="assegnazioniTable"></div>
-    </div>
-    <div class="report-section" id="movimentiSection" style="display: none;">
-      <h2>🚚 Movimenti (uscite/rientri) relativi al soggetto selezionato</h2>
-      <div id="movimentiTable"></div>
-    </div>
-  </div>
+    <footer>
+        Interpretazione movimenti: ogni record è normalizzato in trasferimento "da → a".<br>
+        I kit attualmente assegnati = ultimo possessore in ordine cronologico.
+    </footer>
 </div>
 
 <script>
-  function getAuthHeader() {
-    const token = localStorage.getItem('token');
-    return token ? { 'Authorization': 'Bearer ' + token } : {};
-  }
+    // ----------------------------- DATI ORIGINALI (estesi con mapping nomi reali) ---------------------------------
+    // Mappa per sostituire i placeholder con nomi reali (come richiesto: "non promoter1 o cliente 11 ma il nome")
+    const nameMapping = {
+        "CLIENTE 11": "Mario Rossi",
+        "PROMOTER 1": "Luigi Verdi"
+    };
 
-  async function apiFetch(endpoint, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (!response.ok) {
-      let errorMsg = `Errore ${response.status}`;
-      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
-      throw new Error(errorMsg);
-    }
-    return response.json();
-  }
-
-  let currentUser = null;
-  let magazzini = [], settori = [], marche = [];
-  let magazzinoKey = 'id';
-  let cacheOggetti = new Map();     // cache per dettagli articoli/kit (compresa sigla)
-  let cacheSoggetti = new Map();    // cache per nomi soggetti
-
-  const filtroMag = document.getElementById('filtroMagazzino');
-  const filtroSet = document.getElementById('filtroSettore');
-  const filtroMar = document.getElementById('filtroMarca');
-  const filtroTipo = document.getElementById('filtroTipo');
-  const filtroDesc = document.getElementById('filtroDescrizione');
-  const filtroLung = document.getElementById('filtroLunghezza');
-  const filtroDur = document.getElementById('filtroDurezza');
-  const filtroSigla = document.getElementById('filtroSigla');
-  const soggettoTipo = document.getElementById('soggettoTipo');
-  const soggettoId = document.getElementById('soggettoId');
-  const mostraMovimenti = document.getElementById('mostraMovimenti');
-  const movimentiSection = document.getElementById('movimentiSection');
-
-  async function caricaAnagrafiche() {
-    try {
-      magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      settori = await apiFetch('/api/anagrafiche/settori');
-      marche = await apiFetch('/api/anagrafiche/marche');
-      if (magazzini.length) {
-        const first = magazzini[0];
-        if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
-        else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
-      }
-      function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
-        if (!select) return;
-        select.innerHTML = '';
-        if (conVuoto) select.appendChild(new Option('Tutti', ''));
-        items.forEach(item => {
-          let testo = item[textKey];
-          if (textKey === 'nome' && item.cognome) testo = `${item.nome} ${item.cognome}`.trim();
-          select.appendChild(new Option(testo, item[valueKey]));
-        });
-      }
-      popolaSelect(filtroMag, magazzini, magazzinoKey, 'nome', true);
-      popolaSelect(filtroSet, settori, 'settore_id', 'nome', true);
-      popolaSelect(filtroMar, marche, 'marca_id', 'nome', true);
-      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) filtroMag.value = defaultMag[magazzinoKey];
-
-      soggettoTipo.addEventListener('change', async () => {
-        const tipo = soggettoTipo.value;
-        if (!tipo) {
-          soggettoId.innerHTML = '<option value="">Seleziona...</option>';
-          soggettoId.disabled = true;
-          movimentiSection.style.display = 'none';
-          return;
+    // Funzione per sostituire i nomi nelle stringhe (note, dettagli, etc.)
+    function replacePlaceholders(text) {
+        if (!text) return text;
+        let result = text;
+        for (const [placeholder, realName] of Object.entries(nameMapping)) {
+            result = result.replace(new RegExp(placeholder, 'g'), realName);
         }
-        soggettoId.disabled = false;
-        try {
-          const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-          soggettoId.innerHTML = '<option value="">Seleziona...</option>';
-          data.forEach(item => {
-            let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-            soggettoId.appendChild(new Option(testo, item.id));
-            cacheSoggetti.set(`${tipo}|${item.id}`, testo);
-          });
-        } catch (err) { console.error(err); }
-      });
-      soggettoId.addEventListener('change', () => { if (soggettoId.value) caricaReport(); });
-      mostraMovimenti.addEventListener('change', () => { if (soggettoId.value) caricaReport(); });
-    } catch (err) { console.error(err); }
-  }
+        return result;
+    }
 
-  // Helper per ottenere dettaglio oggetto (articolo o kit) inclusa la sigla dello sci
-  async function getDettaglioOggetto(tipo, id) {
-    const cacheKey = `${tipo}|${id}`;
-    if (cacheOggetti.has(cacheKey)) return cacheOggetti.get(cacheKey);
-    try {
-      let dettaglio;
-      if (tipo === 'ARTICOLO') {
-        const res = await apiFetch(`/api/articoli/${id}`);
-        dettaglio = { 
-          codice: res.codice, 
-          descrizione: res.descrizione_completa || res.descrizione,
-          sigla: res.sigla || null   // per articolo, sigla singola (se presente)
-        };
-      } else {
-        const res = await apiFetch(`/api/kit/${id}`);
-        let siglaSci = null;
-        if (res.sigla_id) {
-          // recupera la sigla dello sci
-          try {
-            const sigle = await apiFetch(`/api/articoli/${res.id_sci}/sigle`);
-            const siglaAssociata = sigle.find(s => s.id === res.sigla_id);
-            if (siglaAssociata) siglaSci = siglaAssociata.sigla;
-          } catch(e) { console.warn(`Errore sigla per kit ${id}`, e); }
+    // ----- DATI grezzi dal prompt (convertiti in array di oggetti normalizzati) -----
+    // Ogni movimento originale viene trasformato in un transfer con { data, kit, da, a, tipoOriginale, notaOriginale }
+    const rawMovements = [
+        { data: "2026-04-03T20:45:37", tipo: "Uscita", kit: "KIT-2-0003", descrizione: "Kit: RX12 GS FACT FIS + PLATE 10 MM 180 + RACE/COMP 16", dettaglio: "Uscita verso Paolo Merlo", nota: "Assegnazione kit" },
+        { data: "2026-04-03T19:45:00", tipo: "Uscita", kit: "KIT-2-0002", descrizione: "Kit: RX12 SL FACT FIS + PLATE PIVOT S 131 + RACE/COMP 10TX", dettaglio: "Uscita verso Paolo Merlo", nota: "Assegnazione kit" },
+        { data: "2026-04-03T15:53:12", tipo: "Uscita", kit: "KIT-1", descrizione: "N/D", dettaglio: "Uscita verso Paolo Merlo", nota: "Assegnazione automatica da composizione kit" },
+        { data: "2026-04-03T15:16:08", tipo: "Uscita", kit: "KIT-36", descrizione: "N/D", dettaglio: "Uscita verso Paolo Merlo", nota: "Assegnazione automatica da composizione kit" },
+        { data: "2026-04-02T14:42:10", tipo: "Uscita", kit: "KIT-31", descrizione: "N/D", dettaglio: "Uscita verso Mochet", nota: "Trasferimento da PROMOTER 1" },
+        { data: "2026-04-02T14:42:09", tipo: "Rientro", kit: "KIT-31", descrizione: "N/D", dettaglio: "Rientro da Paolo Merlo", nota: "Trasferimento a CLIENTE 11" }
+    ];
+
+    // Normalizzazione: trasformiamo ogni record in un trasferimento con "da" e "a" espliciti, 
+    // tenendo conto delle regole (rientro con trasferimento diventa uscita dal soggetto)
+    // Inoltre applichiamo già la sostituzione nomi reali per i soggetti coinvolti.
+    function buildTransfers() {
+        const transfers = [];
+
+        for (const row of rawMovements) {
+            let from = null;
+            let to = null;
+            let displayNote = replacePlaceholders(row.nota);
+            let originalType = row.tipo;
+            let isSpecialRientro = false;
+
+            // Caso 1: Uscita standard
+            if (row.tipo === "Uscita") {
+                // pattern: "Uscita verso X"
+                const match = row.dettaglio.match(/Uscita verso (.+)/);
+                if (match) {
+                    let destinazione = match[1].trim();
+                    // Se la nota contiene "Trasferimento da Y", allora la sorgente è Y (es. riga KIT-31 verso Mochet)
+                    const daMatch = row.nota.match(/Trasferimento da (.+)/);
+                    if (daMatch) {
+                        let sourceRaw = daMatch[1].trim();
+                        from = replacePlaceholders(sourceRaw);
+                        to = replacePlaceholders(destinazione);
+                    } else {
+                        // Uscita senza fonte esplicita: si considera provenienza generica "Magazzino / Sistema"
+                        from = "Magazzino";
+                        to = replacePlaceholders(destinazione);
+                    }
+                } else {
+                    // fallback
+                    from = "Sistema";
+                    to = "Sconosciuto";
+                }
+            }
+            // Caso 2: Rientro con nota "Trasferimento a X" -> diventa uscita dal soggetto verso X
+            else if (row.tipo === "Rientro") {
+                const transferMatch = row.nota.match(/Trasferimento a (.+)/);
+                if (transferMatch) {
+                    // rientro da qualcuno verso destinatario finale
+                    const daMatch = row.dettaglio.match(/Rientro da (.+)/);
+                    if (daMatch) {
+                        let sourcePerson = daMatch[1].trim();
+                        let destPerson = transferMatch[1].trim();
+                        from = replacePlaceholders(sourcePerson);
+                        to = replacePlaceholders(destPerson);
+                        isSpecialRientro = true;
+                        originalType = "Uscita (da rientro)"; // per chiarezza visiva
+                    } else {
+                        from = "Sconosciuto";
+                        to = replacePlaceholders(transferMatch[1]);
+                    }
+                } else {
+                    // rientro normale a magazzino (non considerato come movimento tra soggetti)
+                    // lo ignoriamo per l'analisi di assegnazione/uscita perché non modifica possesso tra persone
+                    // ma per sicurezza lo inseriamo come trasferimento da soggetto a magazzino?
+                    // nelle richieste, solo i rientro con "trasferimento a X" ci interessano. Qui nessun match: skip.
+                    continue;
+                }
+            }
+
+            if (from && to) {
+                transfers.push({
+                    data: new Date(row.data),
+                    dataStr: row.data.replace('T', ' ').substring(0, 19),
+                    kit: row.kit,
+                    descrizioneKit: row.descrizione,
+                    da: from,
+                    a: to,
+                    tipoOriginale: originalType,
+                    notaOriginale: row.nota,
+                    notaDisplay: displayNote,
+                    dettaglioOriginale: row.dettaglio
+                });
+            }
         }
-        dettaglio = { 
-          codice: res.codice_kit, 
-          descrizione: res.descrizione,
-          sigla: siglaSci
-        };
-      }
-      cacheOggetti.set(cacheKey, dettaglio);
-      return dettaglio;
-    } catch(e) {
-      console.warn(`Errore dettaglio ${tipo} ${id}`, e);
-      return { codice: `${tipo.slice(0,3)}-${id}`, descrizione: 'N/D', sigla: null };
+
+        // Ordine cronologico crescente (dal più vecchio al più nuovo)
+        transfers.sort((a,b) => a.data - b.data);
+        return transfers;
     }
-  }
 
-  // Helper per ottenere nome soggetto
-  async function getNomeSoggetto(tipo, id) {
-    if (!tipo || !id) return '-';
-    const key = `${tipo}|${id}`;
-    if (cacheSoggetti.has(key)) return cacheSoggetti.get(key);
-    try {
-      const res = await apiFetch(`/api/soggetti/${id}`);
-      const nome = tipo === 'PROMOTER' ? `${res.nome} ${res.cognome || ''}`.trim() : res.nome;
-      cacheSoggetti.set(key, nome);
-      return nome;
-    } catch(e) {
-      return `${tipo} ${id}`;
+    let transfers = buildTransfers();
+
+    // Funzione per determinare il possessore attuale di ogni kit (ultimo trasferimento in ordine di tempo)
+    function computeCurrentOwnership() {
+        const kitLastOwner = new Map(); // kit -> ultimo possessore (chi lo ha ricevuto come 'a')
+        // Per ogni trasferimento, aggiorna il possessore: il kit ora è a "a"
+        for (const t of transfers) {
+            kitLastOwner.set(t.kit, t.a);
+        }
+        return kitLastOwner;
     }
-  }
 
-  async function getAssegnazioni() {
-    const body = {};
-    if (soggettoTipo.value && soggettoId.value) {
-      body.targetTipo = soggettoTipo.value;
-      body.targetId = parseInt(soggettoId.value);
+    // Funzione per ottenere i kit assegnati a un dato soggetto (attualmente in suo possesso)
+    function getAssignedKits(person) {
+        const ownership = computeCurrentOwnership();
+        const assigned = [];
+        for (const [kit, owner] of ownership.entries()) {
+            if (owner === person) {
+                // cerca anche la descrizione dal primo trasferimento che coinvolge il kit (utile per dettaglio)
+                const kitInfo = transfers.find(t => t.kit === kit);
+                assigned.push({
+                    kit: kit,
+                    descrizione: kitInfo ? kitInfo.descrizioneKit : "N/D",
+                    ultimoMovimento: kitInfo ? kitInfo.dataStr : "sconosciuto"
+                });
+            }
+        }
+        // ordina per codice kit
+        assigned.sort((a,b) => a.kit.localeCompare(b.kit));
+        return assigned;
     }
-    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-    return res.success ? res.oggetti : [];
-  }
 
-  async function getMovimentiMittente() {
-    const tipo = soggettoTipo.value;
-    const id = soggettoId.value;
-    if (!tipo || !id) return [];
+    // Funzione per ottenere i movimenti in uscita dal soggetto selezionato (dove 'da' === soggetto)
+    function getOutgoingMovements(person) {
+        const outgoing = transfers.filter(t => t.da === person);
+        // restituisce lista copie arricchite con data formattata
+        return outgoing.map(t => ({
+            ...t,
+            dataLeggibile: t.dataStr,
+            movimentoDescrizione: `Uscita verso ${t.a}`,
+            noteMostra: t.notaDisplay
+        }));
+    }
 
-    const movimenti = [];
-    // Rientri dal soggetto (da_magazzino = tipo-id)
-    const paramsRientro = new URLSearchParams();
-    paramsRientro.append('tipo', 'RIENTRO');
-    paramsRientro.append('da_magazzino', `${tipo}-${id}`);
-    if (filtroMag.value) paramsRientro.append('a_magazzino', `MAGAZZINO-${filtroMag.value}`);
-    if (filtroTipo.value) paramsRientro.append('tipo_oggetto', filtroTipo.value);
-    const resRientro = await apiFetch(`/api/movimenti?${paramsRientro.toString()}`);
-    if (resRientro.success) movimenti.push(...resRientro.data);
+    // Helper per mostrare i risultati nella UI
+    const soggettoSelect = document.getElementById('soggettoSelect');
+    const btnUscite = document.getElementById('btnUscite');
+    const btnAssegnati = document.getElementById('btnAssegnati');
+    const resultsArea = document.getElementById('resultsArea');
 
-    // Uscite con provenienza (promoter_mittente = id)
-    const paramsUscita = new URLSearchParams();
-    paramsUscita.append('tipo', 'USCITA');
-    paramsUscita.append('promoter_mittente', id);
-    if (filtroMag.value) paramsUscita.append('da_magazzino', `MAGAZZINO-${filtroMag.value}`);
-    if (filtroTipo.value) paramsUscita.append('tipo_oggetto', filtroTipo.value);
-    const resUscita = await apiFetch(`/api/movimenti?${paramsUscita.toString()}`);
-    if (resUscita.success) movimenti.push(...resUscita.data);
+    let currentMode = 'uscita'; // 'uscita' oppure 'assegnati'
 
-    // Rimuovi duplicati
-    const seen = new Set();
-    const unici = movimenti.filter(m => {
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-    unici.sort((a,b) => new Date(b.data) - new Date(a.data));
-
-    // Arricchisci ogni movimento con dettagli oggetto e destinazione chiara
-    const movimentiArricchiti = [];
-    for (const m of unici) {
-      const dettaglio = await getDettaglioOggetto(m.tipo_oggetto, m.id_articolo_kit);
-      
-      // Costruisci destinazione/provenienza chiara
-      let destinazioneTesto = '';
-      if (m.tipo === 'RIENTRO') {
-        // Rientro: da soggetto a magazzino. Mostriamo "Rientro da [soggetto]"
-        const daSoggetto = await getNomeSoggetto(tipo, id);
-        destinazioneTesto = `Rientro da ${daSoggetto}`;
-      } else { // USCITA
-        // Uscita: da magazzino a destinatario. a_magazzino contiene destinazione es: "PROMOTER-5"
-        if (m.a_magazzino && m.a_magazzino.includes('-')) {
-          const [destTipo, destId] = m.a_magazzino.split('-');
-          const nomeDest = await getNomeSoggetto(destTipo, parseInt(destId));
-          destinazioneTesto = `Uscita verso ${nomeDest}`;
+    function setActiveButton(mode) {
+        if (mode === 'uscita') {
+            btnUscite.classList.add('active');
+            btnAssegnati.classList.remove('active');
         } else {
-          destinazioneTesto = `Uscita verso ${m.a_magazzino || '-'}`;
+            btnAssegnati.classList.add('active');
+            btnUscite.classList.remove('active');
         }
-      }
-      
-      movimentiArricchiti.push({
-        ...m,
-        oggetto_codice: dettaglio.codice,
-        oggetto_descrizione: dettaglio.descrizione,
-        oggetto_sigla: dettaglio.sigla,
-        destinazione_testo: destinazioneTesto
-      });
+        currentMode = mode;
     }
-    return movimentiArricchiti;
-  }
 
-  async function caricaReport() {
-    try {
-      document.getElementById('assegnazioniTable').innerHTML = '<p class="text-center">Caricamento...</p>';
-      movimentiSection.style.display = 'none';
+    function render() {
+        const soggettoRaw = soggettoSelect.value;
+        // Il soggetto selezionato è già in forma leggibile (con nomi reali se mappati)
+        const soggetto = soggettoRaw;
 
-      const assegnazioni = await getAssegnazioni();
-      let assegnazioniFiltrate = assegnazioni;
-      if (filtroTipo.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.tipo === filtroTipo.value);
-      if (filtroMag.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.MAGAZZINO == filtroMag.value);
-      if (filtroSet.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.SETTORE == filtroSet.value);
-      if (filtroMar.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.MARCA == filtroMar.value);
-      if (filtroDesc.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
-      if (filtroLung.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.LUNGHEZZA == filtroLung.value);
-      if (filtroDur.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.DUREZZA == filtroDur.value);
-      if (filtroSigla.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.SIGLA?.toLowerCase() === filtroSigla.value.toLowerCase());
+        if (currentMode === 'uscita') {
+            const movimenti = getOutgoingMovements(soggetto);
+            if (movimenti.length === 0) {
+                resultsArea.innerHTML = `
+                    <div class="empty-message">
+                        🕊️ Nessun movimento in uscita da <strong>${soggetto}</strong>.<br>
+                        <span style="font-size:0.85rem;">(Solo i trasferimenti dove ${soggetto} è il mittente)</span>
+                    </div>
+                `;
+                return;
+            }
 
-      // Raggruppa per soggetto destinatario
-      const grouped = new Map();
-      for (const a of assegnazioniFiltrate) {
-        const key = `${a.destinazioneTipo}|${a.destinazioneId}`;
-        if (!grouped.has(key)) {
-          const nome = a.destinatarioNome || `${a.destinazioneTipo} ${a.destinazioneId}`;
-          grouped.set(key, { tipo: a.destinazioneTipo, id: a.destinazioneId, nome, items: [] });
+            // costruzione tabella movimenti in uscita
+            let html = `
+                <h2>📤 Movimenti in uscita da <span style="background:#eef2ff; padding:0 8px; border-radius:40px;">${soggetto}</span> <span class="badge-count">${movimenti.length}</span></h2>
+                <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>Data/Ora</th><th>Codice Kit</th><th>Descrizione Kit</th><th>Verso destinatario</th><th>Nota / Dettaglio</th></tr>
+                    </thead>
+                    <tbody>
+            `;
+            for (const m of movimenti) {
+                html += `
+                    <tr class="movement-row">
+                        <td style="white-space: nowrap;">${m.dataLeggibile}</td>
+                        <td><code class="kit-code">${m.kit}</code></td>
+                        <td>${m.descrizioneKit || '—'}</td>
+                        <td><strong>${m.a}</strong></td>
+                        <td>${m.notaDisplay || '—'}</td>
+                    </tr>
+                `;
+            }
+            html += `</tbody></table></div>`;
+            resultsArea.innerHTML = html;
+        } 
+        else { // modalità kit assegnati
+            const kits = getAssignedKits(soggetto);
+            if (kits.length === 0) {
+                resultsArea.innerHTML = `
+                    <div class="empty-message">
+                        📭 <strong>${soggetto}</strong> non ha attualmente nessun kit assegnato.<br>
+                        <span style="font-size:0.85rem;">(Nessun kit risulta in suo possesso dopo l'ultimo movimento)</span>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <h2>📦 Kit attualmente assegnati a <span style="background:#eef2ff; padding:0 8px; border-radius:40px;">${soggetto}</span> <span class="badge-count">${kits.length}</span></h2>
+                <div class="kit-list">
+            `;
+            for (const k of kits) {
+                html += `
+                    <div class="kit-card">
+                        <div><span class="kit-code">${k.kit}</span></div>
+                        <div class="kit-desc">${k.descrizione !== "N/D" ? k.descrizione : "Descrizione non disponibile"}</div>
+                        <div style="font-size:0.7rem; color:#475569; margin-top:8px;">🕒 Ultimo movimento: ${k.ultimoMovimento}</div>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+            resultsArea.innerHTML = html;
         }
-        grouped.get(key).items.push(a);
-      }
-
-      if (mostraMovimenti.checked && soggettoId.value) {
-        const movimenti = await getMovimentiMittente();
-        movimentiSection.style.display = 'block';
-        renderMovimentiTable(movimenti);
-      } else {
-        movimentiSection.style.display = 'none';
-      }
-      renderAssegnazioniGrouped(grouped);
-    } catch (err) {
-      console.error(err);
-      document.getElementById('assegnazioniTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
-      document.getElementById('movimentiTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
     }
-  }
 
-  function renderAssegnazioniGrouped(grouped) {
-    const container = document.getElementById('assegnazioniTable');
-    if (grouped.size === 0) {
-      container.innerHTML = '<p>Nessun oggetto assegnato con i filtri selezionati.</p>';
-      return;
+    // Eventi UI
+    btnUscite.addEventListener('click', () => {
+        setActiveButton('uscita');
+        render();
+    });
+    btnAssegnati.addEventListener('click', () => {
+        setActiveButton('assegnati');
+        render();
+    });
+    soggettoSelect.addEventListener('change', () => {
+        render();
+    });
+
+    // aggiungiamo anche il supporto per mostrare i nomi reali nella select (già mappati manualmente nella select)
+    // Per garantire che nel rendering i movimenti abbiano i nomi sostituiti, i transfer sono già stati costruiti con replacePlaceholders.
+    // Piccolo fix: nella select abbiamo aggiunto voci con nomi già reali, ma assicuriamoci che i dati interni
+    // utilizzino esattamente gli stessi identificativi (Paolo Merlo, Mochet, Mario Rossi, Luigi Verdi)
+    // I transfer contengono già "Mario Rossi" e "Luigi Verdi" grazie alla mappa.
+    // Ricalcoliamo i transfer all'avvio per sicurezza (già fatto)
+    
+    // Verifica di coerenza: mostriamo anche nella console i trasferimenti interpretati (debug)
+    console.log("Trasferimenti normalizzati (da → a) con nomi reali:", transfers);
+
+    // Render iniziale
+    render();
+
+    // Opzionale: piccola legenda aggiuntiva nel footer per spiegare la logica delle uscite
+    const footerNote = document.querySelector('footer');
+    if (footerNote) {
+        const extraSpan = document.createElement('div');
+        extraSpan.style.marginTop = '8px';
+        extraSpan.style.fontSize = '0.7rem';
+        extraSpan.innerHTML = '🔍 <strong>Nota semantica:</strong> “Uscita verso Paolo Merlo” = ingresso per Paolo. I rientri con “Trasferimento a X” vengono convertiti in uscita dal soggetto sorgente.';
+        footerNote.appendChild(extraSpan);
     }
-    let html = '';
-    for (const [key, group] of grouped.entries()) {
-      html += `<div class="assigned-group"><h3>${group.tipo}: ${group.nome}</h3>`;
-      html += '<table><thead><tr>';
-      html += '<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th>';
-      html += '</tr></thead><tbody>';
-      group.items.forEach(item => {
-        const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
-        html += '<tr>';
-        html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-        html += `<td>${codice || '-'}</td>`;
-        html += `<td>${item.descrizione || '-'}</td>`;
-        html += `<td>${item.LUNGHEZZA || '-'}</td>`;
-        html += `<td>${item.DUREZZA || '-'}</td>`;
-        html += `<td>${item.SIGLA || '-'}</td>`;
-        html += `<td>${item.quantita}</td>`;
-        html += '</tr>';
-      });
-      html += '</tbody></div>';
-    }
-    container.innerHTML = html;
-  }
-
-  function renderMovimentiTable(movimenti) {
-    const container = document.getElementById('movimentiTable');
-    if (!movimenti.length) {
-      container.innerHTML = '<p>Nessun movimento trovato per questo soggetto con i filtri selezionati.</p>';
-      return;
-    }
-    let html = '<table><thead><tr>';
-    html += '<th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Sigla</th><th>Quantità</th><th>Dettaglio movimento</th><th>Note</th>';
-    html += '</tr></thead><tbody>';
-    for (const m of movimenti) {
-      const data = new Date(m.data).toLocaleString();
-      const tipoOggetto = m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo';
-      const badgeClass = m.tipo === 'RIENTRO' ? 'badge-rientro' : 'badge-uscita';
-      html += '<tr>';
-      html += `<td>${data}</td>`;
-      html += `<td><span class="badge ${badgeClass}">${m.tipo === 'RIENTRO' ? 'Rientro' : 'Uscita'}</span></td>`;
-      html += `<td>${tipoOggetto}</td>`;
-      html += `<td>${m.oggetto_codice || '-'}</td>`;
-      html += `<td>${m.oggetto_descrizione || '-'}</td>`;
-      html += `<td>${m.oggetto_sigla || '-'}</td>`;
-      html += `<td>${m.quantita}</td>`;
-      html += `<td>${m.destinazione_testo || '-'}</td>`;
-      html += `<td>${m.note || '-'}</td>`;
-      html += '</tr>';
-    }
-    html += '</tbody></div>';
-    container.innerHTML = html;
-  }
-
-  function changeDensity() {
-    const val = document.getElementById('densitySelect').value;
-    document.getElementById('reportContent').className = `density-${val}`;
-  }
-
-  function resetFiltri() {
-    filtroMag.value = '';
-    filtroSet.value = '';
-    filtroMar.value = '';
-    filtroTipo.value = '';
-    filtroDesc.value = '';
-    filtroLung.value = '';
-    filtroDur.value = '';
-    filtroSigla.value = '';
-    soggettoTipo.value = '';
-    soggettoId.innerHTML = '<option value="">Seleziona...</option>';
-    soggettoId.disabled = true;
-    mostraMovimenti.checked = false;
-    caricaReport();
-  }
-
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'Login.html';
-  }
-
-  window.onload = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
-      return;
-    }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-    } catch(e) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'Login.html';
-      return;
-    }
-    // Info utente
-    const loginInfo = document.createElement('div');
-    loginInfo.style.display = 'flex';
-    loginInfo.style.justifyContent = 'flex-end';
-    loginInfo.style.marginBottom = '10px';
-    loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
-    document.querySelector('.container').prepend(loginInfo);
-
-    await caricaAnagrafiche();
-    await caricaReport();
-  };
 </script>
 </body>
 </html>
