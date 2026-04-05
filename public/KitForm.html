@@ -557,6 +557,10 @@
   let cachedAssignedKits = null;
   let lastSourceKey = null;
 
+  let currentEditSciId = null;
+  let currentEditAttacchiId = null;
+  let currentEditSkistopperId = null;
+
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
   const filtroMar = document.getElementById('filtroMarca');
@@ -1466,6 +1470,11 @@ async function modificaKit(id) {
       document.getElementById('editKitSkistopper').value = '';
     }
 
+    // Imposta gli ID correnti
+    currentEditSciId = kit.id_sci;
+    currentEditAttacchiId = kit.id_attacchi;
+    currentEditSkistopperId = kit.id_skistopper || null;
+
     // Mostra info assegnazione (opzionale)
     const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
     const assignedInfoDiv = document.getElementById('assignedInfo');
@@ -1477,10 +1486,66 @@ async function modificaKit(id) {
       assignedInfoDiv.style.display = 'none';
     }
 
-    // Popola le datalist del modale con i componenti disponibili (stesso magazzino del kit)
+    // Popola le datalist del modale
     await popolaDatalistPerModale('sci', 'editSciList', kit.magazzino);
     await popolaDatalistPerModale('attacchi', 'editAttacchiList', kit.magazzino);
     await popolaDatalistPerModale('skistopper', 'editSkistopperList', kit.magazzino);
+
+    // Aggiunge i listener per aggiornare gli ID quando l'utente seleziona un valore
+    const sciInput = document.getElementById('editKitSci');
+    const attInput = document.getElementById('editKitAttacchi');
+    const skInput = document.getElementById('editKitSkistopper');
+
+    const updateSciId = () => {
+      const val = sciInput.value;
+      const datalist = document.getElementById('editSciList');
+      if (datalist) {
+        for (let opt of datalist.options) {
+          if (opt.value === val) {
+            currentEditSciId = parseInt(opt.getAttribute('data-id'));
+            return;
+          }
+        }
+      }
+      currentEditSciId = null;
+    };
+    const updateAttId = () => {
+      const val = attInput.value;
+      const datalist = document.getElementById('editAttacchiList');
+      if (datalist) {
+        for (let opt of datalist.options) {
+          if (opt.value === val) {
+            currentEditAttacchiId = parseInt(opt.getAttribute('data-id'));
+            return;
+          }
+        }
+      }
+      currentEditAttacchiId = null;
+    };
+    const updateSkId = () => {
+      const val = skInput.value;
+      if (!val) {
+        currentEditSkistopperId = null;
+        return;
+      }
+      const datalist = document.getElementById('editSkistopperList');
+      if (datalist) {
+        for (let opt of datalist.options) {
+          if (opt.value === val) {
+            currentEditSkistopperId = parseInt(opt.getAttribute('data-id'));
+            return;
+          }
+        }
+      }
+      currentEditSkistopperId = null;
+    };
+
+    sciInput.removeEventListener('change', updateSciId);
+    sciInput.addEventListener('change', updateSciId);
+    attInput.removeEventListener('change', updateAttId);
+    attInput.addEventListener('change', updateAttId);
+    skInput.removeEventListener('change', updateSkId);
+    skInput.addEventListener('change', updateSkId);
 
     // Mostra il modale
     document.getElementById('modalEditKit').style.display = 'flex';
@@ -1488,7 +1553,44 @@ async function modificaKit(id) {
     showMessage('Errore caricamento kit: ' + err.message, 'error');
   }
 }
-  async function salvaModificaKit() {
+
+
+async function salvaModificaKit() {
+  const id = currentEditId;
+  const magazzino = editKitMagazzino.value;
+  const quantita = parseInt(document.getElementById('editKitQuantita').value);
+  const note = document.getElementById('editKitNote').value.trim();
+
+  if (!magazzino || isNaN(quantita) || !currentEditSciId || !currentEditAttacchiId) {
+    showMessage('Compila tutti i campi obbligatori (magazzino, quantità, sci, attacchi)', 'error');
+    return;
+  }
+
+  const payload = {
+    magazzino: parseInt(magazzino),
+    quantita: quantita,
+    id_sci: currentEditSciId,
+    id_attacchi: currentEditAttacchiId,
+    id_skistopper: currentEditSkistopperId || null,
+    sigla_id: null,
+    note: note || null
+  };
+
+  try {
+    const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    if (result.success) {
+      showMessage('Kit aggiornato', 'success');
+      chiudiModaleKit();
+      await caricaKit();
+      await refreshComponentDatalists();
+      await refreshFilterDatalists();
+    } else {
+      showMessage(result.message, 'error');
+    }
+  } catch (err) {
+    showMessage('Errore: ' + err.message, 'error');
+  }
+}
     const id = currentEditId;
     const magazzino = editKitMagazzino.value;
     const quantita = parseInt(document.getElementById('editKitQuantita').value);
@@ -1537,9 +1639,20 @@ async function modificaKit(id) {
     }
   }
 
-  function chiudiModaleKit() {
-    document.getElementById('modalEditKit').style.display = 'none';
-  }
+ function chiudiModaleKit() {
+  document.getElementById('modalEditKit').style.display = 'none';
+  // Rimuovi i listener per evitare memory leak (opzionale)
+  const sciInput = document.getElementById('editKitSci');
+  const attInput = document.getElementById('editKitAttacchi');
+  const skInput = document.getElementById('editKitSkistopper');
+  sciInput?.removeEventListener('change', () => {});
+  attInput?.removeEventListener('change', () => {});
+  skInput?.removeEventListener('change', () => {});
+  currentEditId = null;
+  currentEditSciId = null;
+  currentEditAttacchiId = null;
+  currentEditSkistopperId = null;
+}
 
   // ---------- GESTIONE FILTRI GLOBALI ----------
   let debounceTimer;
