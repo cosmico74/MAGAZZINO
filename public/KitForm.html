@@ -655,127 +655,245 @@
     });
   }
 
-  function aggiungiRigaSiglaEdit(prefill = null) {
-    const tbody = document.getElementById('editSigleTbody');
-    const row = tbody.insertRow();
-    // Sigla (select)
-    const tdSigla = row.insertCell(0);
-    const siglaSelect = document.createElement('select');
-    siglaSelect.className = 'sigla-select';
-    siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
-    currentEditSigleDisponibili.forEach(s => {
+ function aggiungiRigaSiglaEdit(prefill = null) {
+  const tbody = document.getElementById('editSigleTbody');
+  const row = tbody.insertRow();
+  
+  // Ottieni le sigle già usate nelle righe esistenti (escludendo quella che stiamo aggiungendo)
+  const righeEsistenti = Array.from(tbody.querySelectorAll('tr')).map(r => {
+    const select = r.cells[0].querySelector('select');
+    return select ? parseInt(select.value) : null;
+  }).filter(id => id && !isNaN(id));
+  
+  const sigleDisponibili = getSigleDisponibili(righeEsistenti);
+  
+  // Colonna Sigla
+  const tdSigla = row.insertCell(0);
+  const siglaSelect = document.createElement('select');
+  siglaSelect.className = 'sigla-select';
+  siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+  sigleDisponibili.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
+    if (prefill && prefill.sigla_id == s.id) opt.selected = true;
+    siglaSelect.appendChild(opt);
+  });
+  // Se prefill ha una sigla che non è più disponibile (caso raro), la aggiungiamo comunque
+  if (prefill && prefill.sigla_id && !sigleDisponibili.find(s => s.id == prefill.sigla_id)) {
+    const opt = document.createElement('option');
+    opt.value = prefill.sigla_id;
+    opt.text = prefill.sigla || `Sigla ${prefill.sigla_id}`;
+    opt.selected = true;
+    siglaSelect.appendChild(opt);
+  }
+  tdSigla.appendChild(siglaSelect);
+  
+  // Colonna Attacco
+  const tdAtt = row.insertCell(1);
+  const attSelect = document.createElement('select');
+  attSelect.className = 'attacco-select';
+  attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
+  if (window.attacchiDisponibili) {
+    window.attacchiDisponibili.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.text = formatArticleDisplay(a);
+      if (prefill && prefill.attacco_id == a.id) opt.selected = true;
+      attSelect.appendChild(opt);
+    });
+  }
+  tdAtt.appendChild(attSelect);
+  
+  // Colonna Skistopper
+  const tdSk = row.insertCell(2);
+  const skSelect = document.createElement('select');
+  skSelect.className = 'skistopper-select';
+  skSelect.innerHTML = '<option value="">Nessuno</option>';
+  if (window.skistoppersDisponibili) {
+    window.skistoppersDisponibili.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.text = formatArticleDisplay(s);
+      if (prefill && prefill.skistopper_id == s.id) opt.selected = true;
+      skSelect.appendChild(opt);
+    });
+  }
+  tdSk.appendChild(skSelect);
+  
+  // Colonna Quantità
+  const tdQta = row.insertCell(3);
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number';
+  qtyInput.value = prefill ? prefill.quantita : 1;
+  qtyInput.min = 1;
+  qtyInput.style.width = '70px';
+  tdQta.appendChild(qtyInput);
+  
+  // Azioni
+  const tdAz = row.insertCell(4);
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '🗑️';
+  delBtn.className = 'btn btn-danger';
+  delBtn.onclick = () => {
+    row.remove();
+    // Dopo la rimozione, aggiorna i dropdown delle sigle nelle altre righe
+    aggiornaSelectSigleInTutteRighe();
+  };
+  tdAz.appendChild(delBtn);
+  
+  // Quando cambia la selezione della sigla, non serve fare altro perché la validazione avviene al salvataggio
+  // Tuttavia, per evitare duplicati, possiamo disabilitare le sigle già usate in altre righe
+  siglaSelect.addEventListener('change', () => {
+    aggiornaSelectSigleInTutteRighe();
+  });
+}
+
+function aggiornaSelectSigleInTutteRighe() {
+  const righe = document.querySelectorAll('#editSigleTbody tr');
+  // Raccogli tutte le sigle attualmente selezionate (valori validi)
+  const sigleSelezionate = [];
+  for (let row of righe) {
+    const select = row.cells[0].querySelector('select');
+    if (select && select.value) {
+      sigleSelezionate.push(parseInt(select.value));
+    }
+  }
+  
+  // Per ogni riga, ricostruisci le opzioni escludendo le sigle selezionate nelle altre righe
+  for (let row of righe) {
+    const select = row.cells[0].querySelector('select');
+    if (!select) continue;
+    
+    const currentVal = select.value ? parseInt(select.value) : null;
+    // Escludi le sigle selezionate in altre righe (mantieni quella corrente)
+    const altreSigle = sigleSelezionate.filter(id => id !== currentVal);
+    const disponibili = getSigleDisponibili(altreSigle);
+    
+    // Salva l'opzione attualmente selezionata (per ripristinarla se ancora valida)
+    const currentOption = Array.from(select.options).find(opt => opt.value == currentVal);
+    
+    // Ricostruisci il select
+    select.innerHTML = '<option value="">Seleziona sigla</option>';
+    disponibili.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
-      if (prefill && prefill.sigla_id == s.id) opt.selected = true;
-      siglaSelect.appendChild(opt);
+      if (currentVal === s.id) opt.selected = true;
+      select.appendChild(opt);
     });
-    tdSigla.appendChild(siglaSelect);
-    // Attacco
-    const tdAtt = row.insertCell(1);
-    const attSelect = document.createElement('select');
-    attSelect.className = 'attacco-select';
-    attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
-    if (window.attacchiDisponibili) {
-      window.attacchiDisponibili.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a.id;
-        opt.text = formatArticleDisplay(a);
-        if (prefill && prefill.attacco_id == a.id) opt.selected = true;
-        attSelect.appendChild(opt);
-      });
+    
+    // Se la sigla corrente non è più tra le disponibili (caso di modifica di una riga esistente),
+    // la riaggiungiamo manualmente per non perderla
+    if (currentVal && !disponibili.find(s => s.id === currentVal) && currentOption) {
+      const opt = document.createElement('option');
+      opt.value = currentVal;
+      opt.text = currentOption.text;
+      opt.selected = true;
+      select.appendChild(opt);
     }
-    tdAtt.appendChild(attSelect);
-    // Skistopper
-    const tdSk = row.insertCell(2);
-    const skSelect = document.createElement('select');
-    skSelect.className = 'skistopper-select';
-    skSelect.innerHTML = '<option value="">Nessuno</option>';
-    if (window.skistoppersDisponibili) {
-      window.skistoppersDisponibili.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.text = formatArticleDisplay(s);
-        if (prefill && prefill.skistopper_id == s.id) opt.selected = true;
-        skSelect.appendChild(opt);
-      });
-    }
-    tdSk.appendChild(skSelect);
-    // Quantità
-    const tdQta = row.insertCell(3);
-    const qtyInput = document.createElement('input');
-    qtyInput.type = 'number';
-    qtyInput.value = prefill ? prefill.quantita : 1;
-    qtyInput.min = 1;
-    qtyInput.style.width = '70px';
-    tdQta.appendChild(qtyInput);
-    // Azioni
-    const tdAz = row.insertCell(4);
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '🗑️';
-    delBtn.className = 'btn btn-danger';
-    delBtn.onclick = () => row.remove();
-    tdAz.appendChild(delBtn);
   }
+}
 
-  function raccogliRigheEdit() {
-    const righe = [];
-    const rows = document.querySelectorAll('#editSigleTbody tr');
-    for (let row of rows) {
-      const siglaSelect = row.cells[0].querySelector('select');
-      const attSelect = row.cells[1].querySelector('select');
-      const skSelect = row.cells[2].querySelector('select');
-      const qtyInput = row.cells[3].querySelector('input');
-      const siglaId = siglaSelect.value;
-      const attId = attSelect.value;
-      const skId = skSelect.value;
-      const quantita = parseInt(qtyInput.value);
-      if (!siglaId || !attId) {
-        showMessage('Ogni riga deve avere sigla e attacco', 'error');
-        return null;
-      }
-      righe.push({
-        sigla_id: parseInt(siglaId),
-        attacco_id: parseInt(attId),
-        skistopper_id: skId ? parseInt(skId) : null,
-        quantita: quantita
-      });
+function raccogliRigheEdit() {
+  const righe = [];
+  const rows = document.querySelectorAll('#editSigleTbody tr');
+  for (let row of rows) {
+    const siglaSelect = row.cells[0].querySelector('select');
+    const attSelect = row.cells[1].querySelector('select');
+    const skSelect = row.cells[2].querySelector('select');
+    const qtyInput = row.cells[3].querySelector('input');
+    const siglaId = siglaSelect.value;
+    const attId = attSelect.value;
+    const skId = skSelect.value;
+    const quantita = parseInt(qtyInput.value);
+    if (!siglaId || !attId) {
+      showMessage('Ogni riga deve avere sigla e attacco', 'error');
+      return null;
     }
-    return righe;
+    righe.push({
+      sigla_id: parseInt(siglaId),
+      attacco_id: parseInt(attId),
+      skistopper_id: skId ? parseInt(skId) : null,
+      quantita: quantita
+    });
   }
+  return righe;
+}
 
-  async function salvaModificaKit() {
-    const id = currentEditId;
-    const magazzino = editKitMagazzino.value;
-    const note = document.getElementById('editKitNote').value.trim();
-    const righe = raccogliRigheEdit();
-    if (!righe) return;
-    if (righe.length === 0) {
-      showMessage('Aggiungi almeno una sigla', 'error');
+async function salvaModificaKit() {
+  const id = currentEditId;
+  const magazzino = editKitMagazzino.value;
+  const note = document.getElementById('editKitNote').value.trim();
+  const righe = raccogliRigheEdit();
+  if (!righe) return;
+  if (righe.length === 0) {
+    showMessage('Aggiungi almeno una sigla', 'error');
+    return;
+  }
+  
+  // Verifica giacenza per ogni componente
+  // Carica le giacenze attuali degli articoli coinvolti
+  const articoliIdSet = new Set();
+  for (const r of righe) {
+    articoliIdSet.add(currentEditSciId);
+    articoliIdSet.add(r.attacco_id);
+    if (r.skistopper_id) articoliIdSet.add(r.skistopper_id);
+  }
+  const giacenze = {};
+  for (let artId of articoliIdSet) {
+    try {
+      const art = await apiFetch(`/api/articoli/${artId}`);
+      giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
+    } catch(e) {
+      showMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
       return;
     }
-    const payload = {
-      magazzino: parseInt(magazzino),
-      sci_id: currentEditSciId,
-      note: note,
-      righe: righe
-    };
-    try {
-      const result = await apiFetch(`/api/kit/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      if (result.success) {
-        showMessage('Kit aggiornato con successo', 'success');
-        chiudiModaleKit();
-        await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
+  }
+  
+  // Verifica che per ogni riga la quantità richiesta non superi la giacenza
+  for (const r of righe) {
+    const qta = r.quantita;
+    if (giacenze[currentEditSciId] < qta) {
+      showMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richiesto ${qta})`, 'error');
+      return;
+    }
+    if (giacenze[r.attacco_id] < qta) {
+      const attaccoArt = window.attacchiDisponibili.find(a => a.id === r.attacco_id);
+      const nomeAttacco = attaccoArt ? formatArticleDisplay(attaccoArt) : `Attacco ID ${r.attacco_id}`;
+      showMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[r.attacco_id]}, richiesto ${qta})`, 'error');
+      return;
+    }
+    if (r.skistopper_id && giacenze[r.skistopper_id] < qta) {
+      const skArt = window.skistoppersDisponibili.find(s => s.id === r.skistopper_id);
+      const nomeSk = skArt ? formatArticleDisplay(skArt) : `Skistopper ID ${r.skistopper_id}`;
+      showMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[r.skistopper_id]}, richiesto ${qta})`, 'error');
+      return;
     }
   }
+  
+  const payload = {
+    magazzino: parseInt(magazzino),
+    sci_id: currentEditSciId,
+    note: note,
+    righe: righe
+  };
+  try {
+    const result = await apiFetch(`/api/kit/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    if (result.success) {
+      showMessage('Kit aggiornato con successo', 'success');
+      chiudiModaleKit();
+      await caricaKit();
+    } else {
+      showMessage(result.message, 'error');
+    }
+  } catch (err) {
+    showMessage('Errore: ' + err.message, 'error');
+  }
+}
 
   function chiudiModaleKit() {
     document.getElementById('modalEditKit').style.display = 'none';
@@ -978,6 +1096,10 @@
     setupExternalMode();
     resetForm();
   };
+  function getSigleDisponibili(sigleUsate) {
+  // sigleUsate: array di id già presenti nel kit
+  return currentEditSigleDisponibili.filter(s => !sigleUsate.includes(s.id));
+}
 </script>
 </body>
 </html>
