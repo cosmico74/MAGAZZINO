@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - con Sigle (kit inclusi)</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -32,7 +32,6 @@
       align-items: center;
     }
     .source-option { display: flex; align-items: center; gap: 8px; }
-    .source-option input { width: auto; margin: 0; }
     .filters {
       background: #f8f9fa;
       border-radius: 12px;
@@ -162,10 +161,35 @@
       gap: 5px;
     }
     .sigla-select {
-      width: 140px;
+      width: 180px;
       padding: 4px;
       font-size: 0.8rem;
       border-radius: 4px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
     }
   </style>
 </head>
@@ -179,7 +203,7 @@
       <span id="loginInfo" class="login-info"></span>
       <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
       <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-      <button class="btn btn-secondary" onclick="caricaOggetti()" style="background:#6c757d;">🔄 Ricarica</button>
+      <button class="btn btn-secondary" onclick="caricaOggetti()">🔄 Ricarica</button>
     </div>
   </div>
 
@@ -216,9 +240,7 @@
       </select>
     </div>
     <div class="form-group">
-      <label>
-        <input type="checkbox" id="includeReferenced"> Includi referenti
-      </label>
+      <label><input type="checkbox" id="includeReferenced"> Includi referenti</label>
     </div>
   </div>
 
@@ -282,9 +304,9 @@
          <th>Assegnato a</th>
       </thead>
       <tbody id="tabellaBody">
-         <td colspan="6" class="text-center">Caricamento...<\/td>
+         <td colspan="6" class="text-center">Caricamento...</td>
       </tbody>
-    表格
+    </table>
   </div>
 
   <div class="selected-info" id="selectedInfo">Nessun oggetto selezionato</div>
@@ -313,6 +335,17 @@
   </div>
 </div>
 
+<!-- Modale per messaggi di errore dettagliati -->
+<div id="errorModal" class="modal">
+  <div class="modal-content">
+    <h3>⚠️ Errore</h3>
+    <p id="errorMsg"></p>
+    <div class="modal-buttons">
+      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ========== UTILITY ==========
   function getAuthHeader() {
@@ -322,22 +355,27 @@
 
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    console.log(`📡 Chiamata API: ${endpoint}`, options.method || 'GET', headers);
     const response = await fetch(endpoint, { ...options, headers });
     if (!response.ok) {
       let errorMsg = `Errore ${response.status}`;
       try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
       throw new Error(errorMsg);
     }
-    const data = await response.json();
-    console.log(`✅ Risposta da ${endpoint}:`, data);
-    return data;
+    return response.json();
   }
 
   function showMessage(msg, type) {
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  function showErrorModal(msg) {
+    document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>');
+    document.getElementById('errorModal').style.display = 'flex';
+  }
+  function chiudiErrorModal() {
+    document.getElementById('errorModal').style.display = 'none';
   }
 
   // ---------- GLOBALI ----------
@@ -377,7 +415,6 @@
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
       settori = await apiFetch('/api/anagrafiche/settori');
       marche = await apiFetch('/api/anagrafiche/marche');
-      console.log('Magazzini caricati:', magazzini);
 
       if (magazzini.length > 0) {
         const first = magazzini[0];
@@ -387,7 +424,6 @@
           const keys = Object.keys(first).filter(k => !isNaN(parseInt(k)));
           if (keys.length) magazzinoKey = keys[0];
         }
-        console.log(`Chiave magazzino rilevata: ${magazzinoKey}`);
       }
 
       function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
@@ -408,12 +444,9 @@
       if (defaultMag) {
         const defaultVal = defaultMag[magazzinoKey];
         magazzinoSelect.value = defaultVal;
-        console.log(`Magazzino di default impostato: ${defaultMag.nome} (${magazzinoKey}=${defaultVal})`);
-      } else {
-        console.warn('Magazzino "race" non trovato');
       }
     } catch (err) {
-      console.error('Errore caricaAnagrafiche:', err);
+      console.error(err);
       showMessage('Errore caricamento dati: ' + err.message, 'error');
     }
   }
@@ -421,10 +454,8 @@
   // ---------- CARICA SORGENTI PER ADMIN ----------
   async function caricaSorgentiAdmin() {
     const tipo = sourceTipo.value;
-    console.log(`[DEBUG] caricaSorgentiAdmin: tipo = ${tipo}`);
     try {
       const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      console.log(`[DEBUG] Soggetti ricevuti per tipo ${tipo}:`, data);
       sourceId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
@@ -432,14 +463,12 @@
       });
       if (sourceId.options.length > 1 && !sourceId.value) {
         sourceId.selectedIndex = 1;
-        console.log(`[DEBUG] Impostato soggetto di default: ${sourceId.value} (${sourceId.options[sourceId.selectedIndex].text})`);
       }
       if (radioCarico.checked) {
-        console.log(`[DEBUG] Radio "In carico" attivo, chiamo caricaOggettiInCarico()`);
         await caricaOggettiInCarico();
       }
     } catch (err) {
-      console.error('Errore caricaSorgentiAdmin:', err);
+      console.error(err);
       showMessage('Errore caricamento sorgenti: ' + err.message, 'error');
     }
   }
@@ -447,10 +476,8 @@
   // ---------- DESTINAZIONI ----------
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
-    console.log(`[DEBUG] caricaDestinazioni chiamata con tipo = ${tipo}`);
     try {
       const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      console.log(`[DEBUG] Destinazioni ricevute per tipo ${tipo}:`, data);
       destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
       data.forEach(item => {
         let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
@@ -460,50 +487,14 @@
         destinazioneId.selectedIndex = 1;
       }
     } catch (err) {
-      console.error('Errore caricaDestinazioni:', err);
+      console.error(err);
       showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
     }
   }
 
-  // ========== FUNZIONE PER ARRICCHIRE UN ARTICOLO CON LE SUE SIGLE ==========
-  async function arricchisciConSigle(oggetto, tipo) {
-  if (tipo === 'ARTICOLO') {
-    try {
-      const sigle = await apiFetch(`/api/articoli/${oggetto.id}/sigle`);
-      // Per un articolo, la giacenza è già nota (oggetto.disponibile)
-      // Non filtriamo le sigle perché l'articolo è già disponibile
-      oggetto.sigleDisponibili = sigle;
-    } catch(e) {
-      oggetto.sigleDisponibili = [];
-    }
-  } else if (tipo === 'KIT') {
-    try {
-      const kitDetails = await apiFetch(`/api/kit/${oggetto.id}`);
-      const idSci = kitDetails.id_sci;
-      if (idSci) {
-        const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
-        const giacenzaSci = await getGiacenzaArticolo(idSci);
-        // Filtra le sigle solo se lo sci ha giacenza > 0
-        if (giacenzaSci > 0) {
-          oggetto.sigleDisponibili = sigle;
-        } else {
-          oggetto.sigleDisponibili = [];
-        }
-      } else {
-        oggetto.sigleDisponibili = [];
-      }
-    } catch(e) {
-      console.warn(`Errore caricamento sigle per kit ${oggetto.id}`, e);
-      oggetto.sigleDisponibili = [];
-    }
-  }
-  return oggetto;
-}
-
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
-    console.log(`[DEBUG] caricaOggettiDaMagazzino - magazzino selezionato: ${magId} (${magazzinoKey})`);
     if (!magId) {
       oggetti = [];
       popolaTabella();
@@ -512,7 +503,6 @@
     }
 
     const tipo = tipoOggettoSelect.value;
-    console.log(`[DEBUG] caricaOggettiDaMagazzino - tipo = ${tipo}`);
     let lista = [];
 
     try {
@@ -527,31 +517,36 @@
       paramsArticoli.append('min_giacenza', '1');
 
       if (tipo === '' || tipo === 'ARTICOLO') {
-        const urlArticoli = `/api/articoli?${paramsArticoli.toString()}`;
-        console.log(`[DEBUG] Chiamata articoli: ${urlArticoli}`);
-        const resArticoli = await apiFetch(urlArticoli);
+        const resArticoli = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
-        console.log(`[DEBUG] Articoli ricevuti: ${articoli.length}`);
         for (let a of articoli) {
-          await arricchisciConSigle(a, 'ARTICOLO');
+          try {
+            const sigle = await apiFetch(`/api/articoli/${a.id}/sigle`);
+            a.sigleDisponibili = sigle;
+          } catch(e) { a.sigleDisponibili = []; }
         }
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
       }
 
       if (tipo === '' || tipo === 'KIT') {
-        console.log(`[DEBUG] Caricamento kit da /api/kit`);
         const resKit = await apiFetch('/api/kit');
         let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
-        console.log(`[DEBUG] Kit totali: ${kits.length}`);
         kits = kits.filter(k => k.magazzino == magId);
-        console.log(`[DEBUG] Kit dopo filtro magazzino ${magId}: ${kits.length}`);
         for (let k of kits) {
-          await arricchisciConSigle(k, 'KIT');
+          try {
+            const kitDetails = await apiFetch(`/api/kit/${k.id}`);
+            const idSci = kitDetails.id_sci;
+            if (idSci) {
+              const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
+              k.sigleDisponibili = sigle;
+            } else {
+              k.sigleDisponibili = [];
+            }
+          } catch(e) { k.sigleDisponibili = []; }
         }
         lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me' })));
       }
 
-      console.log(`[DEBUG] Totale oggetti dopo unione: ${lista.length}`);
       oggetti = lista.map(item => {
         const base = {
           id: item.id,
@@ -559,47 +554,37 @@
           descrizione: item.descrizione,
           disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
           sigleDisponibili: item.sigleDisponibili || [],
-          siglaId: null
+          siglaId: null,
+          codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit
         };
-        if (item.tipo === 'ARTICOLO') {
-          base.codice = item.codice;
-        } else {
-          base.codice = item.codice_kit;
-        }
         return base;
       });
-      console.log(`[DEBUG] Oggetti formattati: ${oggetti.length}`);
       popolaTabella();
       assegnaBtn.disabled = false;
     } catch (err) {
-      console.error('Errore caricaOggettiDaMagazzino:', err);
+      console.error(err);
       showMessage('Errore caricamento oggetti: ' + err.message, 'error');
     }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) CON SIGLE PER KIT ----------
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
   async function caricaOggettiInCarico() {
-    console.log('[DEBUG] caricaOggettiInCarico - inizio');
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
       body.targetTipo = sourceTipo.value;
       body.targetId = parseInt(sourceId.value);
       if (includeReferenced.checked) body.includeReferenced = true;
-      console.log(`[DEBUG] Admin: sorgente selezionata: ${body.targetTipo} ${body.targetId}, referenti=${body.includeReferenced}`);
     } else if (currentUser.ruolo !== 'admin') {
       if (!currentUser.riferimento_id) {
-        console.warn('Utente senza riferimento_id, nessun carico da mostrare');
         oggetti = [];
         popolaTabella();
         return;
       }
       body.targetTipo = currentUser.ruolo.toUpperCase();
       body.targetId = currentUser.riferimento_id;
-      console.log(`[DEBUG] Non admin: sorgente = ${body.targetTipo} ${body.targetId}`);
     }
 
     if (!body.targetTipo || !body.targetId) {
-      console.log('[DEBUG] Nessuna sorgente valida, nessun oggetto da caricare');
       oggetti = [];
       popolaTabella();
       return;
@@ -609,72 +594,15 @@
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
       if (res.success) {
         let tutti = res.oggetti || [];
-        console.log(`[DEBUG] Oggetti ricevuti: ${tutti.length}`);
         const tipoFiltro = tipoOggettoSelect.value;
-        if (tipoFiltro !== '') {
-          tutti = tutti.filter(item => item.tipo === tipoFiltro);
-          console.log(`[DEBUG] Dopo filtro tipo (${tipoFiltro}): ${tutti.length}`);
-        }
-        if (settoreSelect.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
-          console.log(`[DEBUG] Dopo filtro settore (${settoreSelect.value}): ${old} -> ${tutti.length}`);
-        }
-        if (marcaSelect.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
-          console.log(`[DEBUG] Dopo filtro marca (${marcaSelect.value}): ${old} -> ${tutti.length}`);
-        }
-        if (filtroDescrizione.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
-          console.log(`[DEBUG] Dopo filtro descrizione: ${old} -> ${tutti.length}`);
-        }
-        if (filtroLunghezza.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
-          console.log(`[DEBUG] Dopo filtro lunghezza: ${old} -> ${tutti.length}`);
-        }
-        if (filtroDurezza.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
-          console.log(`[DEBUG] Dopo filtro durezza: ${old} -> ${tutti.length}`);
-        }
-        if (filtroSigla.value) {
-          const old = tutti.length;
-          tutti = tutti.filter(o => o.SIGLA == filtroSigla.value);
-          console.log(`[DEBUG] Dopo filtro sigla: ${old} -> ${tutti.length}`);
-        }
-        // Per ogni oggetto, carica le sigle disponibili (articoli o kit)
-        for (let obj of tutti) {
-          if (obj.tipo === 'ARTICOLO') {
-            if (!obj.sigleDisponibili) {
-              try {
-                const sigle = await apiFetch(`/api/articoli/${obj.ID}/sigle`);
-                obj.sigleDisponibili = sigle;
-              } catch(e) {
-                obj.sigleDisponibili = [];
-              }
-            }
-          } else if (obj.tipo === 'KIT') {
-            // Per i kit: recupera id_sci e poi sigle
-            try {
-              const kitDetails = await apiFetch(`/api/kit/${obj.ID}`);
-              const idSci = kitDetails.id_sci;
-              if (idSci) {
-                const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
-                obj.sigleDisponibili = sigle;
-              } else {
-                obj.sigleDisponibili = [];
-              }
-            } catch(e) {
-              console.warn(`Errore caricamento sigle per kit ${obj.ID}`, e);
-              obj.sigleDisponibili = [];
-            }
-          } else {
-            obj.sigleDisponibili = [];
-          }
-        }
+        if (tipoFiltro !== '') tutti = tutti.filter(item => item.tipo === tipoFiltro);
+        if (settoreSelect.value) tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
+        if (marcaSelect.value) tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
+        if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
+        if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
+        if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
+        if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
+        
         oggetti = tutti.map(obj => ({
           id: obj.ID,
           tipo: obj.tipo,
@@ -688,24 +616,22 @@
           destinatarioNome: obj.destinatarioNome,
           tipoAssegnazione: obj.tipoAssegnazione
         }));
-        console.log(`[DEBUG] Oggetti finali: ${oggetti.length}`);
         popolaTabella();
         assegnaBtn.disabled = false;
       } else {
         throw new Error(res.message);
       }
     } catch (err) {
-      console.error('Errore caricaOggettiInCarico:', err);
+      console.error(err);
       showMessage('Errore caricamento oggetti in carico: ' + err.message, 'error');
     }
   }
 
-  // ---------- POPOLA TABELLA (con select per sigle, sia per articoli che per kit) ----------
+  // ---------- POPOLA TABELLA (con select per sigle) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    console.log(`[DEBUG] popolaTabella: oggetti.length = ${oggetti.length}`);
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>';
+      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile</td>';
       return;
     }
     tbody.innerHTML = '';
@@ -722,7 +648,7 @@
       
       row.insertCell(0).appendChild(cb);
       
-      // Colonna "Codice / Sigla": se ci sono sigle disponibili (sia per articoli che per kit), mostra select
+      // Colonna "Codice / Sigla"
       const cellCodice = row.insertCell(1);
       if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
         const select = document.createElement('select');
@@ -796,15 +722,7 @@
     document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
   }
 
-  // ---------- FILTRI DATALIST ----------
-  const filterFieldMap = {
-    descrizioni: 'descrizione',
-    sigle: 'sigla',
-    modelli: 'codice_modello',
-    lunghezze: 'lunghezza',
-    durezze: 'durezza'
-  };
-
+  // ---------- FILTRI ----------
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
     const magId = magazzinoSelect.value;
@@ -816,48 +734,39 @@
     if (exceptField !== 'durezza' && filtroDurezza.value) params.append('durezza', filtroDurezza.value);
     if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
     const endpoint = `/api/articoli/valori/${field}`;
-    const url = `${endpoint}?${params.toString()}`;
-    console.log(`[DEBUG] getDistinctFilterValues chiamata: ${url}`);
-    const data = await apiFetch(url);
-    console.log(`[DEBUG] Risposta da ${field}:`, data);
-    const columnName = filterFieldMap[field] || field;
-    const values = data.map(item => item[columnName]).filter(v => v && v !== '');
-    return values;
+    const data = await apiFetch(`${endpoint}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla', modelli: 'codice_modello', lunghezze: 'lunghezza', durezze: 'durezza' };
+    const col = map[field] || field;
+    return data.map(item => item[col]).filter(v => v && v !== '');
   }
 
   async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
       const values = await getDistinctFilterValues(field, exceptField);
-      console.log(`[DEBUG] Valori per ${field}:`, values);
-      const datalist = document.getElementById(datalistId);
-      if (!datalist) return;
-      datalist.innerHTML = '';
-      values.forEach(val => {
-        const option = document.createElement('option');
-        option.value = val;
-        datalist.appendChild(option);
-      });
+      const dl = document.getElementById(datalistId);
+      if (dl) {
+        dl.innerHTML = '';
+        values.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          dl.appendChild(opt);
+        });
+      }
     } catch (err) {
-      console.error(`Errore caricamento datalist filtro ${field}:`, err);
+      console.error(err);
     }
   }
 
   async function refreshFilterDatalists() {
-    if (!magazzinoSelect.value) {
-      console.log("Magazzino non selezionato, salto refreshFilterDatalists");
-      return;
-    }
+    if (!magazzinoSelect.value) return;
     await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
     await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
-    await popolaFilterDatalist('modelli', 'codiceModelloList', 'codice_modello');
     await popolaFilterDatalist('lunghezze', 'lunghezzaList', 'lunghezza');
     await popolaFilterDatalist('durezze', 'durezzaList', 'durezza');
   }
 
-  // ---------- GESTIONE FILTRI GLOBALI ----------
   let debounceTimer;
   async function handleFilterChange() {
-    console.log('[DEBUG] handleFilterChange triggered');
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       await refreshFilterDatalists();
@@ -874,11 +783,9 @@
     selectFilters.forEach(select => {
       if (select) select.addEventListener('change', handleFilterChange);
     });
-    console.log('[DEBUG] attachFilterEvents completato');
   }
 
   async function caricaOggetti() {
-    console.log('[DEBUG] caricaOggetti chiamata, radioMagazzino.checked =', radioMagazzino.checked);
     if (radioMagazzino.checked) {
       await caricaOggettiDaMagazzino();
     } else {
@@ -887,13 +794,11 @@
   }
 
   async function applicaFiltri() {
-    console.log('[DEBUG] applicaFiltri manuale');
     await refreshFilterDatalists();
     await caricaOggetti();
   }
 
   async function resetFiltri() {
-    console.log('[DEBUG] resetFiltri');
     settoreSelect.value = '';
     marcaSelect.value = '';
     filtroDescrizione.value = '';
@@ -904,7 +809,7 @@
     await caricaOggetti();
   }
 
-  // ---------- ASSEGNAZIONE (trasferimento) CON SIGLA (per articoli e kit) ----------
+  // ---------- ASSEGNAZIONE (trasferimento) ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -920,7 +825,7 @@
         daId = parseInt(sourceId.value);
       } else {
         if (!currentUser.riferimento_id) {
-          showMessage('Utente non associato a un soggetto. Contatta l\'amministratore.', 'error');
+          showMessage('Utente non associato a un soggetto.', 'error');
           return;
         }
         daTipo = currentUser.ruolo.toUpperCase();
@@ -951,16 +856,18 @@
         oggetti: selezionati,
         note
       };
-      console.log('[DEBUG] Trasferimento payload:', payload);
-
       const originalText = assegnaBtn.innerText;
       assegnaBtn.disabled = true;
       assegnaBtn.innerHTML = '<span class="spinner"></span> Trasferimento in corso...';
       try {
         const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-        showMessage(res.message, res.success ? 'success' : 'error');
-        if (res.success) { await caricaOggetti(); }
-      } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+        if (res.success) {
+          showMessage(res.message, 'success');
+          await caricaOggetti();
+        } else {
+          showErrorModal(res.message);
+        }
+      } catch (err) { showErrorModal(err.message); }
       finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
       return;
     }
@@ -997,25 +904,24 @@
     assegnaBtn.innerHTML = '<span class="spinner"></span> Assegnazione in corso...';
     try {
       const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
-      showMessage(res.message, res.success ? 'success' : 'error');
-      if (res.success) { await caricaOggetti(); }
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+      if (res.success) {
+        showMessage(res.message, 'success');
+        await caricaOggetti();
+      } else {
+        showErrorModal(res.message);
+      }
+    } catch (err) { showErrorModal(err.message); }
     finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
   }
 
-  // ---------- RIENTRO IN MAGAZZINO (con sigla) ----------
+  // ---------- RIENTRO IN MAGAZZINO ----------
   async function rientraSelezionati() {
     if (!radioCarico.checked) {
       showMessage('La funzione "Rientra in magazzino" è disponibile solo in modalità "In carico".', 'error');
       return;
     }
-
     const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) {
-      showMessage('Seleziona un magazzino di rientro', 'error');
-      return;
-    }
-
+    if (!magazzinoId) { showMessage('Seleziona un magazzino di rientro', 'error'); return; }
     const note = document.getElementById('noteUscita').value;
 
     let daTipo, daId;
@@ -1024,7 +930,7 @@
       daId = parseInt(sourceId.value);
     } else {
       if (!currentUser.riferimento_id) {
-        showMessage('Utente non associato a un soggetto. Contatta l\'amministratore.', 'error');
+        showMessage('Utente non associato a un soggetto.', 'error');
         return;
       }
       daTipo = currentUser.ruolo.toUpperCase();
@@ -1045,31 +951,26 @@
         selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
       }
     });
-    if (selezionati.length === 0) {
-      showMessage('Seleziona almeno un oggetto da rientrare', 'error');
-      return;
-    }
+    if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto da rientrare', 'error'); return; }
 
     const payload = {
       magazzinoId: parseInt(magazzinoId),
       note: note,
       oggetti: selezionati.map(o => ({ ...o, daTipo, daId }))
     };
-    console.log('[DEBUG] Rientro payload:', payload);
-
     const originalText = rientroBtn.innerText;
     rientroBtn.disabled = true;
     rientroBtn.innerHTML = '<span class="spinner"></span> Rientro in corso...';
     try {
       const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      showMessage(res.message, res.success ? 'success' : 'error');
-      if (res.success) { await caricaOggetti(); }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      rientroBtn.disabled = false;
-      rientroBtn.innerText = originalText;
-    }
+      if (res.success) {
+        showMessage(res.message, 'success');
+        await caricaOggetti();
+      } else {
+        showErrorModal(res.message);
+      }
+    } catch (err) { showErrorModal(err.message); }
+    finally { rientroBtn.disabled = false; rientroBtn.innerText = originalText; }
   }
 
   // ---------- LOGIN / LOGOUT ----------
@@ -1079,11 +980,10 @@
     window.location.href = 'Login.html';
   }
 
-  // ---------- GESTIONE PERMESSI E INIZIALIZZAZIONE ----------
+  // ---------- GESTIONE PERMESSI ----------
   function setupExternalMode() {
     const isAdmin = currentUser.ruolo === 'admin';
     const canUseWarehouse = isAdmin || (currentUser.ruolo === 'promoter' && currentUser.livello === 1) || currentUser.ruolo === 'agente';
-    console.log('[DEBUG] setupExternalMode - canUseWarehouse =', canUseWarehouse);
     if (canUseWarehouse) {
       radioMagazzino.disabled = false;
       magazzinoGroup.style.display = 'block';
@@ -1101,11 +1001,9 @@
       includeReferenced.disabled = false;
       caricaSorgentiAdmin();
       sourceTipo.addEventListener('change', () => {
-        console.log(`[DEBUG] sourceTipo changed to ${sourceTipo.value}`);
         if (radioCarico.checked) caricaSorgentiAdmin();
       });
       sourceId.addEventListener('change', () => {
-        console.log(`[DEBUG] sourceId changed to ${sourceId.value}`);
         if (radioCarico.checked) caricaOggettiInCarico();
       });
       includeReferenced.addEventListener('change', () => {
@@ -1133,12 +1031,10 @@
     }
 
     radioMagazzino.addEventListener('change', () => {
-      console.log('[DEBUG] radioMagazzino changed, checked=', radioMagazzino.checked);
       updateUIBasedOnMode();
       caricaOggetti();
     });
     radioCarico.addEventListener('change', () => {
-      console.log('[DEBUG] radioCarico changed, checked=', radioCarico.checked);
       updateUIBasedOnMode();
       caricaOggetti();
     });
@@ -1152,14 +1048,12 @@
     if (!token || !userStr) { window.location.href = 'Login.html'; return; }
     try {
       const user = JSON.parse(userStr);
-      if (!user || typeof user !== 'object') throw new Error('Invalid user');
       if (!user.riferimento_id && user.RiferimentoID) {
         user.riferimento_id = parseInt(user.RiferimentoID);
         localStorage.setItem('user', JSON.stringify(user));
       }
       currentUser = user;
     } catch(e) {
-      console.error('Errore parsing utente', e);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = 'Login.html';
@@ -1169,23 +1063,13 @@
     document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
 
     await caricaAnagrafiche();
-    await caricaDestinazioni();   // carica iniziale
+    await caricaDestinazioni();
     attachFilterEvents();
     setupExternalMode();
 
     await refreshFilterDatalists();
     await caricaOggetti();
   };
-  async function getGiacenzaArticolo(articoloId) {
-  try {
-    const res = await apiFetch(`/api/articoli/${articoloId}`);
-    const giacenza = (res.quantita_totale || 0) - (res.quantita_in_kit || 0);
-    return giacenza;
-  } catch(e) {
-    console.warn(`Errore recupero giacenza per articolo ${articoloId}`, e);
-    return 0;
-  }
-}
 </script>
 </body>
 </html>

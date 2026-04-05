@@ -4,7 +4,7 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// ========== HELPER: AGGIORNA SINTESI CARICO ==========
+// ========== HELPER: AGGIORNA SINTESI CARICO (con sigla) ==========
 async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione) {
   const query = `
     INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita)
@@ -43,7 +43,7 @@ async function registraUscitaTransazionale(connection, params) {
   await connection.query(
     `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente, sigla_id)
      VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
-    [`MAGAZZINO-${magazzinoId}`, `${destinazioneTipo}-${destinazioneId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId]
+    [`MAGAZZINO-${magazzinoId}`, `${destinazioneTipo}-${destinazioneId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
   await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, +quantita);
 }
@@ -58,12 +58,34 @@ async function registraRientroTransazionale(connection, params) {
   await connection.query(
     `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente, sigla_id)
      VALUES (NOW(), 'RIENTRO', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
-    [`${daTipo}-${daId}`, `MAGAZZINO-${magazzinoId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId]
+    [`${daTipo}-${daId}`, `MAGAZZINO-${magazzinoId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
-// ========== OTTIENI OGGETTI IN CARICO (con sigle) ==========
+// ========== RECUPERA SIGLE DISPONIBILI PER UN ARTICOLO ==========
+async function getSigleArticolo(articoloId) {
+  try {
+    const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [articoloId]);
+    return rows;
+  } catch(e) {
+    return [];
+  }
+}
+
+// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT (dallo sci associato) ==========
+async function getSigleKit(kitId) {
+  try {
+    const [kit] = await pool.query('SELECT id_sci FROM kit WHERE id = ?', [kitId]);
+    if (!kit.length || !kit[0].id_sci) return [];
+    const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [kit[0].id_sci]);
+    return rows;
+  } catch(e) {
+    return [];
+  }
+}
+
+// ========== OTTIENI OGGETTI IN CARICO (con sigle disponibili) ==========
 async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null) {
   let query = `
     SELECT 
@@ -89,14 +111,8 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN sci.durezza
       END AS DUREZZA,
-      -- Sigla per articoli e kit (da sigle_articoli)
-      CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN COALESCE(
-          (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id),
-          (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
-        )
-        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT sigla FROM sigle_articoli WHERE id = k.sigla_id)
-      END AS SIGLA,
+      -- Sigla corrente (quella associata in carico)
+      (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
       a.settore AS SETTORE,
       a.marca AS MARCA,
       a.codice_modello AS CODICE_MODELLO,
@@ -105,7 +121,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
     LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
     LEFT JOIN articoli sci ON k.id_sci = sci.articolo_id
-    WHERE cs.destinazione_tipo = ? AND cs.destinazione_id = ?
+    WHERE cs.destinazione_tipo = ? AND cs.destinazione_id = ? AND cs.quantita > 0
   `;
   const params = [destinazioneTipo, destinazioneId];
   if (magazzinoFiltro) {
@@ -113,26 +129,39 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     params.push(magazzinoFiltro, magazzinoFiltro);
   }
   const [rows] = await pool.query(query, params);
-  return rows.map(row => ({
-    tipo: row.tipo_oggetto,
-    ID: row.oggetto_id,
-    siglaId: row.sigla_id,
-    descrizione: row.descrizione || '',
-    codice: row.codice || '',
-    quantita: row.quantita,
-    LUNGHEZZA: row.LUNGHEZZA || '',
-    DUREZZA: row.DUREZZA || '',
-    SIGLA: row.SIGLA || '',
-    SETTORE: row.SETTORE,
-    MARCA: row.MARCA,
-    CODICE_MODELLO: row.CODICE_MODELLO,
-    CATEGORIA: row.CATEGORIA,
-    destinazioneTipo: row.destinazione_tipo,
-    destinazioneId: row.destinazione_id
-  }));
+  
+  // Arricchisci ogni riga con le sigle disponibili (per articoli e kit)
+  const risultati = [];
+  for (const row of rows) {
+    let sigleDisponibili = [];
+    if (row.tipo_oggetto === 'ARTICOLO') {
+      sigleDisponibili = await getSigleArticolo(row.oggetto_id);
+    } else if (row.tipo_oggetto === 'KIT') {
+      sigleDisponibili = await getSigleKit(row.oggetto_id);
+    }
+    risultati.push({
+      tipo: row.tipo_oggetto,
+      ID: row.oggetto_id,
+      siglaId: row.sigla_id,
+      descrizione: row.descrizione || '',
+      codice: row.codice || '',
+      quantita: row.quantita,
+      LUNGHEZZA: row.LUNGHEZZA || '',
+      DUREZZA: row.DUREZZA || '',
+      SIGLA_CORRENTE: row.SIGLA_CORRENTE || '',
+      SETTORE: row.SETTORE,
+      MARCA: row.MARCA,
+      CODICE_MODELLO: row.CODICE_MODELLO,
+      CATEGORIA: row.CATEGORIA,
+      destinazioneTipo: row.destinazione_tipo,
+      destinazioneId: row.destinazione_id,
+      sigleDisponibili: sigleDisponibili
+    });
+  }
+  return risultati;
 }
 
-// ========== REFERENTI RICORSIVI (stessa logica) ==========
+// ========== REFERENTI RICORSIVI ==========
 async function getSoggettiReferenziati(soggettoId) {
   const [diretti] = await pool.query('SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?', [soggettoId]);
   let result = diretti.map(r => r.soggetto_id);
@@ -201,6 +230,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
         }
         return res.json({ success: true, oggetti });
       } else {
+        // Admin senza target specifico: restituisci tutti gli oggetti in carico
         let query = `
           SELECT cs.*,
             CASE 
@@ -219,13 +249,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
               ELSE sci.durezza
             END AS DUREZZA,
-            CASE 
-              WHEN cs.tipo_oggetto = 'ARTICOLO' THEN COALESCE(
-                (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id),
-                (SELECT sigla FROM sigle_articoli WHERE articolo_id = a.articolo_id LIMIT 1)
-              )
-              ELSE (SELECT sigla FROM sigle_articoli WHERE id = k.sigla_id)
-            END AS SIGLA,
+            (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
             a.settore AS SETTORE,
             a.marca AS MARCA,
             a.codice_modello AS CODICE_MODELLO
@@ -244,14 +268,21 @@ router.post('/oggetti', verifyToken, async (req, res) => {
         const [soggetti] = await pool.query('SELECT * FROM soggetti');
         const sogMap = new Map();
         soggetti.forEach(s => sogMap.set(`${s.tipo}|${s.id}`, s));
-        const tutte = all.map(row => {
+        const tutte = [];
+        for (const row of all) {
+          let sigleDisponibili = [];
+          if (row.tipo_oggetto === 'ARTICOLO') {
+            sigleDisponibili = await getSigleArticolo(row.oggetto_id);
+          } else if (row.tipo_oggetto === 'KIT') {
+            sigleDisponibili = await getSigleKit(row.oggetto_id);
+          }
           const sog = sogMap.get(`${row.destinazione_tipo}|${row.destinazione_id}`);
           let destinatarioNome = '';
           if (sog) {
             if (row.destinazione_tipo === 'PROMOTER') destinatarioNome = (sog.nome + ' ' + sog.cognome).trim();
             else destinatarioNome = sog.nome || '';
           }
-          return {
+          tutte.push({
             tipo: row.tipo_oggetto,
             ID: row.oggetto_id,
             siglaId: row.sigla_id,
@@ -260,15 +291,16 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             quantita: row.quantita,
             LUNGHEZZA: row.LUNGHEZZA || '',
             DUREZZA: row.DUREZZA || '',
-            SIGLA: row.SIGLA || '',
+            SIGLA_CORRENTE: row.SIGLA_CORRENTE || '',
             SETTORE: row.SETTORE,
             MARCA: row.MARCA,
             CODICE_MODELLO: row.CODICE_MODELLO,
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
-            destinatarioNome
-          };
-        });
+            destinatarioNome,
+            sigleDisponibili: sigleDisponibili
+          });
+        }
         return res.json({ success: true, oggetti: tutte });
       }
     }
