@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Composizione Kit - Componenti Multipli</title>
+  <title>📦 Composizione Kit - Gestione Sigle</title>
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; padding: 0; }
@@ -88,7 +88,7 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 1000px;
+      max-width: 800px;
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
@@ -102,9 +102,6 @@
     .checkbox-column { width: 30px; text-align: center; }
     .batch-toolbar { margin: 10px 0; display: flex; gap: 10px; justify-content: flex-end; }
     .kit-esaurito { opacity: 0.6; background-color: #f9f9f9; }
-    .componenti-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-    .componenti-table th, .componenti-table td { border: 1px solid #ddd; padding: 4px; font-size: 0.7rem; }
-    .componenti-table th { background: #e9ecef; }
   </style>
 </head>
 <body>
@@ -118,7 +115,7 @@
 
 <div class="container">
   <div class="header-bar">
-    <h2>📦 Composizione Kit (componenti multipli)</h2>
+    <h2>📦 Composizione Kit</h2>
     <div class="external-checkbox">
       <input type="checkbox" id="assegnazioniEsterneCheckbox">
       <label for="assegnazioniEsterneCheckbox">📤 Assegna a destinatario esterno</label>
@@ -147,15 +144,34 @@
       <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" required></select></div>
       <div class="form-group"><label>Note</label><textarea id="kitNote" rows="1"></textarea></div>
     </div>
-
-    <h4>Componenti del kit</h4>
-    <table class="componenti-table" id="componentiTable">
-      <thead><th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th></thead>
-      <tbody id="componentiTbody"></tbody>
-    </table>
-    <button type="button" class="btn" onclick="aggiungiRigaComponente()" style="margin-top:5px;">➕ Aggiungi componente</button>
-
-    <div class="form-group" style="margin-top:10px;">
+    <div class="form-row">
+      <div class="form-group"><label>Sci *</label>
+        <input type="text" id="kitSci" list="sciList" required placeholder="Cerca sci...">
+        <datalist id="sciList"></datalist>
+        <div class="sigla-group" id="sciSiglaGroup" style="margin-top:5px; display:none;">
+          <label>Sigla (opzionale)</label>
+          <select id="kitSciSigla"><option value="">Nessuna sigla</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Attacchi *</label>
+        <input type="text" id="kitAttacchi" list="attacchiList" required placeholder="Cerca attacchi...">
+        <datalist id="attacchiList"></datalist>
+        <div class="sigla-group" id="attacchiSiglaGroup" style="margin-top:5px; display:none;">
+          <label>Sigla (opzionale)</label>
+          <select id="kitAttacchiSigla"><option value="">Nessuna sigla</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Skistopper</label>
+        <input type="text" id="kitSkistopper" list="skistopperList" placeholder="Cerca skistopper...">
+        <datalist id="skistopperList"></datalist>
+        <div class="sigla-group" id="skistopperSiglaGroup" style="margin-top:5px; display:none;">
+          <label>Sigla (opzionale)</label>
+          <select id="kitSkistopperSigla"><option value="">Nessuna sigla</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" class="quantity-input" required style="width:80px;"></div>
+    </div>
+    <div class="form-group">
       <button type="button" class="btn" id="saveKitBtn" onclick="salvaKit()">💾 Salva Kit</button>
       <button type="button" class="btn btn-secondary" onclick="resetForm()">🔄 Reset</button>
     </div>
@@ -202,7 +218,7 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT -->
+<!-- MODALE MODIFICA KIT (SEMPLIFICATO: sci con sigla, attacco unico, skistopper unico) -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
@@ -212,12 +228,28 @@
         <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
         <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="1"></textarea></div>
       </div>
-      <h4>Componenti</h4>
-      <table class="componenti-table" id="editComponentiTable">
-        <thead><th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th></thead>
-        <tbody id="editComponentiTbody"></tbody>
-      </table>
-      <button type="button" class="btn" onclick="aggiungiRigaComponenteEdit()">➕ Aggiungi componente</button>
+      <div class="form-row">
+        <div class="form-group"><label>Sci *</label>
+          <input type="text" id="editKitSci" list="editSciList" required>
+          <datalist id="editSciList"></datalist>
+          <div id="editSciSiglaGroup" style="margin-top:5px; display:none;">
+            <label>Sigla</label>
+            <select id="editKitSciSigla"><option value="">Nessuna sigla</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Attacchi *</label>
+          <input type="text" id="editKitAttacchi" list="editAttacchiList" required>
+          <datalist id="editAttacchiList"></datalist>
+        </div>
+        <div class="form-group"><label>Skistopper</label>
+          <input type="text" id="editKitSkistopper" list="editSkistopperList">
+          <datalist id="editSkistopperList"></datalist>
+        </div>
+        <div class="form-group"><label>Quantità *</label><input type="number" id="editKitQuantita" min="0" step="1" required></div>
+      </div>
+      <div id="assignedInfo" class="assigned-info" style="display:none; background:#e9ecef; padding:8px; margin-top:10px;">
+        <strong>ℹ️ Assegnato a:</strong> <span id="assignedToName"></span> (quantità: <span id="assignedQuantity"></span>)
+      </div>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
         <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
@@ -232,13 +264,11 @@
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
   }
-
   function showMessage(msg, type) {
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
   }
-
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
     const res = await fetch(endpoint, { ...options, headers });
@@ -249,7 +279,6 @@
     }
     return res.json();
   }
-
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -356,177 +385,127 @@
     return parts.join(' ');
   }
 
-  // ========== GESTIONE RIGHE COMPONENTI (creazione) ==========
-  function aggiungiRigaComponente(tbodyId = 'componentiTbody', prefill = null) {
-    const tbody = document.getElementById(tbodyId);
-    const row = tbody.insertRow();
-
-    const tdTipo = row.insertCell(0);
-    const tipoSelect = document.createElement('select');
-    tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-    if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
-    tdTipo.appendChild(tipoSelect);
-
-    const tdArt = row.insertCell(1);
-    const artInput = document.createElement('input');
-    artInput.type = 'text';
-    const datalistId = `dl_${Date.now()}_${Math.random()}`;
-    artInput.setAttribute('list', datalistId);
-    const datalist = document.createElement('datalist');
-    datalist.id = datalistId;
-    document.body.appendChild(datalist);
-    tdArt.appendChild(artInput);
-    tdArt.appendChild(datalist);
-
-    const tdSigla = row.insertCell(2);
-    const siglaSelect = document.createElement('select');
-    siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-    tdSigla.appendChild(siglaSelect);
-
-    const tdQta = row.insertCell(3);
-    const qtyInput = document.createElement('input');
-    qtyInput.type = 'number';
-    qtyInput.value = prefill ? prefill.quantita : 1;
-    qtyInput.min = 1;
-    qtyInput.style.width = '70px';
-    tdQta.appendChild(qtyInput);
-
-    const tdAz = row.insertCell(4);
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '🗑️';
-    delBtn.className = 'btn btn-danger';
-    delBtn.onclick = () => row.remove();
-    tdAz.appendChild(delBtn);
-
-    const aggiornaDatalist = () => {
-      const tipo = tipoSelect.value;
-      let articoli = [];
-      if (tipo === 'SCI') articoli = articoliSci;
-      else if (tipo === 'ATTACCHI') articoli = articoliAttacchi;
-      else articoli = articoliSkistopper;
+  async function popolaDatalistArticoli(tipo, datalistId, magazzinoId = null) {
+    const magId = magazzinoId || kitMagazzinoSelect.value;
+    if (!magId) return;
+    const params = new URLSearchParams();
+    params.append('magazzino', magId);
+    params.append('min_giacenza', '1');
+    if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
+    const res = await apiFetch(`/api/articoli?${params.toString()}`);
+    const articoli = res.success ? res.data : [];
+    const validi = articoli.filter(a => (a.quantita_totale - a.quantita_in_kit) > 0);
+    const datalist = document.getElementById(datalistId);
+    if (datalist) {
       datalist.innerHTML = '';
-      articoli.forEach(art => {
+      validi.forEach(art => {
         const opt = document.createElement('option');
         opt.value = formatArticleDisplay(art);
         opt.setAttribute('data-id', art.id);
         datalist.appendChild(opt);
       });
-      if (prefill && prefill.articolo_id) {
-        const found = articoli.find(a => a.id === prefill.articolo_id);
-        if (found) artInput.value = formatArticleDisplay(found);
-        else if (prefill.descrizione) artInput.value = prefill.descrizione;
-        else artInput.value = `Articolo ID ${prefill.articolo_id}`;
-      }
-    };
-    tipoSelect.addEventListener('change', aggiornaDatalist);
-    aggiornaDatalist();
-
-    artInput.addEventListener('change', async () => {
-      const val = artInput.value;
-      let articoloId = null;
-      for (let opt of datalist.options) {
-        if (opt.value === val) {
-          articoloId = parseInt(opt.getAttribute('data-id'));
-          break;
-        }
-      }
-      if (articoloId) {
-        try {
-          const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-          siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-          sigle.forEach(s => {
-            let testo = s.sigla;
-            if (s.durezza) testo += ` - ${s.durezza}`;
-            siglaSelect.appendChild(new Option(testo, s.id));
-          });
-          if (prefill && prefill.sigla_id) siglaSelect.value = prefill.sigla_id;
-        } catch(e) {
-          siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-        }
-      } else {
-        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-      }
-    });
-    if (prefill && prefill.articolo_id) setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
+    }
   }
 
-  function raccogliDettagli(tbodyId) {
-    const dettagli = [];
-    const rows = document.querySelectorAll(`#${tbodyId} tr`);
-    for (let row of rows) {
-      const tipo = row.cells[0].querySelector('select').value;
-      const artInput = row.cells[1].querySelector('input');
-      const artValue = artInput.value;
-      const datalistId = artInput.getAttribute('list');
-      const datalist = document.getElementById(datalistId);
+  async function refreshComponentDatalists() {
+    await popolaDatalistArticoli('sci', 'sciList');
+    await popolaDatalistArticoli('attacchi', 'attacchiList');
+    await popolaDatalistArticoli('skistopper', 'skistopperList');
+    filtraKit();
+  }
+
+  async function refreshEditDatalists() {
+    const magId = editKitMagazzino.value;
+    if (magId) {
+      await popolaDatalistArticoli('sci', 'editSciList', magId);
+      await popolaDatalistArticoli('attacchi', 'editAttacchiList', magId);
+      await popolaDatalistArticoli('skistopper', 'editSkistopperList', magId);
+    }
+  }
+
+  // ========== CARICAMENTO SIGLE ==========
+  async function caricaSigle(articoloId, selectId, groupId, prefillSiglaId = null) {
+    const group = document.getElementById(groupId);
+    const select = document.getElementById(selectId);
+    if (!articoloId) {
+      if (group) group.style.display = 'none';
+      if (select) select.innerHTML = '<option value="">Nessuna sigla</option>';
+      return;
+    }
+    try {
+      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+      if (sigle.length === 0) {
+        if (group) group.style.display = 'none';
+        select.innerHTML = '<option value="">Nessuna sigla</option>';
+      } else {
+        if (group) group.style.display = 'block';
+        select.innerHTML = '<option value="">Nessuna sigla</option>';
+        sigle.forEach(s => {
+          let testo = s.sigla;
+          if (s.durezza) testo += ` - ${s.durezza}`;
+          select.appendChild(new Option(testo, s.id));
+        });
+        if (prefillSiglaId) select.value = prefillSiglaId;
+      }
+    } catch (err) {
+      if (group) group.style.display = 'none';
+      select.innerHTML = '<option value="">Nessuna sigla</option>';
+    }
+  }
+
+  function setupArticoloConSigle(inputId, siglaSelectId, siglaGroupId) {
+    const input = document.getElementById(inputId);
+    input.addEventListener('change', async () => {
+      const val = input.value;
+      const datalist = document.getElementById(input.getAttribute('list'));
       let articoloId = null;
       if (datalist) {
         for (let opt of datalist.options) {
-          if (opt.value === artValue) {
-            articoloId = parseInt(opt.getAttribute('data-id'));
+          if (opt.value === val) {
+            articoloId = opt.getAttribute('data-id');
             break;
           }
         }
       }
-      if (!articoloId) continue;
-      const siglaId = row.cells[2].querySelector('select').value;
-      const quantita = parseInt(row.cells[3].querySelector('input').value);
-      dettagli.push({
-        tipo: tipo,
-        articolo_id: articoloId,
-        sigla_id: siglaId || null,
-        quantita: quantita
-      });
-    }
-    return dettagli;
+      await caricaSigle(articoloId, siglaSelectId, siglaGroupId);
+    });
   }
 
-  // ========== CREAZIONE KIT ==========
-  async function salvaKit() {
-    const magazzino = kitMagazzinoSelect.value;
-    const note = document.getElementById('kitNote').value.trim();
-    const dettagli = raccogliDettagli('componentiTbody');
-    if (!magazzino || dettagli.length === 0) {
-      showMessage('Compila magazzino e almeno un componente', 'error');
-      return;
-    }
-    const payload = { magazzino: parseInt(magazzino), note, dettagli };
-    if (externalCheckbox.checked) {
-      const destTipo = destinazioneTipo.value;
-      const destId = destinazioneId.value;
-      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
-      payload.destinazioneTipo = destTipo;
-      payload.destinazioneId = parseInt(destId);
-    }
-    const saveBtn = document.getElementById('saveKitBtn');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
+  // ========== FILTRI DATALIST ==========
+  async function getDistinctFilterValues(field, exceptField = null) {
+    const params = new URLSearchParams();
+    if (filtroMag.value) params.append('magazzino', filtroMag.value);
+    if (filtroSet.value) params.append('settore', filtroSet.value);
+    if (filtroMar.value) params.append('marca', filtroMar.value);
+    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
+    if (exceptField !== 'descrizione' && filtroDesc.value) params.append('descrizione', filtroDesc.value);
+    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
+    const endpoint = `/api/articoli/valori/${field}`;
+    const data = await apiFetch(`${endpoint}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla' };
+    const col = map[field] || field;
+    return data.map(item => item[col]).filter(v => v && v !== '');
+  }
+  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
-      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        resetForm();
-        await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
+      const values = await getDistinctFilterValues(field, exceptField);
+      const dl = document.getElementById(datalistId);
+      if (dl) {
+        dl.innerHTML = '';
+        values.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          dl.appendChild(opt);
+        });
       }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '💾 Salva Kit';
-    }
+    } catch (err) {}
+  }
+  async function refreshFilterDatalists() {
+    await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
+    await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
   }
 
-  function resetForm() {
-    document.getElementById('componentiTbody').innerHTML = '';
-    aggiungiRigaComponente(); // almeno una riga
-    document.getElementById('kitNote').value = '';
-    externalCheckbox.checked = false;
-    assegnazioneSection.style.display = 'none';
-  }
-
-  // ========== CARICAMENTO E VISUALIZZAZIONE KIT ==========
+  // ========== CARICAMENTO KIT ==========
   async function caricaKit() {
     try {
       const data = await apiFetch('/api/kit');
@@ -568,7 +547,6 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
-
       const compCell = row.insertCell(7);
       if (k.dettagli && k.dettagli.length) {
         compCell.innerHTML = k.dettagli.map(d => {
@@ -580,7 +558,6 @@
       } else {
         compCell.innerText = '-';
       }
-
       const actions = row.insertCell(8);
       actions.className = 'action-buttons';
       actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
@@ -588,218 +565,93 @@
     });
   }
 
-  // ========== MODIFICA KIT (VERSIONE CORRETTA) ==========
-  async function modificaKit(id) {
-    try {
-      const kit = await apiFetch(`/api/kit/${id}`);
-      currentEditId = id;
-      document.getElementById('editKitId').value = kit.id;
-      editKitMagazzino.value = kit.magazzino;
-      document.getElementById('editKitNote').value = kit.note || '';
-      const tbody = document.getElementById('editComponentiTbody');
-      tbody.innerHTML = '';
-      if (kit.dettagli && kit.dettagli.length) {
-        for (let d of kit.dettagli) {
-          const prefillData = {
-            tipo_articolo: d.tipo_articolo,
-            articolo_id: d.articolo_id,
-            sigla_id: d.sigla_id,
-            quantita: d.quantita,
-            descrizione: d.descrizione
-          };
-          aggiungiRigaComponenteEdit(prefillData);
-        }
-      } else {
-        aggiungiRigaComponenteEdit();
-      }
-      document.getElementById('modalEditKit').style.display = 'flex';
-    } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
-    }
-  }
-
-function aggiungiRigaComponenteEdit(prefill = null) {
-  const tbody = document.getElementById('editComponentiTbody');
-  const row = tbody.insertRow();
-
-  // Colonna Tipo
-  const tdTipo = row.insertCell(0);
-  const tipoSelect = document.createElement('select');
-  tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-  if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
-  tdTipo.appendChild(tipoSelect);
-
-  // Colonna Articolo (con datalist)
-  const tdArt = row.insertCell(1);
-  const artInput = document.createElement('input');
-  artInput.type = 'text';
-  const datalistId = `edit_dl_${Date.now()}_${Math.random()}`;
-  artInput.setAttribute('list', datalistId);
-  const datalist = document.createElement('datalist');
-  datalist.id = datalistId;
-  document.body.appendChild(datalist);
-  tdArt.appendChild(artInput);
-  tdArt.appendChild(datalist);
-
-  // Colonna Sigla
-  const tdSigla = row.insertCell(2);
-  const siglaSelect = document.createElement('select');
-  siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-  tdSigla.appendChild(siglaSelect);
-
-  // Colonna Quantità
-  const tdQta = row.insertCell(3);
-  const qtyInput = document.createElement('input');
-  qtyInput.type = 'number';
-  qtyInput.value = prefill ? prefill.quantita : 1;
-  qtyInput.min = 1;
-  qtyInput.style.width = '70px';
-  tdQta.appendChild(qtyInput);
-
-  // Colonna Azioni
-  const tdAz = row.insertCell(4);
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑️';
-  delBtn.className = 'btn btn-danger';
-  delBtn.onclick = () => row.remove();
-  tdAz.appendChild(delBtn);
-
-  // Funzione per aggiornare la datalist in base al tipo selezionato
-  const aggiornaDatalist = () => {
-    const tipo = tipoSelect.value;
-    let articoli = [];
-    if (tipo === 'SCI') articoli = articoliSci;
-    else if (tipo === 'ATTACCHI') articoli = articoliAttacchi;
-    else articoli = articoliSkistopper;
-    datalist.innerHTML = '';
-    articoli.forEach(art => {
-      const opt = document.createElement('option');
-      opt.value = formatArticleDisplay(art);
-      opt.setAttribute('data-id', art.id);
-      datalist.appendChild(opt);
-    });
-    // Se abbiamo un prefill, imposta il valore dell'input
-    if (prefill && prefill.articolo_id) {
-      const found = articoli.find(a => a.id === prefill.articolo_id);
-      if (found) {
-        artInput.value = formatArticleDisplay(found);
-      } else if (prefill.descrizione) {
-        artInput.value = prefill.descrizione;
-      } else {
-        artInput.value = `Articolo ID ${prefill.articolo_id}`;
-      }
-    }
-  };
-
-  tipoSelect.addEventListener('change', aggiornaDatalist);
-  aggiornaDatalist();
-
-  // === CARICAMENTO SIGLE DIRETTO (anche senza interazione utente) ===
-  const caricaSigle = async (articoloId, siglaIdPrefill) => {
-    if (!articoloId) return;
-    try {
-      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-      sigle.forEach(s => {
-        let testo = s.sigla;
-        if (s.durezza) testo += ` - ${s.durezza}`;
-        siglaSelect.appendChild(new Option(testo, s.id));
-      });
-      if (siglaIdPrefill) {
-        siglaSelect.value = siglaIdPrefill;
-      }
-    } catch (e) {
-      console.warn('Errore caricamento sigle:', e);
-      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-    }
-  };
-
-  // Se abbiamo un prefill con articolo_id, carichiamo subito le sigle
-  if (prefill && prefill.articolo_id) {
-    caricaSigle(prefill.articolo_id, prefill.sigla_id);
-  }
-
-  // Quando l'utente seleziona un articolo dalla datalist, carica le sigle
-  artInput.addEventListener('change', async () => {
-    const val = artInput.value;
-    let articoloId = null;
+  // ========== CREAZIONE KIT ==========
+  function getArticleIdFromInput(inputValue, datalistId) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) return null;
     for (let opt of datalist.options) {
-      if (opt.value === val) {
-        articoloId = parseInt(opt.getAttribute('data-id'));
-        break;
+      if (opt.value === inputValue) {
+        return parseInt(opt.getAttribute('data-id'));
       }
     }
-    if (articoloId) {
-      await caricaSigle(articoloId, null);
-    } else {
-      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-    }
-  });
-}
-  function raccogliDettagliEdit() {
-    const dettagli = [];
-    const rows = document.querySelectorAll('#editComponentiTbody tr');
-    for (let row of rows) {
-      const tipo = row.cells[0].querySelector('select').value;
-      const artInput = row.cells[1].querySelector('input');
-      const artValue = artInput.value;
-      const datalistId = artInput.getAttribute('list');
-      const datalist = document.getElementById(datalistId);
-      let articoloId = null;
-      if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === artValue) {
-            articoloId = parseInt(opt.getAttribute('data-id'));
-            break;
-          }
-        }
-      }
-      if (!articoloId) {
-        showMessage(`Articolo non riconosciuto: "${artValue}"`, 'error');
-        continue;
-      }
-      const siglaId = row.cells[2].querySelector('select').value;
-      const quantita = parseInt(row.cells[3].querySelector('input').value);
-      dettagli.push({
-        tipo: tipo,
-        articolo_id: articoloId,
-        sigla_id: siglaId || null,
-        quantita: quantita
-      });
-    }
-    return dettagli;
+    return null;
   }
 
- async function modificaKit(id) {
-  try {
-    const kit = await apiFetch(`/api/kit/${id}`);
-    currentEditId = id;
-    document.getElementById('editKitId').value = kit.id;
-    editKitMagazzino.value = kit.magazzino;
-    document.getElementById('editKitNote').value = kit.note || '';
-    const tbody = document.getElementById('editComponentiTbody');
-    tbody.innerHTML = '';
-    if (kit.dettagli && kit.dettagli.length) {
-      for (let d of kit.dettagli) {
-        aggiungiRigaComponenteEdit({
-          tipo_articolo: d.tipo_articolo,
-          articolo_id: d.articolo_id,
-          sigla_id: d.sigla_id,
-          quantita: d.quantita,
-          descrizione: d.descrizione
-        });
-      }
-    } else {
-      aggiungiRigaComponenteEdit();
+  async function salvaKit() {
+    const magazzino = kitMagazzinoSelect.value;
+    const quantita = parseInt(document.getElementById('kitQuantita').value);
+    const sciInput = document.getElementById('kitSci').value;
+    const attacchiInput = document.getElementById('kitAttacchi').value;
+    const skistopperInput = document.getElementById('kitSkistopper').value;
+    const note = document.getElementById('kitNote').value.trim();
+    const sciSiglaId = document.getElementById('kitSciSigla').value;
+    const attacchiSiglaId = document.getElementById('kitAttacchiSigla').value;
+    const skistopperSiglaId = document.getElementById('kitSkistopperSigla').value;
+
+    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
+      showMessage('Compila tutti i campi obbligatori', 'error');
+      return;
     }
-    document.getElementById('modalEditKit').style.display = 'flex';
-  } catch (err) {
-    showMessage('Errore caricamento kit: ' + err.message, 'error');
+    const idSci = getArticleIdFromInput(sciInput, 'sciList');
+    const idAttacchi = getArticleIdFromInput(attacchiInput, 'attacchiList');
+    let idSkistopper = null;
+    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'skistopperList');
+    if (!idSci || !idAttacchi) {
+      showMessage('Seleziona uno sci e un attacchi validi', 'error');
+      return;
+    }
+    const payload = {
+      magazzino: parseInt(magazzino),
+      quantita,
+      id_sci: idSci,
+      sigla_sci_id: sciSiglaId ? parseInt(sciSiglaId) : null,
+      id_attacchi: idAttacchi,
+      sigla_attacchi_id: attacchiSiglaId ? parseInt(attacchiSiglaId) : null,
+      id_skistopper: idSkistopper || null,
+      sigla_skistopper_id: skistopperSiglaId ? parseInt(skistopperSiglaId) : null,
+      note: note || null
+    };
+    if (externalCheckbox.checked) {
+      const destTipo = destinazioneTipo.value;
+      const destId = destinazioneId.value;
+      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
+      payload.destinazioneTipo = destTipo;
+      payload.destinazioneId = parseInt(destId);
+    }
+    const saveBtn = document.getElementById('saveKitBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
+    try {
+      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        resetForm();
+        await caricaKit();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '💾 Salva Kit';
+    }
   }
-}
-  function chiudiModaleKit() {
-    document.getElementById('modalEditKit').style.display = 'none';
-    currentEditId = null;
+
+  function resetForm() {
+    document.getElementById('kitSci').value = '';
+    document.getElementById('kitAttacchi').value = '';
+    document.getElementById('kitSkistopper').value = '';
+    document.getElementById('kitNote').value = '';
+    document.getElementById('kitQuantita').value = '1';
+    document.getElementById('kitSciSigla').innerHTML = '<option value="">Nessuna sigla</option>';
+    document.getElementById('kitAttacchiSigla').innerHTML = '<option value="">Nessuna sigla</option>';
+    document.getElementById('kitSkistopperSigla').innerHTML = '<option value="">Nessuna sigla</option>';
+    document.getElementById('sciSiglaGroup').style.display = 'none';
+    document.getElementById('attacchiSiglaGroup').style.display = 'none';
+    document.getElementById('skistopperSiglaGroup').style.display = 'none';
+    externalCheckbox.checked = false;
+    assegnazioneSection.style.display = 'none';
   }
 
   async function eliminaKit(id) {
@@ -817,42 +669,106 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     }
   }
 
-  // ========== FILTRI DATALIST ==========
-  async function getDistinctFilterValues(field, exceptField = null) {
-    const params = new URLSearchParams();
-    if (filtroMag.value) params.append('magazzino', filtroMag.value);
-    if (filtroSet.value) params.append('settore', filtroSet.value);
-    if (filtroMar.value) params.append('marca', filtroMar.value);
-    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
-    if (exceptField !== 'descrizione' && filtroDesc.value) params.append('descrizione', filtroDesc.value);
-    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
-    const endpoint = `/api/articoli/valori/${field}`;
-    const data = await apiFetch(`${endpoint}?${params.toString()}`);
-    const map = { descrizioni: 'descrizione', sigle: 'sigla' };
-    const col = map[field] || field;
-    return data.map(item => item[col]).filter(v => v && v !== '');
-  }
-
-  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
+  // ========== MODIFICA KIT ==========
+  async function modificaKit(id) {
     try {
-      const values = await getDistinctFilterValues(field, exceptField);
-      const dl = document.getElementById(datalistId);
-      if (dl) {
-        dl.innerHTML = '';
-        values.forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v;
-          dl.appendChild(opt);
-        });
+      const kit = await apiFetch(`/api/kit/${id}`);
+      currentEditId = id;
+      document.getElementById('editKitId').value = kit.id;
+      editKitMagazzino.value = kit.magazzino;
+      document.getElementById('editKitQuantita').value = kit.quantita;
+      document.getElementById('editKitNote').value = kit.note || '';
+
+      // Trova i componenti sci, attacchi, skistopper nei dettagli
+      const sciComp = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+      const attComp = kit.dettagli?.find(d => d.tipo_articolo === 'ATTACCHI');
+      const skComp = kit.dettagli?.find(d => d.tipo_articolo === 'SKISTOPPER');
+
+      if (sciComp) {
+        const sciArt = await apiFetch(`/api/articoli/${sciComp.articolo_id}`);
+        document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
+        await caricaSigle(sciComp.articolo_id, 'editKitSciSigla', 'editSciSiglaGroup', sciComp.sigla_id);
+      } else {
+        document.getElementById('editKitSci').value = '';
       }
+      if (attComp) {
+        const attArt = await apiFetch(`/api/articoli/${attComp.articolo_id}`);
+        document.getElementById('editKitAttacchi').value = formatArticleDisplay(attArt);
+      } else {
+        document.getElementById('editKitAttacchi').value = '';
+      }
+      if (skComp) {
+        const skArt = await apiFetch(`/api/articoli/${skComp.articolo_id}`);
+        document.getElementById('editKitSkistopper').value = formatArticleDisplay(skArt);
+      } else {
+        document.getElementById('editKitSkistopper').value = '';
+      }
+
+      const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
+      const infoDiv = document.getElementById('assignedInfo');
+      if (assignedInfo) {
+        document.getElementById('assignedToName').innerText = assignedInfo.nome;
+        document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
+        infoDiv.style.display = 'block';
+      } else {
+        infoDiv.style.display = 'none';
+      }
+
+      await refreshEditDatalists();
+      document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
-      console.error(`Errore filtro ${field}:`, err);
+      showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
   }
 
-  async function refreshFilterDatalists() {
-    await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
-    await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
+  async function salvaModificaKit() {
+    const id = currentEditId;
+    const magazzino = editKitMagazzino.value;
+    const quantita = parseInt(document.getElementById('editKitQuantita').value);
+    const sciInput = document.getElementById('editKitSci').value;
+    const attacchiInput = document.getElementById('editKitAttacchi').value;
+    const skistopperInput = document.getElementById('editKitSkistopper').value;
+    const note = document.getElementById('editKitNote').value.trim();
+    const sciSiglaId = document.getElementById('editKitSciSigla').value;
+
+    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
+      showMessage('Compila tutti i campi obbligatori', 'error');
+      return;
+    }
+    const idSci = getArticleIdFromInput(sciInput, 'editSciList');
+    const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
+    let idSkistopper = null;
+    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
+    if (!idSci || !idAttacchi) {
+      showMessage('Seleziona uno sci e un attacchi validi', 'error');
+      return;
+    }
+    const payload = {
+      magazzino: parseInt(magazzino),
+      quantita,
+      id_sci: idSci,
+      sigla_sci_id: sciSiglaId ? parseInt(sciSiglaId) : null,
+      id_attacchi: idAttacchi,
+      id_skistopper: idSkistopper || null,
+      note: note || null
+    };
+    try {
+      const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage('Kit aggiornato', 'success');
+        chiudiModaleKit();
+        await caricaKit();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function chiudiModaleKit() {
+    document.getElementById('modalEditKit').style.display = 'none';
+    currentEditId = null;
   }
 
   // ========== GESTIONE DESTINAZIONE ESTERNA ==========
@@ -865,7 +781,6 @@ function aggiungiRigaComponenteEdit(prefill = null) {
       if (externalCheckbox.checked) caricaDestinazioni();
     });
   }
-
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
@@ -876,7 +791,7 @@ function aggiungiRigaComponenteEdit(prefill = null) {
         destinazioneId.appendChild(new Option(testo, item.id));
       });
     } catch (err) {
-      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
+      showMessage('Errore caricamento destinazioni', 'error');
     }
   }
 
@@ -885,7 +800,6 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
     document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
   }
-
   function getSelectedKits() {
     const selected = [];
     document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
@@ -895,12 +809,11 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     });
     return selected;
   }
-
   async function rientraSelezionati() {
     const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
+    if (selected.length === 0) { showMessage('Seleziona kit assegnati', 'error'); return; }
     const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
+    if (!magazzinoId) { showMessage('Seleziona magazzino', 'error'); return; }
     const oggetti = selected.map(kit => ({
       tipoOggetto: 'KIT',
       oggettoId: kit.id,
@@ -921,10 +834,9 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
   }
-
   function apriModalTrasferimento() {
     const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
+    if (selected.length === 0) { showMessage('Seleziona kit assegnati', 'error'); return; }
     destinatarioTipoSelect.value = '';
     destinatarioIdSelect.disabled = true;
     destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
@@ -932,9 +844,7 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
     document.getElementById('modalTrasferimento').style.display = 'flex';
   }
-
   function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
-
   async function eseguiTrasferimento() {
     const selected = getSelectedKits();
     if (selected.length === 0) { chiudiModalTrasferimento(); return; }
@@ -968,18 +878,39 @@ function aggiungiRigaComponenteEdit(prefill = null) {
   let debTimer;
   function handleFilterChange() {
     clearTimeout(debTimer);
-    debTimer = setTimeout(async () => { await refreshFilterDatalists(); }, 300);
+    debTimer = setTimeout(async () => {
+      await refreshComponentDatalists();
+      await refreshFilterDatalists();
+      filtraKit();
+    }, 300);
   }
   function attachFilterEvents() {
     [filtroDesc, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
     [filtroMag, filtroSet, filtroMar].forEach(sel => sel?.addEventListener('change', handleFilterChange));
-    kitMagazzinoSelect.addEventListener('change', () => { caricaArticoliPerTipo(); });
+    kitMagazzinoSelect.addEventListener('change', () => {
+      if (!externalCheckbox.checked) refreshComponentDatalists();
+    });
+    editKitMagazzino.addEventListener('change', () => {
+      if (document.getElementById('modalEditKit').style.display === 'flex') refreshEditDatalists();
+    });
+  }
+  function filtraKit() {
+    // Filtro base per la tabella (semplificato)
+    const mag = filtroMag.value ? parseInt(filtroMag.value) : null;
+    kitFiltrati = allKits.filter(k => {
+      if (mag && k.magazzino !== mag) return false;
+      return true;
+    });
+    popolaTabellaKit();
   }
 
   // ========== INIT ==========
   window.onload = async () => {
     const token = localStorage.getItem('token');
-    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
+    if (!token) {
+      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>';
+      return;
+    }
     try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { logout(); return; }
     const loginInfo = document.createElement('div');
     loginInfo.style.display = 'flex';
@@ -987,9 +918,13 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     loginInfo.style.marginBottom = '10px';
     loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
+
     await caricaAnagrafiche();
     attachFilterEvents();
     setupExternalMode();
+    setupArticoloConSigle('kitSci', 'kitSciSigla', 'sciSiglaGroup');
+    setupArticoloConSigle('kitAttacchi', 'kitAttacchiSigla', 'attacchiSiglaGroup');
+    setupArticoloConSigle('kitSkistopper', 'kitSkistopperSigla', 'skistopperSiglaGroup');
     resetForm();
   };
 </script>
