@@ -2,368 +2,535 @@
 <html lang="it">
 <head>
     <link rel="icon" type="image/png" href="/images/kastle-logo.png">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📊 Report Magazzino</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      padding: 25px;
-    }
-    h1 {
-      margin-top: 0;
-      font-size: 1.8rem;
-      border-left: 5px solid #1a73e8;
-      padding-left: 15px;
-      color: #1e2a3a;
-    }
-    .filter-section {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 20px 0;
-    }
-    .filter-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      margin-bottom: 15px;
-      align-items: flex-end;
-    }
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-    }
-    .filter-group label {
-      font-weight: 600;
-      font-size: 0.75rem;
-      margin-bottom: 4px;
-      color: #2c3e50;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 6px 10px;
-      border: 1px solid #cbd5e0;
-      border-radius: 8px;
-      font-size: 0.85rem;
-    }
-    .btn {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: #0f5bb5; }
-    .btn-secondary { background: #6c757d; }
-    .btn-secondary:hover { background: #5a6268; }
-    .btn-print { background: #27ae60; margin-left: 10px; }
-    .btn-print:hover { background: #219653; }
-    .report-section {
-      margin-top: 30px;
-      page-break-before: avoid;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background: #f8f9fa;
-      font-weight: 600;
-    }
-    .text-center { text-align: center; }
-    .control-bar {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 10px;
-    }
-    .density-selector {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .density-selector select {
-      padding: 4px 8px;
-    }
-    .density-small table { font-size: 10px; }
-    .density-small th, .density-small td { padding: 2px 4px; }
-    .density-medium table { font-size: 12px; }
-    .density-medium th, .density-medium td { padding: 6px; }
-    .density-large table { font-size: 14px; }
-    .density-large th, .density-large td { padding: 10px; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Report Magazzino - Sigle Articoli</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 25px;
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            border-left: 5px solid #1a73e8;
+            padding-left: 15px;
+            color: #1e2a3a;
+        }
+        .filter-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: #2c3e50;
+        }
+        .filter-group input, .filter-group select {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .btn {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #0f5bb5; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-print { background: #27ae60; margin-left: 10px; }
+        .btn-print:hover { background: #219653; }
+        .report-section {
+            margin-top: 30px;
+            page-break-before: avoid;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .text-center { text-align: center; }
+        .control-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .density-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .density-selector select {
+            padding: 4px 8px;
+        }
+        .density-small table { font-size: 10px; }
+        .density-small th, .density-small td { padding: 2px 4px; }
+        .density-medium table { font-size: 12px; }
+        .density-medium th, .density-medium td { padding: 6px; }
+        .density-large table { font-size: 14px; }
+        .density-large th, .density-large td { padding: 10px; }
 
-    @media print {
-      body { background: white; padding: 0; }
-      .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
-      .filter-section, .control-bar, .btn, .no-print { display: none !important; }
-    }
-  </style>
+        /* Modal per le sigle */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .modal-header h3 {
+            margin: 0;
+        }
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .sigle-list {
+            list-style: none;
+            padding: 0;
+        }
+        .sigle-list li {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .sigle-badge {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin: 2px;
+            font-size: 0.8rem;
+        }
+        .icon-sigle {
+            cursor: pointer;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        .icon-sigle:hover {
+            opacity: 0.7;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
+            .filter-section, .control-bar, .btn, .no-print { display: none !important; }
+            .icon-sigle { display: none; }
+        }
+    </style>
 </head>
 <body>
 <div class="container">
-  <div class="header-bar" style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>📊 Report Magazzino</h1>
-    <div>
-      <button class="btn btn-print" onclick="window.print()">🖨️ Stampa / Salva PDF</button>
-      <button class="btn btn-secondary" onclick="window.location.href='Login.html'">◀ Torna al menu</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="logo">
+            <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+            <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
+            <button class="btn btn-secondary" onclick="caricaReport()">📋 Articoli in magazzino</button>
+        </div>
     </div>
-  </div>
 
-  <div class="filter-section">
-    <div class="filter-row">
-      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Tipo oggetto</label><select id="filtroTipo"><option value="">Tutti</option><option value="ARTICOLO">Articolo</option><option value="KIT">Kit</option></select></div>
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
+            <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
+            <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
+            <div class="filter-group"><label>Tipo oggetto</label><select id="filtroTipo"><option value="">Tutti</option><option value="ARTICOLO">Articolo</option><option value="KIT">Kit</option></select></div>
+        </div>
+        <div class="filter-row">
+            <div class="filter-group"><label>Descrizione (contiene)</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
+            <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
+            <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
+            <div class="filter-group"><label>Sigla (testo)</label><input type="text" id="filtroSigla" placeholder="Cerca in tutte le sigle"></div>
+        </div>
+        <div class="filter-row">
+            <button class="btn" onclick="caricaReport()">🔍 Applica filtri</button>
+            <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
+        </div>
     </div>
-    <div class="filter-row">
-      <div class="filter-group"><label>Descrizione (contiene)</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" placeholder="Esatta"></div>
-    </div>
-    <div class="filter-row">
-      <button class="btn" onclick="caricaReport()">🔍 Applica filtri</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
-    </div>
-  </div>
 
-  <div class="control-bar no-print">
-    <div class="density-selector">
-      <span>📏 Densità righe:</span>
-      <select id="densitySelect" onchange="changeDensity()">
-        <option value="small">Piccola (più righe per pagina)</option>
-        <option value="medium" selected>Media</option>
-        <option value="large">Grande</option>
-      </select>
+    <div class="control-bar no-print">
+        <div class="density-selector">
+            <span>📏 Densità righe:</span>
+            <select id="densitySelect" onchange="changeDensity()">
+                <option value="small">Piccola (più righe per pagina)</option>
+                <option value="medium" selected>Media</option>
+                <option value="large">Grande</option>
+            </select>
+        </div>
     </div>
-  </div>
 
-  <div id="reportContent" class="density-medium">
-    <div class="report-section">
-      <h2>📦 Magazzino - Giacenza reale</h2>
-      <div id="magazzinoTable"></div>
+    <div id="reportContent" class="density-medium">
+        <div class="report-section">
+            <h2>📦 Magazzino - Giacenza reale</h2>
+            <div id="magazzinoTable"></div>
+        </div>
     </div>
-  </div>
+</div>
+
+<!-- Modal per visualizzare le sigle -->
+<div id="sigleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🏷️ Sigle dell'articolo</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div id="sigleModalBody">
+            <p>Caricamento...</p>
+        </div>
+    </div>
 </div>
 
 <script>
-  function getAuthHeader() {
-    const token = localStorage.getItem('token');
-    return token ? { 'Authorization': 'Bearer ' + token } : {};
-  }
-
-  async function apiFetch(endpoint, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (!response.ok) {
-      let errorMsg = `Errore ${response.status}`;
-      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
-      throw new Error(errorMsg);
+    function getAuthHeader() {
+        const token = localStorage.getItem('token');
+        return token ? { 'Authorization': 'Bearer ' + token } : {};
     }
-    return response.json();
-  }
 
-  let currentUser = null;
-  let magazzini = [], settori = [], marche = [];
-  let magazzinoKey = 'id';
-
-  const filtroMag = document.getElementById('filtroMagazzino');
-  const filtroSet = document.getElementById('filtroSettore');
-  const filtroMar = document.getElementById('filtroMarca');
-  const filtroTipo = document.getElementById('filtroTipo');
-  const filtroDesc = document.getElementById('filtroDescrizione');
-  const filtroLung = document.getElementById('filtroLunghezza');
-  const filtroDur = document.getElementById('filtroDurezza');
-  const filtroSigla = document.getElementById('filtroSigla');
-
-  async function caricaAnagrafiche() {
-    try {
-      magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      settori = await apiFetch('/api/anagrafiche/settori');
-      marche = await apiFetch('/api/anagrafiche/marche');
-
-      if (magazzini.length > 0) {
-        const first = magazzini[0];
-        if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
-        else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
-        else {
-          const keys = Object.keys(first).filter(k => !isNaN(parseInt(k)));
-          if (keys.length) magazzinoKey = keys[0];
+    async function apiFetch(endpoint, options = {}) {
+        const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+        const response = await fetch(endpoint, { ...options, headers });
+        if (!response.ok) {
+            let errorMsg = `Errore ${response.status}`;
+            try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
+            throw new Error(errorMsg);
         }
-      }
+        return response.json();
+    }
 
-      function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
-        if (!select) return;
-        select.innerHTML = '';
-        if (conVuoto) select.appendChild(new Option('Tutti', ''));
-        items.forEach(item => {
-          let testo = item[textKey];
-          if (textKey === 'nome' && item.cognome) testo = `${item.nome} ${item.cognome}`.trim();
-          select.appendChild(new Option(testo, item[valueKey]));
+    let currentUser = null;
+    let magazzini = [], settori = [], marche = [];
+    let magazzinoKey = 'id';
+
+    const filtroMag = document.getElementById('filtroMagazzino');
+    const filtroSet = document.getElementById('filtroSettore');
+    const filtroMar = document.getElementById('filtroMarca');
+    const filtroTipo = document.getElementById('filtroTipo');
+    const filtroDesc = document.getElementById('filtroDescrizione');
+    const filtroLung = document.getElementById('filtroLunghezza');
+    const filtroDur = document.getElementById('filtroDurezza');
+    const filtroSigla = document.getElementById('filtroSigla');
+
+    // --- Gestione Modal ---
+    const modal = document.getElementById('sigleModal');
+    const spanClose = document.getElementsByClassName('close')[0];
+    spanClose.onclick = function() { modal.style.display = "none"; };
+    window.onclick = function(event) { if (event.target == modal) modal.style.display = "none"; };
+
+    async function mostraSigle(articoloId, codiceArticolo) {
+        modal.style.display = "block";
+        const bodyDiv = document.getElementById('sigleModalBody');
+        bodyDiv.innerHTML = '<p>Caricamento sigle...</p>';
+        try {
+            const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+            if (!sigle || sigle.length === 0) {
+                bodyDiv.innerHTML = `<p>Nessuna sigla associata all'articolo <strong>${codiceArticolo}</strong>.</p>`;
+                return;
+            }
+            let html = `<p>Sigle per l'articolo <strong>${codiceArticolo}</strong>:</p><ul class="sigle-list">`;
+            sigle.forEach(s => {
+                html += `<li>
+                            <span class="sigle-badge">${escapeHtml(s.sigla)}</span>
+                            ${s.lunghezza ? ` - Lunghezza: ${s.lunghezza}` : ''}
+                            ${s.durezza ? ` - Durezza: ${s.durezza}` : ''}
+                            ${s.codice_modello ? ` - Modello: ${s.codice_modello}` : ''}
+                            ${s.note ? `<br><small>Note: ${escapeHtml(s.note)}</small>` : ''}
+                         </li>`;
+            });
+            html += `</ul>`;
+            bodyDiv.innerHTML = html;
+        } catch (err) {
+            bodyDiv.innerHTML = `<p style="color:red;">Errore nel caricamento sigle: ${err.message}</p>`;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
         });
-      }
-      popolaSelect(filtroMag, magazzini, magazzinoKey, 'nome', true);
-      popolaSelect(filtroSet, settori, 'settore_id', 'nome', true);
-      popolaSelect(filtroMar, marche, 'marca_id', 'nome', true);
-
-      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) filtroMag.value = defaultMag[magazzinoKey];
-    } catch (err) {
-      console.error('Errore anagrafiche:', err);
-    }
-  }
-
-  async function getArticoliFiltrati() {
-    const params = new URLSearchParams();
-    if (filtroMag.value) params.append('magazzino', filtroMag.value);
-    if (filtroSet.value) params.append('settore', filtroSet.value);
-    if (filtroMar.value) params.append('marca', filtroMar.value);
-    if (filtroDesc.value) params.append('descrizione', filtroDesc.value);
-    if (filtroLung.value) params.append('lunghezza', filtroLung.value);
-    if (filtroDur.value) params.append('durezza', filtroDur.value);
-    if (filtroSigla.value) params.append('sigla', filtroSigla.value);
-    params.append('min_giacenza', '0');
-    const url = `/api/articoli?${params.toString()}`;
-    const res = await apiFetch(url);
-    return res.success ? res.data : [];
-  }
-
-  async function getKitsFiltrati() {
-    const res = await apiFetch('/api/kit');
-    let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
-    if (filtroMag.value) kits = kits.filter(k => k.magazzino == filtroMag.value);
-    return kits;
-  }
-
-  async function caricaReport() {
-    try {
-      document.getElementById('magazzinoTable').innerHTML = '<p class="text-center">Caricamento...</p>';
-      let items = [];
-      const tipo = filtroTipo.value;
-      if (tipo === '' || tipo === 'ARTICOLO') {
-        const articoli = await getArticoliFiltrati();
-        items.push(...articoli.map(a => ({
-          ...a,
-          tipo: 'ARTICOLO',
-          giacenza: a.quantita_totale - a.quantita_in_kit,
-          quantita_totale: a.quantita_totale
-        })));
-      }
-      if (tipo === '' || tipo === 'KIT') {
-        const kits = await getKitsFiltrati();
-        items.push(...kits.map(k => ({
-          ...k,
-          tipo: 'KIT',
-          giacenza: k.quantita,
-          quantita_totale: k.quantita
-        })));
-      }
-
-      if (filtroDesc.value) items = items.filter(i => i.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
-      if (filtroLung.value) items = items.filter(i => i.lunghezza == filtroLung.value);
-      if (filtroDur.value) items = items.filter(i => i.durezza == filtroDur.value);
-      if (filtroSigla.value) items = items.filter(i => i.sigla?.toLowerCase() === filtroSigla.value.toLowerCase());
-
-      renderTable(items);
-    } catch (err) {
-      document.getElementById('magazzinoTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
-    }
-  }
-
-  function renderTable(items) {
-    const container = document.getElementById('magazzinoTable');
-    if (!items.length) {
-      container.innerHTML = '<p>Nessun oggetto trovato in magazzino con i filtri selezionati.</p>';
-      return;
     }
 
-    let html = '<table>\n<thead>\n<tr>\n';
-    html += '<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Magazzino</th><th>Quantità totale</th><th>Giacenza reale</th>\n';
-    html += '</tr>\n</thead>\n<tbody>\n';
+    async function caricaAnagrafiche() {
+        try {
+            magazzini = await apiFetch('/api/anagrafiche/magazzini');
+            settori = await apiFetch('/api/anagrafiche/settori');
+            marche = await apiFetch('/api/anagrafiche/marche');
 
-    items.forEach(item => {
-      const magNome = magazzini.find(m => m[magazzinoKey] == item.magazzino)?.nome || item.magazzino;
-      const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
-      html += '<tr>';
-      html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-      html += `<td>${codice || '-'}</td>`;
-      html += `<td>${item.descrizione || '-'}</td>`;
-      html += `<td>${item.lunghezza || '-'}</td>`;
-      html += `<td>${item.durezza || '-'}</td>`;
-      html += `<td>${item.sigla || '-'}</td>`;
-      html += `<td>${magNome}</td>`;
-      html += `<td>${item.quantita_totale || 0}</td>`;
-      html += `<td>${item.giacenza}</td>`;
-      html += '</tr>\n';
-    });
+            if (magazzini.length > 0) {
+                const first = magazzini[0];
+                if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
+                else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
+                else {
+                    const keys = Object.keys(first).filter(k => !isNaN(parseInt(k)));
+                    if (keys.length) magazzinoKey = keys[0];
+                }
+            }
 
-    html += '</tbody>\n</table>';
-    container.innerHTML = html;
-  }
+            function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
+                if (!select) return;
+                select.innerHTML = '';
+                if (conVuoto) select.appendChild(new Option('Tutti', ''));
+                items.forEach(item => {
+                    let testo = item[textKey];
+                    if (textKey === 'nome' && item.cognome) testo = `${item.nome} ${item.cognome}`.trim();
+                    select.appendChild(new Option(testo, item[valueKey]));
+                });
+            }
+            popolaSelect(filtroMag, magazzini, magazzinoKey, 'nome', true);
+            popolaSelect(filtroSet, settori, 'settore_id', 'nome', true);
+            popolaSelect(filtroMar, marche, 'marca_id', 'nome', true);
 
-  function changeDensity() {
-    const val = document.getElementById('densitySelect').value;
-    document.getElementById('reportContent').className = `density-${val}`;
-  }
-
-  function resetFiltri() {
-    filtroMag.value = '';
-    filtroSet.value = '';
-    filtroMar.value = '';
-    filtroTipo.value = '';
-    filtroDesc.value = '';
-    filtroLung.value = '';
-    filtroDur.value = '';
-    filtroSigla.value = '';
-    caricaReport();
-  }
-
-  window.onload = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
-      return;
+            const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+            if (defaultMag) filtroMag.value = defaultMag[magazzinoKey];
+        } catch (err) {
+            console.error('Errore anagrafiche:', err);
+        }
     }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-    } catch(e) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'Login.html';
-      return;
-    }
-    const loginInfo = document.createElement('div');
-    loginInfo.className = 'toolbar';
-    loginInfo.style.justifyContent = 'flex-end';
-    loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
-    document.querySelector('.container').prepend(loginInfo);
 
-    await caricaAnagrafiche();
-    await caricaReport();
-  };
+    async function getArticoliFiltrati() {
+        const params = new URLSearchParams();
+        if (filtroMag.value) params.append('magazzino', filtroMag.value);
+        if (filtroSet.value) params.append('settore', filtroSet.value);
+        if (filtroMar.value) params.append('marca', filtroMar.value);
+        if (filtroDesc.value) params.append('descrizione', filtroDesc.value);
+        if (filtroLung.value) params.append('lunghezza', filtroLung.value);
+        if (filtroDur.value) params.append('durezza', filtroDur.value);
+        // Nota: il filtro per sigla viene applicato lato client perché la API articoli non filtra per sigle direttamente
+        params.append('min_giacenza', '0');
+        const url = `/api/articoli?${params.toString()}`;
+        const res = await apiFetch(url);
+        return res.success ? res.data : [];
+    }
+
+    async function getKitsFiltrati() {
+        const res = await apiFetch('/api/kit');
+        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
+        if (filtroMag.value) kits = kits.filter(k => k.magazzino == filtroMag.value);
+        return kits;
+    }
+
+    // Filtro per sigla (testo) su articoli (attraverso le sigle associate)
+    async function filtraPerSigla(articoli, siglaCercata) {
+        if (!siglaCercata) return articoli;
+        const siglaLower = siglaCercata.toLowerCase();
+        const articoliConSigla = [];
+        for (const art of articoli) {
+            try {
+                const sigle = await apiFetch(`/api/articoli/${art.id}/sigle`);
+                const match = sigle.some(s => s.sigla.toLowerCase().includes(siglaLower));
+                if (match) articoliConSigla.push(art);
+            } catch(e) {
+                // se errore nel recupero sigle, ignora l'articolo
+                console.warn(`Errore sigle per articolo ${art.id}`, e);
+            }
+        }
+        return articoliConSigla;
+    }
+
+    async function caricaReport() {
+        try {
+            document.getElementById('magazzinoTable').innerHTML = '<p class="text-center">Caricamento...</p>';
+            let items = [];
+            const tipo = filtroTipo.value;
+            if (tipo === '' || tipo === 'ARTICOLO') {
+                let articoli = await getArticoliFiltrati();
+                // Filtro per sigla (se presente)
+                if (filtroSigla.value) {
+                    articoli = await filtraPerSigla(articoli, filtroSigla.value);
+                }
+                items.push(...articoli.map(a => ({
+                    ...a,
+                    tipo: 'ARTICOLO',
+                    giacenza: (a.quantita_totale || 0) - (a.quantita_in_kit || 0),
+                    quantita_totale: a.quantita_totale,
+                    id_originale: a.id
+                })));
+            }
+            if (tipo === '' || tipo === 'KIT') {
+                let kits = await getKitsFiltrati();
+                items.push(...kits.map(k => ({
+                    ...k,
+                    tipo: 'KIT',
+                    giacenza: k.quantita,
+                    quantita_totale: k.quantita,
+                    id_originale: k.id
+                })));
+            }
+
+            if (filtroDesc.value) items = items.filter(i => i.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
+            if (filtroLung.value) items = items.filter(i => i.lunghezza == filtroLung.value);
+            if (filtroDur.value) items = items.filter(i => i.durezza == filtroDur.value);
+            // Nota: il filtro sigla è già stato applicato sopra per gli articoli; per i kit non c'è gestione sigle
+
+            renderTable(items);
+        } catch (err) {
+            document.getElementById('magazzinoTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
+        }
+    }
+
+    function renderTable(items) {
+        const container = document.getElementById('magazzinoTable');
+        if (!items.length) {
+            container.innerHTML = '<p>Nessun oggetto trovato in magazzino con i filtri selezionati.</p>';
+            return;
+        }
+
+        let html = `<table><thead>
+        <tr>
+            <th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigle</th><th>Magazzino</th><th>Quantità totale</th><th>Giacenza reale</th>
+        </tr>
+        </thead>
+        <tbody>`;
+
+        items.forEach(item => {
+            const magNome = magazzini.find(m => m[magazzinoKey] == item.magazzino)?.nome || item.magazzino;
+            const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
+            html += '<tr>';
+            html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
+            html += `<td>${codice || '-'}</td>`;
+            html += `<td>${item.descrizione || '-'}</td>`;
+            html += `<td>${item.lunghezza || '-'}</td>`;
+            html += `<td>${item.durezza || '-'}</td>`;
+            // Colonna Sigle: solo per articoli con icona cliccabile
+            if (item.tipo === 'ARTICOLO') {
+                html += `<td class="icon-sigle" onclick="mostraSigle(${item.id_originale}, '${escapeHtml(codice)}')">🏷️</td>`;
+            } else {
+                html += `<td>-</td>`;
+            }
+            html += `<td>${magNome}</td>`;
+            html += `<td>${item.quantita_totale || 0}</td>`;
+            html += `<td>${item.giacenza}</td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    function changeDensity() {
+        const val = document.getElementById('densitySelect').value;
+        document.getElementById('reportContent').className = `density-${val}`;
+    }
+
+    function resetFiltri() {
+        filtroMag.value = '';
+        filtroSet.value = '';
+        filtroMar.value = '';
+        filtroTipo.value = '';
+        filtroDesc.value = '';
+        filtroLung.value = '';
+        filtroDur.value = '';
+        filtroSigla.value = '';
+        caricaReport();
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'Login.html';
+    }
+
+    window.onload = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
+            return;
+        }
+        try {
+            currentUser = JSON.parse(localStorage.getItem('user'));
+        } catch(e) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'Login.html';
+            return;
+        }
+        const loginInfo = document.createElement('div');
+        loginInfo.style.display = 'flex';
+        loginInfo.style.justifyContent = 'flex-end';
+        loginInfo.style.marginBottom = '10px';
+        loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
+        document.querySelector('.container').prepend(loginInfo);
+
+        await caricaAnagrafiche();
+        await caricaReport();
+    };
 </script>
 </body>
 </html>

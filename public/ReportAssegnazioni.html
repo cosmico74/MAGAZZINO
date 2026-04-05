@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📊 Report Assegnazioni e Movimenti - Tracciabilità completa</title>
+  <title>📊 Tracciabilità Assegnazioni e Catena Trasferimenti</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -134,9 +134,6 @@
       align-items: center;
       gap: 8px;
     }
-    .density-selector select {
-      padding: 4px 8px;
-    }
     .density-small table { font-size: 10px; }
     .density-small th, .density-small td { padding: 2px 4px; }
     .density-medium table { font-size: 12px; }
@@ -150,9 +147,7 @@
       font-size: 0.7rem;
       display: inline-block;
     }
-    .badge-rientro { background: #d1fae5; color: #065f46; }
     .badge-uscita { background: #fee2e2; color: #991b1b; }
-    .badge-uscita-da-rientro { background: #fff3bf; color: #856404; }
     .error { color: #dc3545; background: #ffe6e6; padding: 10px; border-radius: 8px; }
     .kit-card {
       background: #f8fafc;
@@ -160,7 +155,6 @@
       padding: 10px 14px;
       margin-bottom: 10px;
       border-radius: 12px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     .kit-code {
       font-family: monospace;
@@ -170,33 +164,15 @@
       border-radius: 20px;
       display: inline-block;
     }
-    .assigned-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .catena-step {
-      margin-left: 20px;
-      padding: 6px 0;
-      border-left: 2px solid #ddd;
-      padding-left: 12px;
-    }
     .catena-oggetto {
       background: #fef9e6;
       padding: 12px;
       border-radius: 12px;
       margin-bottom: 20px;
     }
-    .timeline {
-      margin-top: 8px;
-    }
     .timeline-item {
       margin: 8px 0;
       font-size: 0.85rem;
-    }
-    .arrow {
-      color: #1a73e8;
-      font-weight: bold;
     }
     @media print {
       body { background: white; padding: 0; }
@@ -264,7 +240,7 @@
           <input type="checkbox" id="mostraCatenaCheckbox"> 
           <span>🔗 Mostra catena assegnazioni (passaggi) - dal soggetto selezionato verso altri</span>
         </label>
-        <div class="text-muted" style="font-size: 0.7rem; color: #555;">Visualizza per ogni oggetto ricevuto dal soggetto la sequenza completa dei trasferimenti successivi (a chi l'ha dato, e ulteriori passaggi)</div>
+        <div class="text-muted" style="font-size: 0.7rem; color: #555;">Ricostruisce la sequenza dei trasferimenti successivi per ogni oggetto ricevuto dal soggetto</div>
       </div>
     </div>
   </div>
@@ -273,7 +249,7 @@
     <div class="density-selector">
       <span>📏 Densità righe:</span>
       <select id="densitySelect" onchange="changeDensity()">
-        <option value="small">Piccola (più righe per pagina)</option>
+        <option value="small">Piccola</option>
         <option value="medium" selected>Media</option>
         <option value="large">Grande</option>
       </select>
@@ -281,12 +257,12 @@
   </div>
 
   <div id="reportContent" class="density-medium">
-    <div class="report-section" id="assegnazioniSection" style="display: block;">
-      <h2>👥 Oggetti assegnati ai soggetti (tutti)</h2>
+    <div class="report-section" id="assegnazioniSection">
+      <h2>👥 Oggetti assegnati ai soggetti (da carico_sintesi)</h2>
       <div id="assegnazioniTable"></div>
     </div>
     <div class="report-section" id="movimentiSection" style="display: none;">
-      <h2 id="movimentiTitle">📤 Movimenti in uscita dal soggetto</h2>
+      <h2>📤 Movimenti in uscita dal soggetto</h2>
       <div id="movimentiTable"></div>
     </div>
     <div class="report-section" id="assignedKitsSection" style="display: none;">
@@ -294,14 +270,14 @@
       <div id="assignedKitsContainer"></div>
     </div>
     <div class="report-section" id="catenaSection" style="display: none;">
-      <h2>🔗 Catena di assegnazioni (passaggi) per oggetti ricevuti da <span id="soggettoCatenaNome"></span></h2>
+      <h2>🔗 Catena di assegnazioni per oggetti ricevuti da <span id="soggettoCatenaNome"></span></h2>
       <div id="catenaContainer"></div>
     </div>
   </div>
 </div>
 
 <script>
-  // ---------- FUNZIONI DI AUTENTICAZIONE E API ----------
+  // ------------------------------ API e autenticazione ------------------------------
   function getAuthHeader() {
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
@@ -318,12 +294,14 @@
     return response.json();
   }
 
+  // ------------------------------ Variabili globali ------------------------------
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
   let magazzinoKey = 'id';
-  let cacheOggetti = new Map();
-  let cacheSoggetti = new Map();
+  let cacheOggetti = new Map();     // dettagli articoli/kit
+  let cacheSoggetti = new Map();    // nomi soggetti
 
+  // Elementi DOM
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
   const filtroMar = document.getElementById('filtroMarca');
@@ -335,11 +313,11 @@
   const soggettoTipo = document.getElementById('soggettoTipo');
   const soggettoId = document.getElementById('soggettoId');
   const mostraCatenaCheckbox = document.getElementById('mostraCatenaCheckbox');
-  
   const modeOutgoingBtn = document.getElementById('modeOutgoing');
   const modeAssignedBtn = document.getElementById('modeAssigned');
-  let currentViewMode = 'outgoing';
+  let currentViewMode = 'outgoing'; // 'outgoing' o 'assigned'
 
+  // Sezioni
   const assegnazioniSection = document.getElementById('assegnazioniSection');
   const movimentiSection = document.getElementById('movimentiSection');
   const assignedKitsSection = document.getElementById('assignedKitsSection');
@@ -350,14 +328,11 @@
     if (mode === 'outgoing') {
       modeOutgoingBtn.classList.add('active');
       modeAssignedBtn.classList.remove('active');
-      assegnazioniSection.style.display = 'block';
       movimentiSection.style.display = 'block';
       assignedKitsSection.style.display = 'none';
-      document.getElementById('movimentiTitle').innerHTML = '📤 Movimenti in uscita dal soggetto (incluse uscite da rientro con trasferimento)';
     } else {
       modeAssignedBtn.classList.add('active');
       modeOutgoingBtn.classList.remove('active');
-      assegnazioniSection.style.display = 'block';
       movimentiSection.style.display = 'none';
       assignedKitsSection.style.display = 'block';
     }
@@ -368,7 +343,7 @@
   modeOutgoingBtn.addEventListener('click', () => setViewMode('outgoing'));
   modeAssignedBtn.addEventListener('click', () => setViewMode('assigned'));
 
-  // Carica anagrafiche
+  // ------------------------------ Caricamento anagrafiche ------------------------------
   async function caricaAnagrafiche() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
@@ -376,11 +351,9 @@
       marche = await apiFetch('/api/anagrafiche/marche');
       if (magazzini.length) {
         const first = magazzini[0];
-        if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
-        else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
+        magazzinoKey = first.hasOwnProperty('magazzino_id') ? 'magazzino_id' : 'id';
       }
       function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
-        if (!select) return;
         select.innerHTML = '';
         if (conVuoto) select.appendChild(new Option('Tutti', ''));
         items.forEach(item => {
@@ -419,6 +392,7 @@
     } catch (err) { console.error(err); }
   }
 
+  // ------------------------------ Helper dati ------------------------------
   async function getDettaglioOggetto(tipo, id) {
     const cacheKey = `${tipo}|${id}`;
     if (cacheOggetti.has(cacheKey)) return cacheOggetti.get(cacheKey);
@@ -458,181 +432,23 @@
     } catch(e) { return `${tipo} ${id}`; }
   }
 
-  // Recupera TUTTI i movimenti con i filtri correnti (magazzino, tipo oggetto) - per costruire la catena
-  async function getAllMovements() {
-    const params = new URLSearchParams();
-    if (filtroMag.value) params.append('magazzino_id', filtroMag.value);
-    if (filtroTipo.value) params.append('tipo_oggetto', filtroTipo.value);
-    // Aggiungi altri filtri se l'API li supporta, altrimenti filtriamo dopo
-    const res = await apiFetch(`/api/movimenti?${params.toString()}`);
-    return res.success ? res.data : [];
-  }
-
-  // Normalizza un movimento: trasforma i rientri con "Trasferimento a X" in uscite
-  async function normalizzaMovimento(m, soggettiCache) {
-    let from = null, to = null, tipoNormalizzato = m.tipo;
-    if (m.tipo === 'USCITA') {
-      from = 'Magazzino';
-      if (m.a_magazzino && m.a_magazzino.includes('-')) {
-        const [destTipo, destId] = m.a_magazzino.split('-');
-        to = await getNomeSoggetto(destTipo, parseInt(destId));
-      } else to = m.a_magazzino || 'Destinazione sconosciuta';
-    } else if (m.tipo === 'RIENTRO') {
-      const transferMatch = m.note ? m.note.match(/Trasferimento a (.+)/i) : null;
-      if (transferMatch) {
-        // È un'uscita camuffata da rientro
-        tipoNormalizzato = 'USCITA_DA_RIENTRO';
-        const daMatch = m.da_magazzino ? m.da_magazzino.match(/(PROMOTER|CLIENTE|NEGOZIO|AGENTE)-(\d+)/i) : null;
-        if (daMatch) {
-          from = await getNomeSoggetto(daMatch[1].toUpperCase(), parseInt(daMatch[2]));
-        } else from = 'Sconosciuto';
-        let destRaw = transferMatch[1].trim();
-        const parts = destRaw.split(' ');
-        if (parts.length === 2 && (parts[0].toUpperCase() === 'CLIENTE' || parts[0].toUpperCase() === 'PROMOTER' || parts[0].toUpperCase() === 'NEGOZIO')) {
-          const idDest = parseInt(parts[1]);
-          if (!isNaN(idDest)) to = await getNomeSoggetto(parts[0].toUpperCase(), idDest);
-          else to = destRaw;
-        } else to = destRaw;
-      } else {
-        // Rientro normale a magazzino
-        return null;
-      }
-    }
-    if (!from || !to) return null;
-    return {
-      id: m.id,
-      data: new Date(m.data),
-      dataStr: new Date(m.data).toLocaleString(),
-      tipo: tipoNormalizzato,
-      oggettoTipo: m.tipo_oggetto,
-      oggettoId: m.id_articolo_kit,
-      da: from,
-      a: to,
-      quantita: m.quantita,
-      nota: m.note || ''
-    };
-  }
-
-  // Costruisce la catena per un singolo oggetto: parte dal momento in cui il soggetto lo riceve (arrivo), poi segue le uscite successive
-  async function buildChainForObject(oggettoTipo, oggettoId, soggettoNome, allMovementsNormalized) {
-    // Filtra i movimenti che riguardano questo oggetto
-    const movOggetto = allMovementsNormalized.filter(m => m.oggettoTipo === oggettoTipo && m.oggettoId === oggettoId);
-    if (movOggetto.length === 0) return null;
-    // Ordina per data crescente
-    movOggetto.sort((a,b) => a.data - b.data);
-    
-    // Trova il momento in cui il soggetto ha ricevuto l'oggetto (to === soggettoNome)
-    const ricezioneIndex = movOggetto.findIndex(m => m.a === soggettoNome);
-    if (ricezioneIndex === -1) return null;
-    
-    // La catena parte dalla ricezione (mostriamo anche da chi l'ha ricevuto)
-    const catena = [];
-    // Aggiungi l'evento di ricezione
-    catena.push({
-      tipo: 'Ricevuto',
-      da: movOggetto[ricezioneIndex].da,
-      a: soggettoNome,
-      data: movOggetto[ricezioneIndex].dataStr,
-      nota: movOggetto[ricezioneIndex].nota
-    });
-    // Ora cerca le uscite successive a partire da questo punto: partiamo dal soggetto e seguiamo la pista
-    let currentHolder = soggettoNome;
-    let currentIndex = ricezioneIndex;
-    while (true) {
-      // Trova il prossimo movimento in cui da === currentHolder e data > ultima data
-      const nextMove = movOggetto.find(m => m.da === currentHolder && m.data > movOggetto[currentIndex].data);
-      if (!nextMove) break;
-      catena.push({
-        tipo: 'Trasferito',
-        da: currentHolder,
-        a: nextMove.a,
-        data: nextMove.dataStr,
-        nota: nextMove.nota
-      });
-      currentHolder = nextMove.a;
-      currentIndex = movOggetto.indexOf(nextMove);
-    }
-    return catena;
-  }
-
-  async function renderCatenaAssegnazioni(tipoSogg, idSogg) {
-    if (!mostraCatenaCheckbox.checked || !tipoSogg || !idSogg) {
-      catenaSection.style.display = 'none';
-      return;
-    }
-    catenaSection.style.display = 'block';
-    const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
-    document.getElementById('soggettoCatenaNome').innerText = soggettoNome;
-    const container = document.getElementById('catenaContainer');
-    container.innerHTML = '<p class="text-center">Caricamento catena...</p>';
-    
-    try {
-      // Recupera tutti i movimenti (con filtri correnti)
-      const rawMovements = await getAllMovements();
-      // Normalizza tutti i movimenti (trasforma rientri con trasferimento)
-      const movimentiNorm = [];
-      for (const m of rawMovements) {
-        const norm = await normalizzaMovimento(m, cacheSoggetti);
-        if (norm) movimentiNorm.push(norm);
-      }
-      
-      // Ottieni tutti gli oggetti unici che il soggetto ha ricevuto (to === soggettoNome)
-      const oggettiRicevuti = new Map(); // key "TIPO|ID" -> { tipo, id, dettaglio }
-      for (const mov of movimentiNorm) {
-        if (mov.a === soggettoNome) {
-          const key = `${mov.oggettoTipo}|${mov.oggettoId}`;
-          if (!oggettiRicevuti.has(key)) {
-            const dettaglio = await getDettaglioOggetto(mov.oggettoTipo, mov.oggettoId);
-            oggettiRicevuti.set(key, { tipo: mov.oggettoTipo, id: mov.oggettoId, dettaglio });
-          }
-        }
-      }
-      
-      if (oggettiRicevuti.size === 0) {
-        container.innerHTML = `<p>Nessun oggetto risulta ricevuto da <strong>${soggettoNome}</strong> nei movimenti con i filtri attuali.</p>`;
-        return;
-      }
-      
-      let html = '<div>';
-      for (const [key, obj] of oggettiRicevuti.entries()) {
-        const catena = await buildChainForObject(obj.tipo, obj.id, soggettoNome, movimentiNorm);
-        if (!catena || catena.length === 0) continue;
-        html += `<div class="catena-oggetto">
-          <div><span class="kit-code">${obj.dettaglio.codice || key}</span> 
-          <strong>${obj.tipo === 'KIT' ? 'Kit' : 'Articolo'}</strong> - ${obj.dettaglio.descrizione || 'N/D'}</div>
-          <div class="timeline">`;
-        for (let i=0; i<catena.length; i++) {
-          const step = catena[i];
-          if (step.tipo === 'Ricevuto') {
-            html += `<div class="timeline-item">📥 <strong>Ricevuto</strong> da ${step.da} il ${step.data} ${step.nota ? `(nota: ${step.nota})` : ''}</div>`;
-          } else {
-            html += `<div class="timeline-item">➡️ <strong>Trasferito</strong> da ${step.da} → <strong>${step.a}</strong> il ${step.data} ${step.nota ? `(nota: ${step.nota})` : ''}</div>`;
-          }
-        }
-        html += `</div></div>`;
-      }
-      html += '</div>';
-      container.innerHTML = html;
-    } catch(err) {
-      console.error(err);
-      container.innerHTML = `<p class="error">Errore nel caricamento della catena: ${err.message}</p>`;
-    }
-  }
-
-  // Funzioni già esistenti per assegnazioni, movimenti uscita, kit assegnati (mantenute uguali)
+  // ------------------------------ Assegnazioni correnti (da carico_sintesi) ------------------------------
   async function getAssegnazioni() {
     const body = {};
     if (soggettoTipo.value && soggettoId.value && currentViewMode === 'assigned') {
-      body.targetTipo = soggettoTipo.value;
-      body.targetId = parseInt(soggettoId.value);
+      // Filtra per destinatario specifico
+      body.destinazione_tipo = soggettoTipo.value;
+      body.destinazione_id = parseInt(soggettoId.value);
     }
     const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
     return res.success ? res.oggetti : [];
   }
 
+  // ------------------------------ Movimenti in uscita dal soggetto ------------------------------
   async function getOutgoingMovementsFromSubject(tipo, id) {
     if (!tipo || !id) return [];
     const movimenti = [];
+    // Rientri dal soggetto (da_magazzino = tipo-id) - quelli con nota "Trasferimento a X" sono uscite
     const paramsRientro = new URLSearchParams();
     paramsRientro.append('tipo', 'RIENTRO');
     paramsRientro.append('da_magazzino', `${tipo}-${id}`);
@@ -642,6 +458,7 @@
       const resRientro = await apiFetch(`/api/movimenti?${paramsRientro.toString()}`);
       if (resRientro.success) movimenti.push(...resRientro.data);
     } catch(e) {}
+    // Uscite dirette con promoter_mittente
     const paramsUscita = new URLSearchParams();
     paramsUscita.append('tipo', 'USCITA');
     paramsUscita.append('promoter_mittente', id);
@@ -654,7 +471,7 @@
     const seen = new Set();
     const unici = movimenti.filter(m => { if(seen.has(m.id)) return false; seen.add(m.id); return true; });
     const soggettoNome = await getNomeSoggetto(tipo, id);
-    const movimentiProcessati = [];
+    const processati = [];
     for (const m of unici) {
       const dettaglio = await getDettaglioOggetto(m.tipo_oggetto, m.id_articolo_kit);
       let isOutgoing = false;
@@ -681,17 +498,25 @@
         isOutgoing = true;
       }
       if (isOutgoing) {
-        movimentiProcessati.push({ ...m, oggetto_codice: dettaglio.codice, oggetto_descrizione: dettaglio.descrizione, oggetto_sigla: dettaglio.sigla, destinazione_testo: destinazioneTesto, data_originale: m.data });
+        processati.push({
+          ...m,
+          oggetto_codice: dettaglio.codice,
+          oggetto_descrizione: dettaglio.descrizione,
+          oggetto_sigla: dettaglio.sigla,
+          destinazione_testo: destinazioneTesto,
+          data_originale: m.data
+        });
       }
     }
-    movimentiProcessati.sort((a,b) => new Date(b.data_originale) - new Date(a.data_originale));
-    return movimentiProcessati;
+    processati.sort((a,b) => new Date(b.data_originale) - new Date(a.data_originale));
+    return processati;
   }
 
+  // ------------------------------ Kit attualmente assegnati al soggetto ------------------------------
   async function getAssignedKitsToSubject(tipo, id) {
     if (!tipo || !id) return [];
     try {
-      const body = { targetTipo: tipo, targetId: parseInt(id) };
+      const body = { destinazione_tipo: tipo, destinazione_id: parseInt(id) };
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
       if (!res.success) return [];
       let items = res.oggetti;
@@ -707,6 +532,188 @@
     } catch(e) { return []; }
   }
 
+  // ------------------------------ Catena di trasferimenti (passaggi) ------------------------------
+  async function getAllMovements() {
+    const params = new URLSearchParams();
+    if (filtroMag.value) params.append('magazzino_id', filtroMag.value);
+    if (filtroTipo.value) params.append('tipo_oggetto', filtroTipo.value);
+    const res = await apiFetch(`/api/movimenti?${params.toString()}`);
+    return res.success ? res.data : [];
+  }
+
+  async function normalizzaMovimento(m) {
+    let from = null, to = null;
+    if (m.tipo === 'USCITA') {
+      from = 'Magazzino';
+      if (m.a_magazzino && m.a_magazzino.includes('-')) {
+        const [destTipo, destId] = m.a_magazzino.split('-');
+        to = await getNomeSoggetto(destTipo, parseInt(destId));
+      } else to = m.a_magazzino || 'Destinazione sconosciuta';
+    } else if (m.tipo === 'RIENTRO') {
+      const transferMatch = m.note ? m.note.match(/Trasferimento a (.+)/i) : null;
+      if (transferMatch) {
+        const daMatch = m.da_magazzino ? m.da_magazzino.match(/(PROMOTER|CLIENTE|NEGOZIO|AGENTE)-(\d+)/i) : null;
+        if (daMatch) from = await getNomeSoggetto(daMatch[1].toUpperCase(), parseInt(daMatch[2]));
+        else from = 'Sconosciuto';
+        let destRaw = transferMatch[1].trim();
+        const parts = destRaw.split(' ');
+        if (parts.length === 2 && (parts[0].toUpperCase() === 'CLIENTE' || parts[0].toUpperCase() === 'PROMOTER')) {
+          const idDest = parseInt(parts[1]);
+          if (!isNaN(idDest)) to = await getNomeSoggetto(parts[0].toUpperCase(), idDest);
+          else to = destRaw;
+        } else to = destRaw;
+      } else return null;
+    }
+    if (!from || !to) return null;
+    return {
+      id: m.id,
+      data: new Date(m.data),
+      dataStr: new Date(m.data).toLocaleString(),
+      tipo: m.tipo,
+      oggettoTipo: m.tipo_oggetto,
+      oggettoId: m.id_articolo_kit,
+      da: from,
+      a: to,
+      quantita: m.quantita,
+      nota: m.note || ''
+    };
+  }
+
+  async function buildChainForObject(oggettoTipo, oggettoId, soggettoNome, allMovementsNorm) {
+    const movOggetto = allMovementsNorm.filter(m => m.oggettoTipo === oggettoTipo && m.oggettoId === oggettoId);
+    if (movOggetto.length === 0) return null;
+    movOggetto.sort((a,b) => a.data - b.data);
+    const ricezioneIndex = movOggetto.findIndex(m => m.a === soggettoNome);
+    if (ricezioneIndex === -1) return null;
+    const catena = [];
+    catena.push({
+      tipo: 'Ricevuto',
+      da: movOggetto[ricezioneIndex].da,
+      a: soggettoNome,
+      data: movOggetto[ricezioneIndex].dataStr,
+      nota: movOggetto[ricezioneIndex].nota
+    });
+    let currentHolder = soggettoNome;
+    let currentIndex = ricezioneIndex;
+    while (true) {
+      const nextMove = movOggetto.find(m => m.da === currentHolder && m.data > movOggetto[currentIndex].data);
+      if (!nextMove) break;
+      catena.push({
+        tipo: 'Trasferito',
+        da: currentHolder,
+        a: nextMove.a,
+        data: nextMove.dataStr,
+        nota: nextMove.nota
+      });
+      currentHolder = nextMove.a;
+      currentIndex = movOggetto.indexOf(nextMove);
+    }
+    return catena;
+  }
+
+  async function renderCatenaAssegnazioni(tipoSogg, idSogg) {
+    if (!mostraCatenaCheckbox.checked || !tipoSogg || !idSogg) {
+      catenaSection.style.display = 'none';
+      return;
+    }
+    catenaSection.style.display = 'block';
+    const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
+    document.getElementById('soggettoCatenaNome').innerText = soggettoNome;
+    const container = document.getElementById('catenaContainer');
+    container.innerHTML = '<p class="text-center">Caricamento catena...</p>';
+    try {
+      const rawMovements = await getAllMovements();
+      const movNorm = [];
+      for (const m of rawMovements) {
+        const norm = await normalizzaMovimento(m);
+        if (norm) movNorm.push(norm);
+      }
+      // Trova tutti gli oggetti che il soggetto ha ricevuto
+      const oggettiRicevuti = new Map();
+      for (const mov of movNorm) {
+        if (mov.a === soggettoNome) {
+          const key = `${mov.oggettoTipo}|${mov.oggettoId}`;
+          if (!oggettiRicevuti.has(key)) {
+            const dettaglio = await getDettaglioOggetto(mov.oggettoTipo, mov.oggettoId);
+            oggettiRicevuti.set(key, { tipo: mov.oggettoTipo, id: mov.oggettoId, dettaglio });
+          }
+        }
+      }
+      if (oggettiRicevuti.size === 0) {
+        container.innerHTML = `<p>Nessun oggetto ricevuto da <strong>${soggettoNome}</strong> con i filtri attuali.</p>`;
+        return;
+      }
+      let html = '';
+      for (const [key, obj] of oggettiRicevuti.entries()) {
+        const catena = await buildChainForObject(obj.tipo, obj.id, soggettoNome, movNorm);
+        if (!catena || catena.length === 0) continue;
+        html += `<div class="catena-oggetto">
+          <div><span class="kit-code">${obj.dettaglio.codice || key}</span> 
+          <strong>${obj.tipo === 'KIT' ? 'Kit' : 'Articolo'}</strong> - ${obj.dettaglio.descrizione || 'N/D'}</div>
+          <div class="timeline">`;
+        for (const step of catena) {
+          if (step.tipo === 'Ricevuto') {
+            html += `<div class="timeline-item">📥 <strong>Ricevuto</strong> da ${step.da} il ${step.data} ${step.nota ? `(nota: ${step.nota})` : ''}</div>`;
+          } else {
+            html += `<div class="timeline-item">➡️ <strong>Trasferito</strong> da ${step.da} → <strong>${step.a}</strong> il ${step.data} ${step.nota ? `(nota: ${step.nota})` : ''}</div>`;
+          }
+        }
+        html += `</div></div>`;
+      }
+      container.innerHTML = html || `<p>Nessuna catena ricostruibile per gli oggetti ricevuti da ${soggettoNome}.</p>`;
+    } catch(err) {
+      container.innerHTML = `<p class="error">Errore catena: ${err.message}</p>`;
+    }
+  }
+
+  // ------------------------------ Render tabelle ------------------------------
+  function renderAssegnazioniGrouped(assegnazioni) {
+    const container = document.getElementById('assegnazioniTable');
+    if (!assegnazioni.length) { container.innerHTML = '<p>Nessun oggetto assegnato.</p>'; return; }
+    const map = new Map();
+    for (const a of assegnazioni) {
+      const key = `${a.destinazioneTipo}|${a.destinazioneId}`;
+      if (!map.has(key)) map.set(key, { tipo: a.destinazioneTipo, id: a.destinazioneId, nome: a.destinatarioNome || `${a.destinazioneTipo} ${a.destinazioneId}`, items: [] });
+      map.get(key).items.push(a);
+    }
+    let html = '';
+    for (const group of map.values()) {
+      html += `<div class="assigned-group"><h3>${group.tipo}: ${group.nome}</h3>`;
+      html += `<table><thead><tr><th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th></tr></thead><tbody>`;
+      for (const item of group.items) {
+        const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
+        html += `<tr><td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td><td>${codice || '-'}</td><td>${item.descrizione || '-'}</td><td>${item.LUNGHEZZA || '-'}</td><td>${item.DUREZZA || '-'}</td><td>${item.SIGLA || '-'}</td><td>${item.quantita}</td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function renderMovimentiTable(movimenti) {
+    const container = document.getElementById('movimentiTable');
+    if (!movimenti.length) { container.innerHTML = '<p>Nessun movimento in uscita.</p>'; return; }
+    let html = `<table><thead><tr><th>Data</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Sigla</th><th>Quantità</th><th>Dettaglio movimento</th><th>Note</th></tr></thead><tbody>`;
+    for (const m of movimenti) {
+      const data = new Date(m.data_originale).toLocaleString();
+      html += `<tr><td>${data}</td><td>${m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo'}</td><td>${m.oggetto_codice || '-'}</td><td>${m.oggetto_descrizione || '-'}</td><td>${m.oggetto_sigla || '-'}</td><td>${m.quantita}</td><td>${m.destinazione_testo || '-'}</td><td>${m.note || '-'}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  }
+
+  function renderAssignedKits(kits) {
+    const container = document.getElementById('assignedKitsContainer');
+    if (!kits.length) { container.innerHTML = '<p>Nessun kit/articolo assegnato al soggetto.</p>'; return; }
+    let html = '<div class="assigned-list">';
+    for (const k of kits) {
+      const codice = k.tipo === 'KIT' ? k.codice_kit : k.codice;
+      html += `<div class="kit-card"><span class="kit-code">${codice || '-'}</span> <strong>${k.tipo === 'KIT' ? 'Kit' : 'Articolo'}</strong><br><span>${k.descrizione || 'N/D'}</span><br><span style="font-size:0.75rem;">Lung: ${k.LUNGHEZZA || '-'} | Dur: ${k.DUREZZA || '-'} | Sigla: ${k.SIGLA || '-'} | Q.tà: ${k.quantita}</span></div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ------------------------------ Caricamento principale ------------------------------
   async function caricaReport() {
     try {
       document.getElementById('assegnazioniTable').innerHTML = '<p class="text-center">Caricamento...</p>';
@@ -717,8 +724,9 @@
       } else {
         movimentiSection.style.display = 'none';
         assignedKitsSection.style.display = 'block';
-        document.getElementById('assignedKitsContainer').innerHTML = '<p class="text-center">Caricamento kit assegnati...</p>';
+        document.getElementById('assignedKitsContainer').innerHTML = '<p class="text-center">Caricamento kit...</p>';
       }
+      // Assegnazioni globali (tutti i soggetti)
       const assegnazioni = await getAssegnazioni();
       let assegnazioniFiltrate = assegnazioni;
       if (filtroTipo.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.tipo === filtroTipo.value);
@@ -730,7 +738,7 @@
       if (filtroDur.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.DUREZZA == filtroDur.value);
       if (filtroSigla.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.SIGLA?.toLowerCase() === filtroSigla.value.toLowerCase());
       renderAssegnazioniGrouped(assegnazioniFiltrate);
-      
+
       const tipoSogg = soggettoTipo.value;
       const idSogg = soggettoId.value;
       if (tipoSogg && idSogg) {
@@ -749,68 +757,37 @@
       }
     } catch (err) {
       console.error(err);
-      document.getElementById('assegnazioniTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
+      document.getElementById('assegnazioniTable').innerHTML = `<p class="error">Errore: ${err.message}</p>`;
     }
   }
 
-  function renderAssegnazioniGrouped(groupedArray) {
-    const container = document.getElementById('assegnazioniTable');
-    if (!groupedArray.length) { container.innerHTML = '<p>Nessun oggetto assegnato.</p>'; return; }
-    const map = new Map();
-    for (const a of groupedArray) {
-      const key = `${a.destinazioneTipo}|${a.destinazioneId}`;
-      if (!map.has(key)) map.set(key, { tipo: a.destinazioneTipo, id: a.destinazioneId, nome: a.destinatarioNome || `${a.destinazioneTipo} ${a.destinazioneId}`, items: [] });
-      map.get(key).items.push(a);
-    }
-    let html = '';
-    for (const group of map.values()) {
-      html += `<div class="assigned-group"><h3>${group.tipo}: ${group.nome}</h3><table><thead><tr><th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th></tr></thead><tbody>`;
-      group.items.forEach(item => {
-        const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
-        html += `<tr><td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td><td>${codice || '-'}</td><td>${item.descrizione || '-'}</td><td>${item.LUNGHEZZA || '-'}</td><td>${item.DUREZZA || '-'}</td><td>${item.SIGLA || '-'}</td><td>${item.quantita}</td></tr>`;
-      });
-      html += '</tbody></div>';
-    }
-    container.innerHTML = html;
+  function changeDensity() {
+    document.getElementById('reportContent').className = `density-${document.getElementById('densitySelect').value}`;
   }
 
-  function renderMovimentiTable(movimenti) {
-    const container = document.getElementById('movimentiTable');
-    if (!movimenti.length) { container.innerHTML = '<p>Nessun movimento in uscita.</p>'; return; }
-    let html = '<table><thead><tr><th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Sigla</th><th>Quantità</th><th>Dettaglio movimento</th><th>Note</th></tr></thead><tbody>';
-    for (const m of movimenti) {
-      const data = new Date(m.data_originale).toLocaleString();
-      html += `<tr><td>${data}</td><td><span class="badge badge-uscita">Uscita</span></td><td>${m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo'}</td><td>${m.oggetto_codice || '-'}</td><td>${m.oggetto_descrizione || '-'}</td><td>${m.oggetto_sigla || '-'}</td><td>${m.quantita}</td><td>${m.destinazione_testo || '-'}</td><td>${m.note || '-'}</td></tr>`;
-    }
-    html += '</tbody></div>';
-    container.innerHTML = html;
-  }
-
-  function renderAssignedKits(kits) {
-    const container = document.getElementById('assignedKitsContainer');
-    if (!kits.length) { container.innerHTML = '<p>Nessun kit/articolo assegnato.</p>'; return; }
-    let html = '<div class="assigned-list">';
-    for (const k of kits) {
-      const codice = k.tipo === 'KIT' ? k.codice_kit : k.codice;
-      html += `<div class="kit-card"><span class="kit-code">${codice || '-'}</span> <strong>${k.tipo === 'KIT' ? 'Kit' : 'Articolo'}</strong><br><span>${k.descrizione || 'N/D'}</span><br><span style="font-size:0.75rem;">Lung: ${k.LUNGHEZZA || '-'} | Dur: ${k.DUREZZA || '-'} | Sigla: ${k.SIGLA || '-'} | Q.tà: ${k.quantita}</span></div>`;
-    }
-    html += '</div>';
-    container.innerHTML = html;
-  }
-
-  function changeDensity() { document.getElementById('reportContent').className = `density-${document.getElementById('densitySelect').value}`; }
   function resetFiltri() {
-    filtroMag.value = ''; filtroSet.value = ''; filtroMar.value = ''; filtroTipo.value = ''; filtroDesc.value = ''; filtroLung.value = ''; filtroDur.value = ''; filtroSigla.value = '';
-    soggettoTipo.value = ''; soggettoId.innerHTML = '<option value="">Seleziona...</option>'; soggettoId.disabled = true; mostraCatenaCheckbox.checked = false;
+    filtroMag.value = ''; filtroSet.value = ''; filtroMar.value = ''; filtroTipo.value = '';
+    filtroDesc.value = ''; filtroLung.value = ''; filtroDur.value = ''; filtroSigla.value = '';
+    soggettoTipo.value = ''; soggettoId.innerHTML = '<option value="">Seleziona...</option>'; soggettoId.disabled = true;
+    mostraCatenaCheckbox.checked = false;
     caricaReport();
   }
-  function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'Login.html';
+  }
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
-    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
-    try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
-    const loginInfo = document.createElement('div'); loginInfo.style.display = 'flex'; loginInfo.style.justifyContent = 'flex-end'; loginInfo.style.marginBottom = '10px';
+    if (!token) {
+      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
+      return;
+    }
+    try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { logout(); return; }
+    const loginInfo = document.createElement('div');
+    loginInfo.style.display = 'flex'; loginInfo.style.justifyContent = 'flex-end'; loginInfo.style.marginBottom = '10px';
     loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
     await caricaAnagrafiche();
