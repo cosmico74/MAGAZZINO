@@ -629,7 +629,7 @@ function aggiungiRigaComponenteEdit(prefill = null) {
   if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
   tdTipo.appendChild(tipoSelect);
 
-  // Colonna Articolo
+  // Colonna Articolo (con datalist)
   const tdArt = row.insertCell(1);
   const artInput = document.createElement('input');
   artInput.type = 'text';
@@ -678,7 +678,7 @@ function aggiungiRigaComponenteEdit(prefill = null) {
       opt.setAttribute('data-id', art.id);
       datalist.appendChild(opt);
     });
-    // Precompila il campo articolo se abbiamo un prefill
+    // Se abbiamo un prefill, imposta il valore dell'input
     if (prefill && prefill.articolo_id) {
       const found = articoli.find(a => a.id === prefill.articolo_id);
       if (found) {
@@ -694,7 +694,32 @@ function aggiungiRigaComponenteEdit(prefill = null) {
   tipoSelect.addEventListener('change', aggiornaDatalist);
   aggiornaDatalist();
 
-  // Quando l'utente seleziona un articolo, carica le sigle
+  // === CARICAMENTO SIGLE DIRETTO (anche senza interazione utente) ===
+  const caricaSigle = async (articoloId, siglaIdPrefill) => {
+    if (!articoloId) return;
+    try {
+      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
+      sigle.forEach(s => {
+        let testo = s.sigla;
+        if (s.durezza) testo += ` - ${s.durezza}`;
+        siglaSelect.appendChild(new Option(testo, s.id));
+      });
+      if (siglaIdPrefill) {
+        siglaSelect.value = siglaIdPrefill;
+      }
+    } catch (e) {
+      console.warn('Errore caricamento sigle:', e);
+      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
+    }
+  };
+
+  // Se abbiamo un prefill con articolo_id, carichiamo subito le sigle
+  if (prefill && prefill.articolo_id) {
+    caricaSigle(prefill.articolo_id, prefill.sigla_id);
+  }
+
+  // Quando l'utente seleziona un articolo dalla datalist, carica le sigle
   artInput.addEventListener('change', async () => {
     const val = artInput.value;
     let articoloId = null;
@@ -705,39 +730,12 @@ function aggiungiRigaComponenteEdit(prefill = null) {
       }
     }
     if (articoloId) {
-      try {
-        const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-        sigle.forEach(s => {
-          let testo = s.sigla;
-          if (s.durezza) testo += ` - ${s.durezza}`;
-          siglaSelect.appendChild(new Option(testo, s.id));
-        });
-        // Dopo aver popolato, seleziona la sigla prefill se presente
-        if (prefill && prefill.sigla_id) {
-          // Potrebbe essere necessario un piccolo ritardo per assicurarsi che il DOM sia aggiornato
-          setTimeout(() => {
-            if (siglaSelect.querySelector(`option[value="${prefill.sigla_id}"]`)) {
-              siglaSelect.value = prefill.sigla_id;
-            }
-          }, 50);
-        }
-      } catch(e) {
-        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-      }
+      await caricaSigle(articoloId, null);
     } else {
       siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
     }
   });
-
-  // Forza il caricamento delle sigle al primo rendering
-  if (prefill && prefill.articolo_id) {
-    setTimeout(() => {
-      artInput.dispatchEvent(new Event('change'));
-    }, 100);
-  }
 }
-
   function raccogliDettagliEdit() {
     const dettagli = [];
     const rows = document.querySelectorAll('#editComponentiTbody tr');
@@ -772,32 +770,33 @@ function aggiungiRigaComponenteEdit(prefill = null) {
     return dettagli;
   }
 
-  async function salvaModificaKit() {
-    const id = currentEditId;
-    const magazzino = editKitMagazzino.value;
-    const note = document.getElementById('editKitNote').value.trim();
-    const dettagli = raccogliDettagliEdit();
-    if (!magazzino || dettagli.length === 0) {
-      showMessage('Dati incompleti (magazzino e almeno un componente)', 'error');
-      return;
-    }
-    try {
-      const result = await apiFetch(`/api/kit/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ magazzino: parseInt(magazzino), note, dettagli })
-      });
-      if (result.success) {
-        showMessage('Kit aggiornato con successo', 'success');
-        chiudiModaleKit();
-        await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
+ async function modificaKit(id) {
+  try {
+    const kit = await apiFetch(`/api/kit/${id}`);
+    currentEditId = id;
+    document.getElementById('editKitId').value = kit.id;
+    editKitMagazzino.value = kit.magazzino;
+    document.getElementById('editKitNote').value = kit.note || '';
+    const tbody = document.getElementById('editComponentiTbody');
+    tbody.innerHTML = '';
+    if (kit.dettagli && kit.dettagli.length) {
+      for (let d of kit.dettagli) {
+        aggiungiRigaComponenteEdit({
+          tipo_articolo: d.tipo_articolo,
+          articolo_id: d.articolo_id,
+          sigla_id: d.sigla_id,
+          quantita: d.quantita,
+          descrizione: d.descrizione
+        });
       }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
+    } else {
+      aggiungiRigaComponenteEdit();
     }
+    document.getElementById('modalEditKit').style.display = 'flex';
+  } catch (err) {
+    showMessage('Errore caricamento kit: ' + err.message, 'error');
   }
-
+}
   function chiudiModaleKit() {
     document.getElementById('modalEditKit').style.display = 'none';
     currentEditId = null;
