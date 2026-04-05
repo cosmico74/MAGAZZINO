@@ -69,7 +69,6 @@ router.get('/valori/sigle', verifyToken, async (req, res) => {
 });
 
 // ========== CRUD SIGLE ==========
-// GET tutte le sigle di un articolo
 router.get('/:id/sigle', verifyToken, async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -83,7 +82,6 @@ router.get('/:id/sigle', verifyToken, async (req, res) => {
   }
 });
 
-// POST nuova sigla per un articolo
 router.post('/:id/sigle', verifyToken, async (req, res) => {
   const articoloId = req.params.id;
   const { sigla, lunghezza, durezza, codice_modello, note } = req.body;
@@ -104,7 +102,6 @@ router.post('/:id/sigle', verifyToken, async (req, res) => {
   }
 });
 
-// PUT modifica una sigla
 router.put('/sigle/:id', verifyToken, async (req, res) => {
   const { sigla, lunghezza, durezza, codice_modello, note } = req.body;
   try {
@@ -119,7 +116,6 @@ router.put('/sigle/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE elimina una sigla
 router.delete('/sigle/:id', verifyToken, async (req, res) => {
   try {
     await db.query('DELETE FROM sigle_articoli WHERE id = ?', [req.params.id]);
@@ -130,8 +126,7 @@ router.delete('/sigle/:id', verifyToken, async (req, res) => {
   }
 });
 
-// ========== CRUD ARTICOLI (invariata ma senza riferimenti a sigla nella tabella articoli) ==========
-// Helper per generare codice e descrizione completa
+// ========== CRUD ARTICOLI ==========
 function generateArticleCode(articleData, id) {
   const categoriaNome = (articleData.categoriaNome || 'ART').substring(0, 3).toUpperCase();
   const marcaNome = (articleData.marcaNome || 'GEN').substring(0, 3).toUpperCase();

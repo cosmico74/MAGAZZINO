@@ -890,6 +890,11 @@
     }
   }
 
+  // Funzione aggiunta per popolare datalist nel modale (usa lo stesso meccanismo)
+  async function popolaDatalistPerModale(tipo, datalistId, magazzinoId) {
+    await popolaDatalistTipo(tipo, datalistId, magazzinoId);
+  }
+
   async function refreshComponentDatalists() {
     await Promise.all([
       popolaDatalistTipo('sci', 'sciList'),
@@ -904,9 +909,9 @@
     const magazzinoId = editKitMagazzino.value;
     if (!magazzinoId) return;
     await Promise.all([
-      popolaDatalistTipo('sci', 'editSciList', magazzinoId),
-      popolaDatalistTipo('attacchi', 'editAttacchiList', magazzinoId),
-      popolaDatalistTipo('skistopper', 'editSkistopperList', magazzinoId)
+      popolaDatalistPerModale('sci', 'editSciList', magazzinoId),
+      popolaDatalistPerModale('attacchi', 'editAttacchiList', magazzinoId),
+      popolaDatalistPerModale('skistopper', 'editSkistopperList', magazzinoId)
     ]);
   }
 
@@ -1440,44 +1445,49 @@
   let currentEditId = null;
   let currentAssignedInfo = null;
 
-  async function modificaKit(id) {
-    try {
-      const kit = await apiFetch(`/api/kit/${id}`);
-      currentEditId = id;
-      document.getElementById('editKitId').value = kit.id;
-      editKitMagazzino.value = kit.magazzino;
-      document.getElementById('editKitQuantita').value = kit.quantita;
-      document.getElementById('editKitNote').value = kit.note || '';
+async function modificaKit(id) {
+  try {
+    const kit = await apiFetch(`/api/kit/${id}`);
+    currentEditId = id;
+    document.getElementById('editKitId').value = kit.id;
+    editKitMagazzino.value = kit.magazzino;
+    document.getElementById('editKitQuantita').value = kit.quantita;
+    document.getElementById('editKitNote').value = kit.note || '';
 
-      const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
-      const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
-      document.getElementById('editKitSci').value = formatArticleDisplay(sci);
-      document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
-      if (kit.id_skistopper) {
-        const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
-        document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
-      } else {
-        document.getElementById('editKitSkistopper').value = '';
-      }
-
-      const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
-      currentAssignedInfo = assignedInfo;
-      const assignedInfoDiv = document.getElementById('assignedInfo');
-      if (assignedInfo) {
-        document.getElementById('assignedToName').innerText = assignedInfo.nome;
-        document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
-        assignedInfoDiv.style.display = 'block';
-      } else {
-        assignedInfoDiv.style.display = 'none';
-      }
-
-      await refreshEditDatalists();
-      document.getElementById('modalEditKit').style.display = 'flex';
-    } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
+    // Recupera i dettagli dei componenti
+    const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
+    const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
+    document.getElementById('editKitSci').value = formatArticleDisplay(sci);
+    document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
+    if (kit.id_skistopper) {
+      const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
+      document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
+    } else {
+      document.getElementById('editKitSkistopper').value = '';
     }
-  }
 
+    // Mostra info assegnazione (opzionale)
+    const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
+    const assignedInfoDiv = document.getElementById('assignedInfo');
+    if (assignedInfo) {
+      document.getElementById('assignedToName').innerText = assignedInfo.nome;
+      document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
+      assignedInfoDiv.style.display = 'block';
+    } else {
+      assignedInfoDiv.style.display = 'none';
+    }
+
+    // Popola le datalist del modale con i componenti disponibili (stesso magazzino del kit)
+    await popolaDatalistPerModale('sci', 'editSciList', kit.magazzino);
+    await popolaDatalistPerModale('attacchi', 'editAttacchiList', kit.magazzino);
+    await popolaDatalistPerModale('skistopper', 'editSkistopperList', kit.magazzino);
+
+    // Mostra il modale
+    document.getElementById('modalEditKit').style.display = 'flex';
+  } catch (err) {
+    showMessage('Errore caricamento kit: ' + err.message, 'error');
+  }
+}
   async function salvaModificaKit() {
     const id = currentEditId;
     const magazzino = editKitMagazzino.value;
