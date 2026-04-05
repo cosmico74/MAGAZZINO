@@ -35,49 +35,48 @@ async function rilasciaArticolo(connection, articoloId, quantita) {
   );
 }
 
-// GET all kits (con dettagli JSON)
+// GET all kits (senza JSON_ARRAYAGG per compatibilità)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const query = `
+    // Prima prendi tutti i kit
+    const [kits] = await db.query(`
       SELECT k.*, 
-        (SELECT JSON_ARRAYAGG(
-           JSON_OBJECT(
-             'id', d.id,
-             'tipo', d.tipo_articolo,
-             'articolo_id', d.articolo_id,
-             'sigla_id', d.sigla_id,
-             'quantita', d.quantita,
-             'descrizione', a.descrizione,
-             'sigla', s.sigla
-           )
-         ) FROM kit_dettaglio d
-         LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
-         LEFT JOIN sigle_articoli s ON d.sigla_id = s.id
-         WHERE d.kit_id = k.id) AS dettagli,
-         cs.destinazione_tipo AS assegnato_tipo,
-         cs.destinazione_id AS assegnato_id,
-         cs.quantita AS assegnato_quantita,
-         sog.nome AS assegnato_nome,
-         sog.cognome AS assegnato_cognome
+             cs.destinazione_tipo AS assegnato_tipo,
+             cs.destinazione_id AS assegnato_id,
+             cs.quantita AS assegnato_quantita,
+             s.nome AS assegnato_nome,
+             s.cognome AS assegnato_cognome
       FROM kit k
       LEFT JOIN carico_sintesi cs ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id AND cs.quantita > 0
-      LEFT JOIN soggetti sog ON sog.tipo = cs.destinazione_tipo AND sog.id = cs.destinazione_id
-    `;
-    const [rows] = await db.query(query);
-    const kits = rows.map(k => ({
-      ...k,
-      dettagli: k.dettagli ? JSON.parse(k.dettagli) : [],
-      assegnato_a: k.assegnato_tipo ? {
-        tipo: k.assegnato_tipo,
-        id: k.assegnato_id,
-        nome: k.assegnato_tipo === 'PROMOTER' ? `${k.assegnato_nome} ${k.assegnato_cognome || ''}`.trim() : k.assegnato_nome,
-        quantita: k.assegnato_quantita
-      } : null
-    }));
-    res.json(kits);
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+    `);
+    
+    // Per ogni kit, recupera i dettagli
+    const result = [];
+    for (const kit of kits) {
+      const [dettagli] = await db.query(`
+        SELECT d.*, a.descrizione, sg.sigla
+        FROM kit_dettaglio d
+        LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
+        LEFT JOIN sigle_articoli sg ON d.sigla_id = sg.id
+        WHERE d.kit_id = ?
+      `, [kit.id]);
+      
+      result.push({
+        ...kit,
+        dettagli: dettagli,
+        assegnato_a: kit.assegnato_tipo ? {
+          tipo: kit.assegnato_tipo,
+          id: kit.assegnato_id,
+          nome: kit.assegnato_tipo === 'PROMOTER' ? `${kit.assegnato_nome} ${kit.assegnato_cognome || ''}`.trim() : kit.assegnato_nome,
+          quantita: kit.assegnato_quantita
+        } : null
+      });
+    }
+    res.json(result);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Errore database' });
+    console.error('Errore GET /kit:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -86,18 +85,17 @@ router.get('/:id', verifyToken, async (req, res) => {
   try {
     const [kitRows] = await db.query('SELECT * FROM kit WHERE id = ?', [req.params.id]);
     if (kitRows.length === 0) return res.status(404).json({ error: 'Kit non trovato' });
-    const [dettagli] = await db.query(
-      `SELECT d.*, a.descrizione, s.sigla 
-       FROM kit_dettaglio d
-       LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
-       LEFT JOIN sigle_articoli s ON d.sigla_id = s.id
-       WHERE d.kit_id = ?`,
-      [req.params.id]
-    );
+    const [dettagli] = await db.query(`
+      SELECT d.*, a.descrizione, sg.sigla
+      FROM kit_dettaglio d
+      LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
+      LEFT JOIN sigle_articoli sg ON d.sigla_id = sg.id
+      WHERE d.kit_id = ?
+    `, [req.params.id]);
     res.json({ ...kitRows[0], dettagli });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Errore database' });
+    console.error('Errore GET /kit/:id:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -188,7 +186,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       newMap.set(key, d);
     }
 
-    // Rilascia quelli rimossi o modificati
+    // Rilascia quelli rimossi o modificati in quantità
     for (const [key, old] of oldMap.entries()) {
       const newItem = newMap.get(key);
       if (!newItem) {
@@ -196,8 +194,11 @@ router.put('/:id', verifyToken, async (req, res) => {
         await connection.query('DELETE FROM kit_dettaglio WHERE id = ?', [old.id]);
       } else if (old.quantita !== newItem.quantita) {
         const diff = old.quantita - newItem.quantita;
-        if (diff > 0) await rilasciaArticolo(connection, old.articolo_id, diff);
-        else await consumaArticolo(connection, old.articolo_id, -diff);
+        if (diff > 0) {
+          await rilasciaArticolo(connection, old.articolo_id, diff);
+        } else {
+          await consumaArticolo(connection, old.articolo_id, -diff);
+        }
         await connection.query('UPDATE kit_dettaglio SET quantita = ? WHERE id = ?', [newItem.quantita, old.id]);
       }
     }
@@ -246,7 +247,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     res.json({ success: true, message: 'Kit eliminato' });
   } catch (err) {
     await connection.rollback();
-    console.error(err);
+    console.error('Errore DELETE /kit:', err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     connection.release();
