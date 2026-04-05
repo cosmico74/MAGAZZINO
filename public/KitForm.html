@@ -7,11 +7,7 @@
   <title>📦 Composizione Kit - Magazzino</title>
   <style>
     * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
+    html, body { height: 100%; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f0f2f5;
@@ -23,8 +19,6 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0;
-      line-height: 1;
       background: white;
       border-radius: 0 0 12px 12px;
       padding: 4px 20px;
@@ -38,9 +32,6 @@
       border-radius: 4px;
       cursor: pointer;
       color: white;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
     }
     .container {
       flex: 1;
@@ -78,10 +69,6 @@
       border-radius: 20px;
       font-size: 0.75rem;
     }
-    .external-checkbox input {
-      width: auto;
-      margin: 0;
-    }
     h3 { font-size: 1.1rem; margin: 8px 0 5px; }
     .form-row-5col {
       display: grid;
@@ -105,9 +92,7 @@
       border-radius: 6px;
       font-size: 0.75rem;
     }
-    .quantity-input {
-      width: 80px;
-    }
+    .quantity-input { width: 80px; }
     .btn {
       background: #1a73e8;
       color: white;
@@ -119,7 +104,6 @@
     }
     .btn:hover { background: #0f5bb5; }
     .btn-danger { background: #dc3545; }
-    .btn-danger:hover { background: #bb2d3b; }
     .filter-section {
       background: #f8f9fa;
       border-radius: 10px;
@@ -137,21 +121,8 @@
       font-weight: 600;
       margin-bottom: 2px;
       font-size: 0.65rem;
-      color: #2c3e50;
     }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 3px 5px;
-      border: 1px solid #cbd5e0;
-      border-radius: 4px;
-      font-size: 0.7rem;
-    }
-    .toolbar {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      justify-content: space-between;
-    }
+    .toolbar { display: flex; gap: 6px; margin-bottom: 8px; justify-content: space-between; }
     .table-wrapper {
       flex: 1;
       overflow-y: auto;
@@ -174,26 +145,8 @@
       position: sticky;
       top: 0;
       cursor: pointer;
-      user-select: none;
     }
-    .action-buttons {
-      display: flex;
-      gap: 4px;
-      justify-content: center;
-    }
-    .action-buttons button {
-      padding: 2px 4px;
-      font-size: 0.7rem;
-      min-width: 26px;
-    }
-    .unpack-cell {
-      white-space: nowrap;
-    }
-    .unpack-cell input {
-      width: 70px;
-      padding: 2px 4px;
-      margin-right: 4px;
-    }
+    .action-buttons { display: flex; gap: 4px; justify-content: center; }
     .message {
       padding: 6px;
       margin-bottom: 8px;
@@ -210,17 +163,9 @@
       border-top-color: #1a73e8;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
-      margin-right: 4px;
-      vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .info-note {
-      font-size: 0.65rem;
-      color: #6c757d;
-      margin-top: 2px;
-      text-align: right;
-    }
-    .text-center { text-align: center; }
+    .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
     .assignment-group {
       background: #f8f9fa;
       padding: 8px 10px;
@@ -230,10 +175,8 @@
     .modal {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top:0; left:0;
+      width:100%; height:100%;
       background: rgba(0,0,0,0.5);
       justify-content: center;
       align-items: center;
@@ -243,27 +186,10 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 1200px;
+      max-width: 800px;
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
-    }
-    .modal-content .form-row-5col {
-      grid-template-columns: 1fr 2fr 2fr 2fr 0.8fr;
-      gap: 15px;
-    }
-    .assigned-info {
-      background: #e9ecef;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-top: 10px;
-      font-size: 0.8rem;
-    }
-    @media (max-width: 800px) {
-      .modal-content .form-row-5col {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
     }
     .modal-buttons {
       display: flex;
@@ -271,42 +197,15 @@
       gap: 10px;
       margin-top: 15px;
     }
-    .checkbox-column {
-      width: 30px;
-      text-align: center;
-    }
-    .batch-toolbar {
-      margin: 10px 0;
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-    .kit-esaurito {
-      opacity: 0.6;
-      background-color: #f9f9f9;
-    }
-    .kit-esaurito button,
-    .kit-esaurito input {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    /* Stile per i gruppi sigla */
-    .sigla-group {
-      margin-top: 5px;
-      display: none;
-    }
-    .sigla-group select {
-      font-size: 0.7rem;
-      padding: 3px;
-    }
+    .checkbox-column { width: 30px; text-align: center; }
+    .batch-toolbar { margin: 10px 0; display: flex; gap: 10px; justify-content: flex-end; }
+    .kit-esaurito { opacity: 0.6; background-color: #f9f9f9; }
+    .sigla-group { margin-top: 5px; display: none; }
   </style>
 </head>
 <body>
-
 <div class="compact-bar">
-  <div class="logo">
-    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;">
-  </div>
+  <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;"></div>
   <div style="display: flex; gap: 6px;">
     <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
     <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
@@ -323,128 +222,93 @@
   </div>
   <div id="messageArea"></div>
 
-  <!-- FORM CREAZIONE KIT -->
   <h3>➕ Nuovo Kit</h3>
   <div id="assegnazioneSection" style="display:none;" class="assignment-group">
     <div class="form-row-5col">
       <div class="form-group">
-        <label>Destinazione (dove assegnare il kit)</label>
+        <label>Destinazione</label>
         <select id="destinazioneTipo">
           <option value="PROMOTER">👤 Promoter</option>
           <option value="NEGOZIO">🏪 Negozio</option>
           <option value="CLIENTE">👥 Cliente</option>
           <option value="AGENTE">🤝 Agente</option>
         </select>
-        <select id="destinazioneId" style="margin-top:4px;">
-          <option value="">Seleziona...</option>
-        </select>
+        <select id="destinazioneId" style="margin-top:4px;"><option value="">Seleziona...</option></select>
       </div>
     </div>
-    <div class="info-note" style="text-align:left;">Il kit verrà creato nel magazzino e subito assegnato al soggetto selezionato.</div>
   </div>
 
-  <form id="kitForm" onsubmit="return false;" autocomplete="off">
+  <form id="kitForm" onsubmit="return false;">
     <div class="form-row-5col">
-      <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" autocomplete="off" required></select></div>
-      
-      <!-- SCI con sigla -->
+      <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" required></select></div>
       <div class="form-group">
         <label>Sci *</label>
-        <input type="text" id="kitSci" list="sciList" autocomplete="off" required placeholder="Cerca sci...">
+        <input type="text" id="kitSci" list="sciList" required placeholder="Cerca sci...">
         <datalist id="sciList"></datalist>
         <div class="sigla-group" id="sciSiglaGroup">
-          <label>Sigla (opzionale)</label>
-          <select id="kitSciSigla">
-            <option value="">Nessuna sigla</option>
-          </select>
+          <label>Sigla</label>
+          <select id="kitSciSigla"><option value="">Nessuna sigla</option></select>
         </div>
       </div>
-      
-      <!-- ATTACCHI con sigla -->
       <div class="form-group">
         <label>Attacchi *</label>
-        <input type="text" id="kitAttacchi" list="attacchiList" autocomplete="off" required placeholder="Cerca attacchi...">
+        <input type="text" id="kitAttacchi" list="attacchiList" required placeholder="Cerca attacchi...">
         <datalist id="attacchiList"></datalist>
         <div class="sigla-group" id="attacchiSiglaGroup">
-          <label>Sigla (opzionale)</label>
-          <select id="kitAttacchiSigla">
-            <option value="">Nessuna sigla</option>
-          </select>
+          <label>Sigla</label>
+          <select id="kitAttacchiSigla"><option value="">Nessuna sigla</option></select>
         </div>
       </div>
-      
-      <!-- SKISTOPPER con sigla -->
       <div class="form-group">
         <label>Skistopper</label>
-        <input type="text" id="kitSkistopper" list="skistopperList" autocomplete="off" placeholder="Cerca skistopper...">
+        <input type="text" id="kitSkistopper" list="skistopperList" placeholder="Cerca skistopper...">
         <datalist id="skistopperList"></datalist>
         <div class="sigla-group" id="skistopperSiglaGroup">
-          <label>Sigla (opzionale)</label>
-          <select id="kitSkistopperSigla">
-            <option value="">Nessuna sigla</option>
-          </select>
+          <label>Sigla</label>
+          <select id="kitSkistopperSigla"><option value="">Nessuna sigla</option></select>
         </div>
       </div>
-      
-      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" class="quantity-input" autocomplete="off" required style="width: 80px;"></div>
+      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" class="quantity-input" required></div>
     </div>
-    <div class="form-group"><label>Note</label><textarea id="kitNote" rows="2" autocomplete="off"></textarea></div>
+    <div class="form-group"><label>Note</label><textarea id="kitNote" rows="2"></textarea></div>
     <div class="form-group">
       <button type="button" class="btn" id="saveKitBtn" onclick="salvaKit()">💾 Salva Kit</button>
       <button type="button" class="btn btn-secondary" onclick="resetForm()">🔄 Reset</button>
     </div>
   </form>
 
-  <!-- FILTRI (con aggiornamento automatico) -->
+  <!-- FILTRI -->
   <div class="filter-section">
     <div class="filter-row-5col">
-      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="filtroSettore" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Marca</label><select id="filtroMarca" autocomplete="off"><option value="">Tutti</option></select></div>
-      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="filtroDescrizioneList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroDescrizioneList"></datalist></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="filtroSiglaList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroSiglaList"></datalist></div>
+      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="filtroDescrizioneList" placeholder="Contiene..."><datalist id="filtroDescrizioneList"></datalist></div>
+      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="filtroSiglaList" placeholder="Contiene..."><datalist id="filtroSiglaList"></datalist></div>
     </div>
     <div class="filter-row-5col">
-      <div class="filter-group"><label>Codice Modello</label><input type="text" id="filtroCodiceModello" list="filtroCodiceModelloList" autocomplete="off" placeholder="Contiene..."><datalist id="filtroCodiceModelloList"></datalist></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="filtroLunghezzaList" autocomplete="off" placeholder="Esatta"><datalist id="filtroLunghezzaList"></datalist></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="filtroDurezzaList" autocomplete="off" placeholder="Esatta"><datalist id="filtroDurezzaList"></datalist></div>
-      <div class="filter-group"></div>
-      <div class="filter-group"></div>
-    </div>
-    <div class="toolbar" style="justify-content: flex-start;">
-      <span class="info-note">I filtri influenzano solo lo SCI e la tabella kit.</span>
+      <div class="filter-group"><label>Codice Modello</label><input type="text" id="filtroCodiceModello" list="filtroCodiceModelloList" placeholder="Contiene..."><datalist id="filtroCodiceModelloList"></datalist></div>
+      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="filtroLunghezzaList" placeholder="Esatta"><datalist id="filtroLunghezzaList"></datalist></div>
+      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="filtroDurezzaList" placeholder="Esatta"><datalist id="filtroDurezzaList"></datalist></div>
+      <div class="filter-group"></div><div class="filter-group"></div>
     </div>
   </div>
 
-  <!-- Barra azioni batch -->
   <div class="batch-toolbar">
     <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
     <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
   </div>
 
-  <!-- Messaggio informativo -->
-  <div class="info-note" style="margin: 5px 0; text-align:left;">
-    💡 I kit con quantità 0 (esauriti) sono visualizzati in grigio e servono per evitare duplicati.
-  </div>
-
-  <!-- TABELLA KIT con checkboxes -->
   <div class="table-wrapper">
     <table id="tabellaKit">
       <thead>
          <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
-         <th data-sort="id">ID</th>
-         <th data-sort="codice">Codice Kit</th>
-         <th data-sort="sigla_sci">Sigla Sci</th>
-         <th data-sort="descrizione">Descrizione</th>
-         <th data-sort="magazzino_nome">Magazzino</th>
-         <th data-sort="sci_desc">Sci</th>
-         <th data-sort="attacchi_desc">Attacchi</th>
-         <th data-sort="skistopper_desc">Skistopper</th>
-         <th data-sort="quantita_totale">Quantità Totale</th>
-         <th data-sort="giacenza">Giacenza Reale</th>
-         <th data-sort="assegnato_nome">Assegnato a</th>
-         <th>Spacchetta</th>
-         <th>Azioni</th>
+         <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="sigla_sci">Sigla Sci</th>
+         <th data-sort="descrizione">Descrizione</th><th data-sort="magazzino_nome">Magazzino</th>
+         <th data-sort="sci_desc">Sci</th><th data-sort="attacchi_desc">Attacchi</th>
+         <th data-sort="skistopper_desc">Skistopper</th><th data-sort="quantita_totale">Qtà Totale</th>
+         <th data-sort="giacenza">Giacenza</th><th data-sort="assegnato_nome">Assegnato a</th>
+         <th>Spacchetta</th><th>Azioni</th>
       </thead>
       <tbody></tbody>
     </table>
@@ -453,61 +317,33 @@
 
 <!-- MODALE TRASFERIMENTO -->
 <div id="modalTrasferimento" class="modal">
-  <div class="modal-content" style="max-width: 500px;">
+  <div class="modal-content" style="max-width:500px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
-    <div class="form-group">
-      <label>Magazzino di transito *</label>
-      <select id="transferMagazzino">
-        <option value="">Caricamento...</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Tipo destinazione *</label>
-      <select id="destinatarioTipo">
-        <option value="">Seleziona tipo...</option>
-        <option value="PROMOTER">👤 Promoter</option>
-        <option value="NEGOZIO">🏪 Negozio</option>
-        <option value="CLIENTE">👥 Cliente</option>
-        <option value="AGENTE">🤝 Agente</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Destinatario *</label>
-      <select id="destinatarioId" disabled>
-        <option value="">Seleziona prima il tipo</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Note (opzionale)</label>
-      <input type="text" id="transferNote" placeholder="Note per il trasferimento">
-    </div>
-    <div class="modal-buttons">
-      <button class="btn" onclick="eseguiTrasferimento()">Conferma trasferimento</button>
-      <button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button>
-    </div>
+    <div class="form-group"><label>Magazzino transito *</label><select id="transferMagazzino"></select></div>
+    <div class="form-group"><label>Tipo destinazione *</label><select id="destinatarioTipo"><option value="">Seleziona...</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Destinatario *</label><select id="destinatarioId" disabled><option value="">Seleziona prima il tipo</option></select></div>
+    <div class="form-group"><label>Note</label><input type="text" id="transferNote"></div>
+    <div class="modal-buttons"><button class="btn" onclick="eseguiTrasferimento()">Conferma</button><button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button></div>
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT -->
+<!-- MODALE MODIFICA KIT (CORRETTO) -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
-    <form id="editKitForm" onsubmit="return false;" autocomplete="off">
+    <form id="editKitForm" onsubmit="return false;">
       <input type="hidden" id="editKitId">
       <div class="form-row-5col">
-        <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" autocomplete="off" required></select></div>
-        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" autocomplete="off" required><datalist id="editSciList"></datalist></div>
-        <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" autocomplete="off" required><datalist id="editAttacchiList"></datalist></div>
-        <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList" autocomplete="off"><datalist id="editSkistopperList"></datalist></div>
-        <div class="form-group"><label>Quantità Totale (in magazzino)</label><input type="number" id="editKitQuantita" min="0" step="1" autocomplete="off" required></div>
+        <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
+        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" list="editSciList" required><datalist id="editSciList"></datalist></div>
+        <div class="form-group"><label>Attacchi</label><input type="text" id="editKitAttacchi" list="editAttacchiList" required><datalist id="editAttacchiList"></datalist></div>
+        <div class="form-group"><label>Skistopper</label><input type="text" id="editKitSkistopper" list="editSkistopperList"><datalist id="editSkistopperList"></datalist></div>
+        <div class="form-group"><label>Quantità Totale</label><input type="number" id="editKitQuantita" min="0" step="1" required></div>
       </div>
       <div id="assignedInfo" class="assigned-info" style="display:none;">
-        <strong>ℹ️ Informazioni assegnazione</strong><br>
-        Questo kit è attualmente assegnato a: <span id="assignedToName"></span><br>
-        Quantità assegnata: <span id="assignedQuantity"></span><br>
-        La quantità in magazzino è separata dalla quantità già assegnata. Modificando la quantità in magazzino non influisce sulla quantità già assegnata.
+        <strong>ℹ️ Assegnato a:</strong> <span id="assignedToName"></span> (quantità: <span id="assignedQuantity"></span>)
       </div>
-      <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2" autocomplete="off"></textarea></div>
+      <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="2"></textarea></div>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
         <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
@@ -522,41 +358,28 @@
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
   }
-
   function showMessage(msg, type) {
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
   }
-
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (!response.ok) {
-      let errMsg = `Errore ${response.status}`;
-      try { const err = await response.json(); errMsg = err.message || errMsg; } catch(e) {}
-      throw new Error(errMsg);
-    }
-    return response.json();
+    const res = await fetch(endpoint, { ...options, headers });
+    if (!res.ok) { let err = `Errore ${res.status}`; try { const data = await res.json(); err = data.message || err; } catch(e) {} throw new Error(err); }
+    return res.json();
   }
+  function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
 
-  // ---------- GLOBALI ----------
+  // ========== GLOBALI ==========
   let currentUser = null;
-  let magazzini = [], settori = [], marche = [];
-  let allKits = [];
-  let kitList = [];
+  let magazzini = [], settori = [], marche = [], allSoggetti = [];
+  let allKits = [], kitFiltrati = [];
   let articoliDettaglioCache = new Map();
-  let kitFiltrati = [];
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
-  let canUseWarehouse = false;
-  let allSoggetti = [];
-
-  let sortColumn = 'id';
-  let sortAsc = true;
-
-  let cachedAssignedKits = null;
-  let lastSourceKey = null;
-
+  let sortColumn = 'id', sortAsc = true;
+  let currentEditId = null;
+  // Variabili per memorizzare gli ID durante la modifica
   let currentEditSciId = null;
   let currentEditAttacchiId = null;
   let currentEditSkistopperId = null;
@@ -569,20 +392,17 @@
   const filtroCodMod = document.getElementById('filtroCodiceModello');
   const filtroLung = document.getElementById('filtroLunghezza');
   const filtroDur = document.getElementById('filtroDurezza');
-
   const externalCheckbox = document.getElementById('assegnazioniEsterneCheckbox');
   const assegnazioneSection = document.getElementById('assegnazioneSection');
   const destinazioneTipo = document.getElementById('destinazioneTipo');
   const destinazioneId = document.getElementById('destinazioneId');
-
   const kitMagazzinoSelect = document.getElementById('kitMagazzino');
   const editKitMagazzino = document.getElementById('editKitMagazzino');
-
   const transferMagazzinoSelect = document.getElementById('transferMagazzino');
   const destinatarioTipoSelect = document.getElementById('destinatarioTipo');
   const destinatarioIdSelect = document.getElementById('destinatarioId');
 
-  // ---------- CARICAMENTO ANAGRAFICHE ----------
+  // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
     try {
       [magazzini, settori, marche, allSoggetti] = await Promise.all([
@@ -592,252 +412,38 @@
         apiFetch('/api/soggetti')
       ]);
       const categorie = await apiFetch('/api/anagrafiche/categorie');
-      console.log('Categorie ricevute:', categorie);
+      const findId = (nome) => { const c = categorie.find(cat => cat.nome.toLowerCase() === nome.toLowerCase()); return c ? c.id : null; };
+      categoryIds.sci = findId('sci');
+      categoryIds.attacchi = findId('attacchi');
+      categoryIds.skistopper = findId('skistopper');
 
-      const findCategoryId = (nomeCercato) => {
-        const exact = categorie.find(c => c.nome.toLowerCase() === nomeCercato.toLowerCase());
-        if (exact) return exact.id;
-        const contains = categorie.find(c => c.nome.toLowerCase().includes(nomeCercato.toLowerCase()));
-        if (contains) return contains.id;
-        console.warn(`Categoria "${nomeCercato}" non trovata. Nomi disponibili:`, categorie.map(c => c.nome));
-        return null;
-      };
-
-      categoryIds.sci = findCategoryId('sci');
-      categoryIds.attacchi = findCategoryId('attacchi');
-      categoryIds.skistopper = findCategoryId('skistopper');
-      console.log('ID categorie:', categoryIds);
-
-      function popolaSelect(select, items) {
-        if (!select) return;
-        select.innerHTML = '<option value="">Tutti</option>';
-        items.forEach(i => select.appendChild(new Option(i.nome, i.id)));
-      }
+      function popolaSelect(select, items) { select.innerHTML = '<option value="">Tutti</option>'; items.forEach(i => select.appendChild(new Option(i.nome, i.id))); }
       popolaSelect(filtroMag, magazzini);
       popolaSelect(filtroSet, settori);
       popolaSelect(filtroMar, marche);
 
-      if (kitMagazzinoSelect) kitMagazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      if (editKitMagazzino) editKitMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
-      magazzini.forEach(m => {
-        if (kitMagazzinoSelect) kitMagazzinoSelect.appendChild(new Option(m.nome, m.id));
-        if (editKitMagazzino) editKitMagazzino.appendChild(new Option(m.nome, m.id));
-      });
-
+      kitMagazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      editKitMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
       transferMagazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      magazzini.forEach(m => transferMagazzinoSelect.appendChild(new Option(m.nome, m.id)));
-
+      magazzini.forEach(m => {
+        kitMagazzinoSelect.appendChild(new Option(m.nome, m.id));
+        editKitMagazzino.appendChild(new Option(m.nome, m.id));
+        transferMagazzinoSelect.appendChild(new Option(m.nome, m.id));
+      });
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag && kitMagazzinoSelect) {
-        kitMagazzinoSelect.value = defaultMag.id;
-        console.log(`Magazzino di default per creazione kit: ${defaultMag.nome} (ID ${defaultMag.id})`);
-      } else if (magazzini.length > 0 && kitMagazzinoSelect) {
-        kitMagazzinoSelect.value = magazzini[0].id;
-      }
+      if (defaultMag) kitMagazzinoSelect.value = defaultMag.id;
+      else if (magazzini.length) kitMagazzinoSelect.value = magazzini[0].id;
 
-      await setDefaultMagazzino();
-    } catch (err) {
-      console.error('Errore anagrafiche:', err);
-      showMessage('Errore caricamento dati iniziali', 'error');
-    }
-  }
-
-  // Funzione per filtrare i soggetti in base al tipo per il trasferimento
-  function filtraSoggettiTrasferimento() {
-    const tipo = destinatarioTipoSelect.value;
-    if (!tipo) {
-      destinatarioIdSelect.disabled = true;
-      destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-      return;
-    }
-    const filtrati = allSoggetti.filter(s => s.tipo === tipo);
-    destinatarioIdSelect.disabled = false;
-    destinatarioIdSelect.innerHTML = '<option value="">Seleziona destinatario...</option>';
-    filtrati.forEach(s => {
-      let nome = s.tipo === 'PROMOTER' ? `${s.nome} ${s.cognome || ''}`.trim() : s.nome;
-      destinatarioIdSelect.appendChild(new Option(nome, s.id));
-    });
-  }
-
-  destinatarioTipoSelect.addEventListener('change', filtraSoggettiTrasferimento);
-    // ---------- SELEZIONE MULTIPLA ----------
-  function toggleSelectAll() {
-    const checkAll = document.getElementById('selectAllCheckbox').checked;
-    const checkboxes = document.querySelectorAll('.kit-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkAll);
-  }
-
-  function getSelectedKits() {
-    const selected = [];
-    const checkboxes = document.querySelectorAll('.kit-checkbox:checked');
-    for (let cb of checkboxes) {
-      const kitId = parseInt(cb.getAttribute('data-kit-id'));
-      const kit = kitFiltrati.find(k => k.id === kitId);
-      if (kit && kit.assegnato_a) {
-        selected.push(kit);
-      }
-    }
-    return selected;
-  }
-
-  // ---------- OPERAZIONI BATCH ----------
-  async function rientraSelezionati() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Seleziona almeno un kit assegnato da riportare in magazzino', 'error');
-      return;
-    }
-    const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) {
-      showMessage('Seleziona un magazzino di destinazione (nel form di creazione)', 'error');
-      return;
-    }
-
-    const oggetti = selected.map(kit => ({
-      tipoOggetto: 'KIT',
-      oggettoId: kit.id,
-      quantita: kit.assegnato_a.quantita,
-      daTipo: kit.assegnato_a.tipo,
-      daId: kit.assegnato_a.id
-    }));
-
-    const payload = {
-      magazzinoId: parseInt(magazzinoId),
-      note: `Rientro batch di ${selected.length} kit`,
-      oggetti: oggetti
-    };
-
-    const btn = document.getElementById('btnRientraMagazzino');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> In corso...';
-
-    try {
-      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '📦 Rientra in magazzino';
-    }
-  }
-
-  function apriModalTrasferimento() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Seleziona almeno un kit assegnato da trasferire', 'error');
-      return;
-    }
-    destinatarioTipoSelect.value = '';
-    filtraSoggettiTrasferimento();
-    document.getElementById('transferNote').value = '';
-    if (!transferMagazzinoSelect.value && magazzini.length > 0) {
-      transferMagazzinoSelect.value = magazzini[0].id;
-    }
-    document.getElementById('modalTrasferimento').style.display = 'flex';
-  }
-
-  function chiudiModalTrasferimento() {
-    document.getElementById('modalTrasferimento').style.display = 'none';
-  }
-
-  async function eseguiTrasferimento() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Nessun kit selezionato', 'error');
-      chiudiModalTrasferimento();
-      return;
-    }
-    const magazzinoId = transferMagazzinoSelect.value;
-    if (!magazzinoId) {
-      showMessage('Seleziona un magazzino di transito', 'error');
-      return;
-    }
-    const destinazioneTipo = destinatarioTipoSelect.value;
-    const destinazioneId = destinatarioIdSelect.value;
-    if (!destinazioneTipo || !destinazioneId) {
-      showMessage('Seleziona il destinatario', 'error');
-      return;
-    }
-    const note = document.getElementById('transferNote').value.trim();
-
-    const oggetti = selected.map(kit => ({
-      tipoOggetto: 'KIT',
-      oggettoId: kit.id,
-      quantita: kit.assegnato_a.quantita
-    }));
-
-    const primo = selected[0];
-    const daTipo = primo.assegnato_a.tipo;
-    const daId = primo.assegnato_a.id;
-
-    const sameSource = selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId);
-    if (!sameSource) {
-      showMessage('I kit selezionati provengono da soggetti diversi. Seleziona kit dello stesso soggetto.', 'error');
-      return;
-    }
-
-    const payload = {
-      daTipo: daTipo,
-      daId: daId,
-      aTipo: destinazioneTipo,
-      aId: parseInt(destinazioneId),
-      magazzinoId: parseInt(magazzinoId),
-      oggetti: oggetti,
-      note: note || `Trasferimento batch di ${selected.length} kit`
-    };
-
-    const btn = document.querySelector('#modalTrasferimento .btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Trasferimento...';
-
-    try {
-      const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        chiudiModalTrasferimento();
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = 'Conferma trasferimento';
-    }
-  }
-
-  // ---------- FUNZIONI PER DATALIST E SIGLE ----------
-  async function setDefaultMagazzino() {
-    const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-    if (defaultMag && filtroMag) {
-      console.log(`Magazzino di default trovato: ${defaultMag.nome} (non applicato al filtro)`);
       await refreshComponentDatalists();
       await refreshFilterDatalists();
-    } else {
-      console.warn('Magazzino "race" non trovato.');
-    }
+    } catch(err) { showMessage('Errore anagrafiche', 'error'); }
   }
 
+  // ========== DATALIST ==========
   async function getArticoliPerDatalist(tipo, magazzinoId = null) {
     const params = new URLSearchParams();
-    if (magazzinoId) {
-      params.append('magazzino', magazzinoId);
-    } else if (kitMagazzinoSelect.value) {
-      params.append('magazzino', kitMagazzinoSelect.value);
-    }
+    const magId = magazzinoId || kitMagazzinoSelect.value;
+    if (magId) params.append('magazzino', magId);
     if (filtroSet.value) params.append('settore', filtroSet.value);
     if (filtroMar.value) params.append('marca', filtroMar.value);
     if (tipo === 'sci') {
@@ -849,10 +455,8 @@
     }
     params.append('min_giacenza', '1');
     if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
-    const url = `/api/articoli?${params.toString()}`;
-    const res = await apiFetch(url);
-    if (res.success) return res.data;
-    return [];
+    const res = await apiFetch(`/api/articoli?${params.toString()}`);
+    return res.success ? res.data : [];
   }
 
   function formatArticleDisplay(art) {
@@ -866,37 +470,18 @@
 
   async function popolaDatalistTipo(tipo, datalistId, overrideMagazzinoId = null) {
     try {
-      const catId = categoryIds[tipo];
-      if (!catId) {
-        console.warn(`⚠️ Categoria per ${tipo} non trovata. Impossibile popolare ${datalistId}`);
-        return;
-      }
-      let magazzinoId = overrideMagazzinoId !== null ? overrideMagazzinoId : kitMagazzinoSelect.value;
-      if (!magazzinoId) {
-        const datalist = document.getElementById(datalistId);
-        if (datalist) datalist.innerHTML = '';
-        return;
-      }
-      const articoli = await getArticoliPerDatalist(tipo, magazzinoId);
+      const articoli = await getArticoliPerDatalist(tipo, overrideMagazzinoId);
       const validi = articoli.filter(a => (a.quantita_totale - a.quantita_in_kit) > 0);
       const datalist = document.getElementById(datalistId);
       if (!datalist) return;
       datalist.innerHTML = '';
       validi.forEach(art => {
-        const option = document.createElement('option');
-        option.value = formatArticleDisplay(art);
-        option.setAttribute('data-id', art.id);
-        datalist.appendChild(option);
+        const opt = document.createElement('option');
+        opt.value = formatArticleDisplay(art);
+        opt.setAttribute('data-id', art.id);
+        datalist.appendChild(opt);
       });
-      console.log(`✅ Datalist ${datalistId}: ${validi.length} opzioni`);
-    } catch (err) {
-      console.error(`Errore popola ${datalistId}:`, err);
-    }
-  }
-
-  // Funzione aggiunta per popolare datalist nel modale (usa lo stesso meccanismo)
-  async function popolaDatalistPerModale(tipo, datalistId, magazzinoId) {
-    await popolaDatalistTipo(tipo, datalistId, magazzinoId);
+    } catch(err) { console.error(err); }
   }
 
   async function refreshComponentDatalists() {
@@ -906,79 +491,52 @@
       popolaDatalistTipo('skistopper', 'skistopperList')
     ]);
     filtraKit();
-    console.log('Refresh componenti completato, chiamato filtraKit()');
+  }
+
+  async function popolaDatalistPerModale(tipo, datalistId, magazzinoId) {
+    await popolaDatalistTipo(tipo, datalistId, magazzinoId);
   }
 
   async function refreshEditDatalists() {
-    const magazzinoId = editKitMagazzino.value;
-    if (!magazzinoId) return;
-    await Promise.all([
-      popolaDatalistPerModale('sci', 'editSciList', magazzinoId),
-      popolaDatalistPerModale('attacchi', 'editAttacchiList', magazzinoId),
-      popolaDatalistPerModale('skistopper', 'editSkistopperList', magazzinoId)
-    ]);
+    const magId = editKitMagazzino.value;
+    if (magId) {
+      await popolaDatalistPerModale('sci', 'editSciList', magId);
+      await popolaDatalistPerModale('attacchi', 'editAttacchiList', magId);
+      await popolaDatalistPerModale('skistopper', 'editSkistopperList', magId);
+    }
   }
 
-  // ---------- CARICAMENTO SIGLE PER UN ARTICOLO ----------
- async function caricaSigle(articoloId, selectId, groupId) {
-  const group = document.getElementById(groupId);
-  const select = document.getElementById(selectId);
-  if (!articoloId) {
-    group.style.display = 'none';
-    select.innerHTML = '<option value="">Nessuna sigla</option>';
-    return;
+  // ========== SIGLE ==========
+  async function caricaSigle(articoloId, selectId, groupId) {
+    const group = document.getElementById(groupId);
+    const select = document.getElementById(selectId);
+    if (!articoloId) { group.style.display = 'none'; select.innerHTML = '<option value="">Nessuna sigla</option>'; return; }
+    try {
+      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+      if (sigle.length === 0) { group.style.display = 'none'; select.innerHTML = '<option value="">Nessuna sigla</option>'; }
+      else {
+        group.style.display = 'block';
+        select.innerHTML = '<option value="">Nessuna sigla</option>';
+        sigle.forEach(s => { let testo = s.sigla; if (s.durezza) testo += ` - ${s.durezza}`; select.appendChild(new Option(testo, s.id)); });
+      }
+    } catch(err) { group.style.display = 'none'; }
   }
-  try {
-    const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-    if (sigle.length === 0) {
-      group.style.display = 'none';
-      select.innerHTML = '<option value="">Nessuna sigla</option>';
-    } else {
-      group.style.display = 'block';
-      select.innerHTML = '<option value="">Nessuna sigla</option>';
-      sigle.forEach(s => {
-        let testo = s.sigla;
-        if (s.durezza) testo += ` - ${s.durezza}`;   // solo durezza, senza lunghezza
-        select.appendChild(new Option(testo, s.id));
-      });
-    }
-  } catch (err) {
-    console.error('Errore caricamento sigle:', err);
-    group.style.display = 'none';
-  }
-}
 
   function setupArticoloConSigle(inputId, siglaSelectId, siglaGroupId) {
     const input = document.getElementById(inputId);
     input.addEventListener('change', async () => {
-      const value = input.value;
+      const val = input.value;
       const datalist = document.getElementById(input.getAttribute('list'));
       let articoloId = null;
       if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === value) {
-            articoloId = opt.getAttribute('data-id');
-            break;
-          }
-        }
+        for (let opt of datalist.options) if (opt.value === val) { articoloId = opt.getAttribute('data-id'); break; }
       }
-      if (articoloId) {
-        await caricaSigle(articoloId, siglaSelectId, siglaGroupId);
-      } else {
-        document.getElementById(siglaGroupId).style.display = 'none';
-      }
+      if (articoloId) await caricaSigle(articoloId, siglaSelectId, siglaGroupId);
+      else document.getElementById(siglaGroupId).style.display = 'none';
     });
   }
 
-  // ---------- FILTRI DATALIST ----------
-  const filterFieldMap = {
-    descrizioni: 'descrizione',
-    sigle: 'sigla',
-    modelli: 'codice_modello',
-    lunghezze: 'lunghezza',
-    durezze: 'durezza'
-  };
-
+  // ========== FILTRI ==========
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
     if (filtroMag.value) params.append('magazzino', filtroMag.value);
@@ -990,29 +548,18 @@
     if (exceptField !== 'codice_modello' && filtroCodMod.value) params.append('codice_modello', filtroCodMod.value);
     if (exceptField !== 'lunghezza' && filtroLung.value) params.append('lunghezza', filtroLung.value);
     if (exceptField !== 'durezza' && filtroDur.value) params.append('durezza', filtroDur.value);
-    const endpoint = `/api/articoli/valori/${field}`;
-    const url = `${endpoint}?${params.toString()}`;
-    const data = await apiFetch(url);
-    const columnName = filterFieldMap[field] || field;
-    return data.map(item => item[columnName]).filter(v => v && v !== '');
+    const data = await apiFetch(`/api/articoli/valori/${field}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla', modelli: 'codice_modello', lunghezze: 'lunghezza', durezze: 'durezza' };
+    const col = map[field] || field;
+    return data.map(item => item[col]).filter(v => v && v !== '');
   }
-
   async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
-      const values = await getDistinctFilterValues(field, exceptField);
-      const datalist = document.getElementById(datalistId);
-      if (!datalist) return;
-      datalist.innerHTML = '';
-      values.forEach(val => {
-        const option = document.createElement('option');
-        option.value = val;
-        datalist.appendChild(option);
-      });
-    } catch (err) {
-      console.error(`Errore caricamento datalist filtro ${field}:`, err);
-    }
+      const vals = await getDistinctFilterValues(field, exceptField);
+      const dl = document.getElementById(datalistId);
+      if (dl) { dl.innerHTML = ''; vals.forEach(v => { const opt = document.createElement('option'); opt.value = v; dl.appendChild(opt); }); }
+    } catch(e) {}
   }
-
   async function refreshFilterDatalists() {
     await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
     await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
@@ -1021,396 +568,160 @@
     await popolaFilterDatalist('durezze', 'filtroDurezzaList', 'durezza');
   }
 
-  // ---------- CARICAMENTO KIT (MOSTRA TUTTI) ----------
+  // ========== KIT ==========
   async function caricaKit() {
     try {
       const data = await apiFetch('/api/kit');
       allKits = data;
-      kitList = data;
-      console.log('Tutti i kit ricevuti:', kitList.map(k => ({ id: k.id, quantita: k.quantita, assegnato_a: k.assegnato_a })));
-
-      const articoliIds = new Set();
-      kitList.forEach(k => {
-        articoliIds.add(k.id_sci);
-        articoliIds.add(k.id_attacchi);
-        if (k.id_skistopper) articoliIds.add(k.id_skistopper);
-      });
-      for (let id of articoliIds) {
-        if (!articoliDettaglioCache.has(id)) {
-          try {
-            const art = await apiFetch(`/api/articoli/${id}`);
-            articoliDettaglioCache.set(id, art);
-          } catch (e) {
-            console.warn(`Errore caricamento articolo ${id}`, e);
-          }
-        }
+      const ids = new Set();
+      allKits.forEach(k => { ids.add(k.id_sci); ids.add(k.id_attacchi); if (k.id_skistopper) ids.add(k.id_skistopper); });
+      for (let id of ids) if (!articoliDettaglioCache.has(id)) {
+        try { const art = await apiFetch(`/api/articoli/${id}`); articoliDettaglioCache.set(id, art); } catch(e) {}
       }
       filtraKit();
-    } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
-    }
+    } catch(err) { showMessage('Errore caricamento kit', 'error'); }
   }
 
-  // ---------- FILTRO KIT ----------
   function filtraKit() {
-    const magazzino = filtroMag.value ? parseInt(filtroMag.value) : null;
-    const settore = filtroSet.value ? parseInt(filtroSet.value) : null;
-    const marca = filtroMar.value ? parseInt(filtroMar.value) : null;
-    const descrizione = filtroDesc.value.toLowerCase().trim();
-    const sigla = filtroSigla.value.toLowerCase().trim();
-    const codiceModello = filtroCodMod.value.toLowerCase().trim();
-    const lunghezza = filtroLung.value;
-    const durezza = filtroDur.value;
-
-    let baseList = kitList;
-
-    kitFiltrati = baseList.filter(kit => {
-      if (magazzino && kit.magazzino !== magazzino) return false;
-      const sci = articoliDettaglioCache.get(kit.id_sci);
-      const att = articoliDettaglioCache.get(kit.id_attacchi);
-      if (!sci || !att) return false;
-
-      const matchAttributi = (art) => {
-        if (!art) return true;
-        if (settore && art.settore !== settore) return false;
-        if (marca && art.marca !== marca) return false;
-        if (descrizione && !art.descrizione?.toLowerCase().includes(descrizione)) return false;
-        if (sigla && !art.sigla?.toLowerCase().includes(sigla)) return false;
-        if (codiceModello && !art.codice_modello?.toLowerCase().includes(codiceModello)) return false;
-        if (lunghezza && art.lunghezza !== lunghezza) return false;
-        if (durezza && art.durezza !== durezza) return false;
-        return true;
-      };
-      return matchAttributi(sci);
+    const mag = filtroMag.value ? parseInt(filtroMag.value) : null;
+    const sett = filtroSet.value ? parseInt(filtroSet.value) : null;
+    const mar = filtroMar.value ? parseInt(filtroMar.value) : null;
+    const desc = filtroDesc.value.toLowerCase().trim();
+    const sig = filtroSigla.value.toLowerCase().trim();
+    const mod = filtroCodMod.value.toLowerCase().trim();
+    const lun = filtroLung.value;
+    const dur = filtroDur.value;
+    kitFiltrati = allKits.filter(k => {
+      if (mag && k.magazzino !== mag) return false;
+      const sci = articoliDettaglioCache.get(k.id_sci);
+      if (!sci) return false;
+      if (sett && sci.settore !== sett) return false;
+      if (mar && sci.marca !== mar) return false;
+      if (desc && !sci.descrizione?.toLowerCase().includes(desc)) return false;
+      if (sig && !sci.sigla?.toLowerCase().includes(sig)) return false;
+      if (mod && !sci.codice_modello?.toLowerCase().includes(mod)) return false;
+      if (lun && sci.lunghezza !== lun) return false;
+      if (dur && sci.durezza !== dur) return false;
+      return true;
     });
     popolaTabellaKit();
-  }  // ---------- ORDINAMENTO ----------
-  function aggiornaIndicatoriOrdine() {
-    const headers = document.querySelectorAll('#tabellaKit th');
-    headers.forEach(th => {
-      const column = th.getAttribute('data-sort');
-      if (column === sortColumn) {
-        th.innerHTML = th.innerText.replace(/[↑↓]/g, '') + (sortAsc ? ' ↑' : ' ↓');
-      } else {
-        th.innerHTML = th.innerText.replace(/[↑↓]/g, '');
-      }
-    });
   }
 
-  function compareValues(a, b, column) {
-    let valA, valB;
-    switch (column) {
-      case 'id': valA = a.id; valB = b.id; break;
-      case 'codice': valA = a.codice_kit || ''; valB = b.codice_kit || ''; break;
-      case 'sigla_sci': 
-        const sciA = articoliDettaglioCache.get(a.id_sci);
-        const sciB = articoliDettaglioCache.get(b.id_sci);
-        valA = sciA ? sciA.sigla : '';
-        valB = sciB ? sciB.sigla : '';
-        break;
-      case 'descrizione': valA = a.descrizione || ''; valB = b.descrizione || ''; break;
-      case 'magazzino_nome':
-        valA = magazzini.find(m => m.id == a.magazzino)?.nome || '';
-        valB = magazzini.find(m => m.id == b.magazzino)?.nome || ''; break;
-      case 'sci_desc':
-        const sciAd = articoliDettaglioCache.get(a.id_sci);
-        const sciBd = articoliDettaglioCache.get(b.id_sci);
-        valA = sciAd ? formatArticleDisplay(sciAd) : '';
-        valB = sciBd ? formatArticleDisplay(sciBd) : '';
-        break;
-      case 'attacchi_desc':
-        valA = articoliDettaglioCache.get(a.id_attacchi)?.descrizione || '';
-        valB = articoliDettaglioCache.get(b.id_attacchi)?.descrizione || '';
-        break;
-      case 'skistopper_desc':
-        valA = a.id_skistopper ? (articoliDettaglioCache.get(a.id_skistopper)?.descrizione || '') : '-';
-        valB = b.id_skistopper ? (articoliDettaglioCache.get(b.id_skistopper)?.descrizione || '') : '-'; break;
-      case 'quantita_totale':
-        valA = a.quantita;
-        valB = b.quantita;
-        break;
-      case 'giacenza':
-        valA = a.quantita - (a.assegnato_a ? a.assegnato_a.quantita : 0);
-        valB = b.quantita - (b.assegnato_a ? b.assegnato_a.quantita : 0);
-        break;
-      case 'assegnato_nome':
-        valA = a.assegnato_a ? a.assegnato_a.nome : 'Magazzino';
-        valB = b.assegnato_a ? b.assegnato_a.nome : 'Magazzino'; break;
-      default: valA = ''; valB = '';
-    }
-    if (typeof valA === 'number' && typeof valB === 'number') return valA - valB;
-    return (valA || '').toString().localeCompare((valB || '').toString());
+  function compareValues(a,b,col) {
+    let va,vb;
+    if (col === 'id') { va=a.id; vb=b.id; }
+    else if (col === 'codice') { va=a.codice_kit||''; vb=b.codice_kit||''; }
+    else if (col === 'sigla_sci') { va=a.sci_sigla||''; vb=b.sci_sigla||''; }
+    else if (col === 'descrizione') { va=a.descrizione||''; vb=b.descrizione||''; }
+    else if (col === 'magazzino_nome') { va=magazzini.find(m=>m.id==a.magazzino)?.nome||''; vb=magazzini.find(m=>m.id==b.magazzino)?.nome||''; }
+    else if (col === 'sci_desc') { const sa=articoliDettaglioCache.get(a.id_sci); va=sa?formatArticleDisplay(sa):''; const sb=articoliDettaglioCache.get(b.id_sci); vb=sb?formatArticleDisplay(sb):''; }
+    else if (col === 'attacchi_desc') { va=articoliDettaglioCache.get(a.id_attacchi)?.descrizione||''; vb=articoliDettaglioCache.get(b.id_attacchi)?.descrizione||''; }
+    else if (col === 'skistopper_desc') { va=a.id_skistopper?(articoliDettaglioCache.get(a.id_skistopper)?.descrizione||''):'-'; vb=b.id_skistopper?(articoliDettaglioCache.get(b.id_skistopper)?.descrizione||''):'-'; }
+    else if (col === 'quantita_totale') { va=a.quantita; vb=b.quantita; }
+    else if (col === 'giacenza') { va=a.quantita-(a.assegnato_a?.quantita||0); vb=b.quantita-(b.assegnato_a?.quantita||0); }
+    else if (col === 'assegnato_nome') { va=a.assegnato_a?.nome||'Magazzino'; vb=b.assegnato_a?.nome||'Magazzino'; }
+    else return 0;
+    if (typeof va === 'number') return va - vb;
+    return (va||'').toString().localeCompare((vb||'').toString());
   }
-
-  function sortKitList() {
-    kitFiltrati.sort((a, b) => {
-      let result = compareValues(a, b, sortColumn);
-      if (!sortAsc) result = -result;
-      return result;
-    });
-  }
-
-  function handleSort(column) {
-    if (sortColumn === column) {
-      sortAsc = !sortAsc;
-    } else {
-      sortColumn = column;
-      sortAsc = true;
-    }
-    popolaTabellaKit();
-  }
-
-  function attachSortListeners() {
-    const headers = document.querySelectorAll('#tabellaKit th');
-    headers.forEach(th => {
-      const column = th.getAttribute('data-sort');
-      if (column) {
-        th.addEventListener('click', () => handleSort(column));
-      }
-    });
-  }
-
-  // ---------- SPACCHETTAMENTO ----------
-  async function spacchettaKit(kitId, quantita, destinazioneTipo, destinazioneId) {
-    if (!kitId || !quantita || quantita < 1) {
-      showMessage('Quantità non valida', 'error');
-      return;
-    }
-    const payload = { kitId, quantita, destinazioneTipo, destinazioneId: parseInt(destinazioneId) };
-    const btn = document.activeElement;
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
-
-    try {
-      const result = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
-  }
-
-  // ---------- POPOLA TABELLA (con gestione kit esauriti e sigla dello sci) ----------
+  function sortKitList() { kitFiltrati.sort((a,b) => { let r = compareValues(a,b,sortColumn); return sortAsc ? r : -r; }); }
   function popolaTabellaKit() {
     sortKitList();
     const tbody = document.querySelector('#tabellaKit tbody');
-    if (!tbody) return;
     tbody.innerHTML = '';
-    if (kitFiltrati.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="14" class="text-center">Nessun kit trovato</td></tr>';
-      return;
-    }
-
+    if (!kitFiltrati.length) { tbody.innerHTML = '<td><td colspan="14">Nessun kit</td></tr>'; return; }
     kitFiltrati.forEach(k => {
-      const mag = magazzini.find(m => m.id == k.magazzino)?.nome || k.magazzino;
+      const mag = magazzini.find(m=>m.id==k.magazzino)?.nome||k.magazzino;
       const sci = articoliDettaglioCache.get(k.id_sci);
-      const sciDisplay = sci ? formatArticleDisplay(sci) : k.id_sci;
-      const sciSigla = k.sci_sigla || '';
-      const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione || k.id_attacchi;
-      const skDesc = k.id_skistopper ? (articoliDettaglioCache.get(k.id_skistopper)?.descrizione || k.id_skistopper) : '-';
-
+      const sciDisplay = sci?formatArticleDisplay(sci):k.id_sci;
+      const attDesc = articoliDettaglioCache.get(k.id_attacchi)?.descrizione||k.id_attacchi;
+      const skDesc = k.id_skistopper?(articoliDettaglioCache.get(k.id_skistopper)?.descrizione||''):'-';
       const isAssigned = !!k.assegnato_a;
-      const quantitaTotale = k.quantita;
-      const quantitaAssegnata = isAssigned ? k.assegnato_a.quantita : 0;
-      const giacenzaReale = quantitaTotale - quantitaAssegnata;
-      const isEsaurito = (!isAssigned && quantitaTotale === 0) || (isAssigned && giacenzaReale === 0);
-
+      const qTot = k.quantita;
+      const qAss = isAssigned ? k.assegnato_a.quantita : 0;
+      const giac = qTot - qAss;
+      const isEsaurito = (!isAssigned && qTot===0) || (isAssigned && giac===0);
       const row = tbody.insertRow();
       if (isEsaurito) row.classList.add('kit-esaurito');
-
-      // Checkbox (solo per kit assegnati con quantità > 0)
       const cbCell = row.insertCell(0);
-      cbCell.className = 'checkbox-column';
-      if (isAssigned && quantitaAssegnata > 0) {
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'kit-checkbox';
-        cb.setAttribute('data-kit-id', k.id);
+      if (isAssigned && qAss>0) {
+        const cb = document.createElement('input'); cb.type='checkbox'; cb.className='kit-checkbox'; cb.setAttribute('data-kit-id',k.id);
         cbCell.appendChild(cb);
-      } else {
-        cbCell.innerText = '';
       }
-
-      row.insertCell(1).innerText = k.id;
-      row.insertCell(2).innerText = k.codice_kit;
-      row.insertCell(3).innerText = sciSigla || '-';
-      row.insertCell(4).innerText = k.descrizione;
-      row.insertCell(5).innerText = mag;
-      row.insertCell(6).innerText = sciDisplay;
-      row.insertCell(7).innerText = attDesc;
-      row.insertCell(8).innerText = skDesc;
-      row.insertCell(9).innerText = quantitaTotale;
-      row.insertCell(10).innerText = giacenzaReale;
-      row.insertCell(11).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
-
-      // Spacchetta
+      row.insertCell(1).innerText=k.id;
+      row.insertCell(2).innerText=k.codice_kit;
+      row.insertCell(3).innerText=k.sci_sigla||'-';
+      row.insertCell(4).innerText=k.descrizione;
+      row.insertCell(5).innerText=mag;
+      row.insertCell(6).innerText=sciDisplay;
+      row.insertCell(7).innerText=attDesc;
+      row.insertCell(8).innerText=skDesc;
+      row.insertCell(9).innerText=qTot;
+      row.insertCell(10).innerText=giac;
+      row.insertCell(11).innerText=isAssigned?k.assegnato_a.nome:'Magazzino';
       const unpackCell = row.insertCell(12);
-      if (isAssigned && quantitaAssegnata > 0) {
-        const maxQty = quantitaAssegnata;
-        const qtyInput = document.createElement('input');
-        qtyInput.type = 'number';
-        qtyInput.value = 1;
-        qtyInput.min = 1;
-        qtyInput.max = maxQty;
-        qtyInput.style.width = '70px';
-        qtyInput.style.marginRight = '4px';
-        const unpackBtn = document.createElement('button');
-        unpackBtn.textContent = '🔓';
-        unpackBtn.className = 'btn btn-danger btn-sm';
-        unpackBtn.onclick = () => {
-          const qty = parseInt(qtyInput.value);
-          if (isNaN(qty) || qty < 1 || qty > maxQty) {
-            showMessage('Quantità non valida', 'error');
-            return;
-          }
-          spacchettaKit(k.id, qty, k.assegnato_a.tipo, k.assegnato_a.id);
-        };
-        unpackCell.appendChild(qtyInput);
-        unpackCell.appendChild(unpackBtn);
-      } else if (isAssigned && quantitaAssegnata === 0) {
-        unpackCell.innerText = 'Assegnato 0';
-      } else if (!isAssigned && quantitaTotale === 0) {
-        unpackCell.innerText = 'Esaurito';
-      } else {
-        unpackCell.innerText = '-';
-      }
-
-      // Azioni
+      if (isAssigned && qAss>0) {
+        const inp = document.createElement('input'); inp.type='number'; inp.value=1; inp.min=1; inp.max=qAss; inp.style.width='70px';
+        const btn = document.createElement('button'); btn.textContent='🔓'; btn.className='btn btn-danger'; btn.onclick=()=>{ const qty=parseInt(inp.value); if(qty>=1&&qty<=qAss) spacchettaKit(k.id,qty,k.assegnato_a.tipo,k.assegnato_a.id); else showMessage('Quantità non valida','error'); };
+        unpackCell.appendChild(inp); unpackCell.appendChild(btn);
+      } else unpackCell.innerText='-';
       const actions = row.insertCell(13);
-      actions.className = 'action-buttons';
-      actions.innerHTML = `
-        <button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''} title="${isEsaurito ? 'Kit esaurito' : 'Modifica'}">✏️</button>
-        <button class="btn btn-danger" onclick="eliminaKit(${k.id})" ${isEsaurito ? 'disabled' : ''} title="${isEsaurito ? 'Kit esaurito' : 'Elimina'}">🗑️</button>
-      `;
+      actions.className='action-buttons';
+      actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito?'disabled':''}>✏️</button><button class="btn btn-danger" onclick="eliminaKit(${k.id})" ${isEsaurito?'disabled':''}>🗑️</button>`;
     });
-    aggiornaIndicatoriOrdine();
   }
 
-  // ---------- GESTIONE DESTINAZIONE (per assegnazione alla creazione) ----------
-  async function caricaDestinazioni() {
-    const tipo = destinazioneTipo.value;
+  function handleSort(col) { if(sortColumn===col) sortAsc=!sortAsc; else { sortColumn=col; sortAsc=true; } popolaTabellaKit(); }
+  function attachSortListeners() { document.querySelectorAll('#tabellaKit th[data-sort]').forEach(th => th.addEventListener('click',()=>handleSort(th.getAttribute('data-sort')))); }
+
+  // ========== SPACCHETTAMENTO ==========
+  async function spacchettaKit(kitId, qty, destTipo, destId) {
     try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destinazioneId.appendChild(new Option(testo, item.id));
-      });
-    } catch (err) {
-      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
-    }
+      const res = await apiFetch('/api/kit/spacchetta', { method: 'POST', body: JSON.stringify({ kitId, quantita: qty, destinazioneTipo: destTipo, destinazioneId: destId }) });
+      if(res.success) { showMessage(res.message,'success'); await caricaKit(); await refreshComponentDatalists(); await refreshFilterDatalists(); }
+      else showMessage(res.message,'error');
+    } catch(err) { showMessage('Errore: '+err.message,'error'); }
   }
 
-  function setupExternalMode() {
-    externalCheckbox.addEventListener('change', () => {
-      if (externalCheckbox.checked) {
-        assegnazioneSection.style.display = 'block';
-        caricaDestinazioni();
-      } else {
-        assegnazioneSection.style.display = 'none';
-      }
-    });
-    if (externalCheckbox.checked) {
-      assegnazioneSection.style.display = 'block';
-      caricaDestinazioni();
-    } else {
-      assegnazioneSection.style.display = 'none';
-    }
-  }
-
-  // ---------- CREAZIONE KIT (con supporto sigle) ----------
+  // ========== CREAZIONE KIT ==========
   function getArticleIdFromInput(inputValue, datalistId) {
-    const datalist = document.getElementById(datalistId);
-    if (!datalist) return null;
-    const options = datalist.options;
-    for (let opt of options) {
-      if (opt.value === inputValue) {
-        return opt.getAttribute('data-id');
-      }
-    }
+    const dl = document.getElementById(datalistId);
+    if (!dl) return null;
+    for (let opt of dl.options) if (opt.value === inputValue) return parseInt(opt.getAttribute('data-id'));
     return null;
   }
 
   async function salvaKit() {
-    const magazzino = kitMagazzinoSelect.value;
-    const quantita = parseInt(document.getElementById('kitQuantita').value);
-    const sciInput = document.getElementById('kitSci').value;
-    const attacchiInput = document.getElementById('kitAttacchi').value;
-    const skistopperInput = document.getElementById('kitSkistopper').value;
+    const mag = kitMagazzinoSelect.value;
+    const qty = parseInt(document.getElementById('kitQuantita').value);
+    const sciVal = document.getElementById('kitSci').value;
+    const attVal = document.getElementById('kitAttacchi').value;
+    const skVal = document.getElementById('kitSkistopper').value;
     const note = document.getElementById('kitNote').value.trim();
-    const sciSiglaId = document.getElementById('kitSciSigla').value;
-    const attacchiSiglaId = document.getElementById('kitAttacchiSigla').value;
-    const skistopperSiglaId = document.getElementById('kitSkistopperSigla').value;
-
-    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
-    }
-
-    const idSci = getArticleIdFromInput(sciInput, 'sciList');
-    const idAttacchi = getArticleIdFromInput(attacchiInput, 'attacchiList');
-    let idSkistopper = null;
-    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'skistopperList');
-    if (!idSci || !idAttacchi) {
-      showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
-      return;
-    }
-
-    const payload = {
-      magazzino: parseInt(magazzino),
-      quantita,
-      id_sci: parseInt(idSci),
-      sigla_sci_id: sciSiglaId ? parseInt(sciSiglaId) : null,
-      id_attacchi: parseInt(idAttacchi),
-      sigla_attacchi_id: attacchiSiglaId ? parseInt(attacchiSiglaId) : null,
-      id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
-      sigla_skistopper_id: skistopperSiglaId ? parseInt(skistopperSiglaId) : null,
-      note: note || null,
-      componiDaAssegnati: false
-    };
-
+    const sciSigla = document.getElementById('kitSciSigla').value;
+    const attSigla = document.getElementById('kitAttacchiSigla').value;
+    const skSigla = document.getElementById('kitSkistopperSigla').value;
+    if (!mag || !qty || !sciVal || !attVal) { showMessage('Compila campi obbligatori','error'); return; }
+    const idSci = getArticleIdFromInput(sciVal,'sciList');
+    const idAtt = getArticleIdFromInput(attVal,'attacchiList');
+    let idSk = null;
+    if (skVal) idSk = getArticleIdFromInput(skVal,'skistopperList');
+    if (!idSci || !idAtt) { showMessage('Seleziona sci e attacchi validi','error'); return; }
+    const payload = { magazzino: parseInt(mag), quantita: qty, id_sci: idSci, sigla_sci_id: sciSigla?parseInt(sciSigla):null, id_attacchi: idAtt, sigla_attacchi_id: attSigla?parseInt(attSigla):null, id_skistopper: idSk||null, sigla_skistopper_id: skSigla?parseInt(skSigla):null, note: note||null };
     if (externalCheckbox.checked) {
-      const destinazioneTipoVal = destinazioneTipo.value;
-      const destinazioneIdVal = destinazioneId.value;
-      if (!destinazioneIdVal) {
-        showMessage('Seleziona una destinazione per l\'assegnazione', 'error');
-        return;
-      }
-      payload.destinazioneTipo = destinazioneTipoVal;
-      payload.destinazioneId = parseInt(destinazioneIdVal);
+      const destTipo = destinazioneTipo.value, destId = destinazioneId.value;
+      if (!destId) { showMessage('Seleziona destinazione','error'); return; }
+      payload.destinazioneTipo = destTipo;
+      payload.destinazioneId = parseInt(destId);
     }
-
-    const saveBtn = document.getElementById('saveKitBtn');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
-
+    const btn = document.getElementById('saveKitBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     try {
-      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        resetForm();
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '💾 Salva Kit';
-    }
+      const res = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
+      if(res.success) { showMessage(res.message,'success'); resetForm(); await caricaKit(); await refreshComponentDatalists(); await refreshFilterDatalists(); }
+      else showMessage(res.message,'error');
+    } catch(err) { showMessage('Errore: '+err.message,'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '💾 Salva Kit'; }
   }
 
   function resetForm() {
@@ -1431,195 +742,100 @@
   async function eliminaKit(id) {
     if (!confirm('Eliminare questo kit?')) return;
     try {
-      const result = await apiFetch(`/api/kit/${id}`, { method: 'DELETE' });
-      if (result.success) {
-        showMessage('Kit eliminato', 'success');
-        await caricaKit();
-        await refreshComponentDatalists();
-        await refreshFilterDatalists();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    }
+      const res = await apiFetch(`/api/kit/${id}`, { method: 'DELETE' });
+      if(res.success) { showMessage('Kit eliminato','success'); await caricaKit(); await refreshComponentDatalists(); await refreshFilterDatalists(); }
+      else showMessage(res.message,'error');
+    } catch(err) { showMessage('Errore: '+err.message,'error'); }
   }
 
-  // ---------- MODIFICA KIT ----------
-  let currentEditId = null;
-  let currentAssignedInfo = null;
+  // ========== MODIFICA KIT (CORRETTA) ==========
+  async function modificaKit(id) {
+    try {
+      const kit = await apiFetch(`/api/kit/${id}`);
+      currentEditId = id;
+      document.getElementById('editKitId').value = kit.id;
+      editKitMagazzino.value = kit.magazzino;
+      document.getElementById('editKitQuantita').value = kit.quantita;
+      document.getElementById('editKitNote').value = kit.note || '';
 
-async function modificaKit(id) {
-  try {
-    const kit = await apiFetch(`/api/kit/${id}`);
-    currentEditId = id;
-    document.getElementById('editKitId').value = kit.id;
-    editKitMagazzino.value = kit.magazzino;
-    document.getElementById('editKitQuantita').value = kit.quantita;
-    document.getElementById('editKitNote').value = kit.note || '';
+      const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
+      const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
+      document.getElementById('editKitSci').value = formatArticleDisplay(sci);
+      document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
+      if (kit.id_skistopper) {
+        const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
+        document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
+      } else document.getElementById('editKitSkistopper').value = '';
 
-    // Recupera i dettagli dei componenti
-    const sci = await apiFetch(`/api/articoli/${kit.id_sci}`);
-    const att = await apiFetch(`/api/articoli/${kit.id_attacchi}`);
-    document.getElementById('editKitSci').value = formatArticleDisplay(sci);
-    document.getElementById('editKitAttacchi').value = formatArticleDisplay(att);
-    if (kit.id_skistopper) {
-      const sk = await apiFetch(`/api/articoli/${kit.id_skistopper}`);
-      document.getElementById('editKitSkistopper').value = formatArticleDisplay(sk);
-    } else {
-      document.getElementById('editKitSkistopper').value = '';
-    }
+      // Imposta gli ID correnti
+      currentEditSciId = kit.id_sci;
+      currentEditAttacchiId = kit.id_attacchi;
+      currentEditSkistopperId = kit.id_skistopper || null;
 
-    // Imposta gli ID correnti
-    currentEditSciId = kit.id_sci;
-    currentEditAttacchiId = kit.id_attacchi;
-    currentEditSkistopperId = kit.id_skistopper || null;
+      const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
+      const infoDiv = document.getElementById('assignedInfo');
+      if (assignedInfo) {
+        document.getElementById('assignedToName').innerText = assignedInfo.nome;
+        document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
+        infoDiv.style.display = 'block';
+      } else infoDiv.style.display = 'none';
 
-    // Mostra info assegnazione (opzionale)
-    const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
-    const assignedInfoDiv = document.getElementById('assignedInfo');
-    if (assignedInfo) {
-      document.getElementById('assignedToName').innerText = assignedInfo.nome;
-      document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
-      assignedInfoDiv.style.display = 'block';
-    } else {
-      assignedInfoDiv.style.display = 'none';
-    }
+      await popolaDatalistPerModale('sci', 'editSciList', kit.magazzino);
+      await popolaDatalistPerModale('attacchi', 'editAttacchiList', kit.magazzino);
+      await popolaDatalistPerModale('skistopper', 'editSkistopperList', kit.magazzino);
 
-    // Popola le datalist del modale
-    await popolaDatalistPerModale('sci', 'editSciList', kit.magazzino);
-    await popolaDatalistPerModale('attacchi', 'editAttacchiList', kit.magazzino);
-    await popolaDatalistPerModale('skistopper', 'editSkistopperList', kit.magazzino);
-
-    // Aggiunge i listener per aggiornare gli ID quando l'utente seleziona un valore
-    const sciInput = document.getElementById('editKitSci');
-    const attInput = document.getElementById('editKitAttacchi');
-    const skInput = document.getElementById('editKitSkistopper');
-
-    const updateSciId = () => {
-      const val = sciInput.value;
-      const datalist = document.getElementById('editSciList');
-      if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === val) {
-            currentEditSciId = parseInt(opt.getAttribute('data-id'));
-            return;
-          }
-        }
-      }
-      currentEditSciId = null;
-    };
-    const updateAttId = () => {
-      const val = attInput.value;
-      const datalist = document.getElementById('editAttacchiList');
-      if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === val) {
-            currentEditAttacchiId = parseInt(opt.getAttribute('data-id'));
-            return;
-          }
-        }
-      }
-      currentEditAttacchiId = null;
-    };
-    const updateSkId = () => {
-      const val = skInput.value;
-      if (!val) {
+      // Listener per aggiornare gli ID quando l'utente cambia selezione
+      const sciInput = document.getElementById('editKitSci');
+      const attInput = document.getElementById('editKitAttacchi');
+      const skInput = document.getElementById('editKitSkistopper');
+      const updateSci = () => {
+        const val = sciInput.value;
+        const dl = document.getElementById('editSciList');
+        for (let opt of dl.options) if (opt.value === val) { currentEditSciId = parseInt(opt.getAttribute('data-id')); return; }
+        currentEditSciId = null;
+      };
+      const updateAtt = () => {
+        const val = attInput.value;
+        const dl = document.getElementById('editAttacchiList');
+        for (let opt of dl.options) if (opt.value === val) { currentEditAttacchiId = parseInt(opt.getAttribute('data-id')); return; }
+        currentEditAttacchiId = null;
+      };
+      const updateSk = () => {
+        const val = skInput.value;
+        if (!val) { currentEditSkistopperId = null; return; }
+        const dl = document.getElementById('editSkistopperList');
+        for (let opt of dl.options) if (opt.value === val) { currentEditSkistopperId = parseInt(opt.getAttribute('data-id')); return; }
         currentEditSkistopperId = null;
-        return;
-      }
-      const datalist = document.getElementById('editSkistopperList');
-      if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === val) {
-            currentEditSkistopperId = parseInt(opt.getAttribute('data-id'));
-            return;
-          }
-        }
-      }
-      currentEditSkistopperId = null;
-    };
+      };
+      sciInput.removeEventListener('change', updateSci);
+      sciInput.addEventListener('change', updateSci);
+      attInput.removeEventListener('change', updateAtt);
+      attInput.addEventListener('change', updateAtt);
+      skInput.removeEventListener('change', updateSk);
+      skInput.addEventListener('change', updateSk);
 
-    sciInput.removeEventListener('change', updateSciId);
-    sciInput.addEventListener('change', updateSciId);
-    attInput.removeEventListener('change', updateAttId);
-    attInput.addEventListener('change', updateAttId);
-    skInput.removeEventListener('change', updateSkId);
-    skInput.addEventListener('change', updateSkId);
-
-    // Mostra il modale
-    document.getElementById('modalEditKit').style.display = 'flex';
-  } catch (err) {
-    showMessage('Errore caricamento kit: ' + err.message, 'error');
-  }
-}
-
-
-async function salvaModificaKit() {
-  const id = currentEditId;
-  const magazzino = editKitMagazzino.value;
-  const quantita = parseInt(document.getElementById('editKitQuantita').value);
-  const note = document.getElementById('editKitNote').value.trim();
-
-  if (!magazzino || isNaN(quantita) || !currentEditSciId || !currentEditAttacchiId) {
-    showMessage('Compila tutti i campi obbligatori (magazzino, quantità, sci, attacchi)', 'error');
-    return;
+      document.getElementById('modalEditKit').style.display = 'flex';
+    } catch(err) { showMessage('Errore caricamento kit: '+err.message,'error'); }
   }
 
-  const payload = {
-    magazzino: parseInt(magazzino),
-    quantita: quantita,
-    id_sci: currentEditSciId,
-    id_attacchi: currentEditAttacchiId,
-    id_skistopper: currentEditSkistopperId || null,
-    sigla_id: null,
-    note: note || null
-  };
-
-  try {
-    const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-    if (result.success) {
-      showMessage('Kit aggiornato', 'success');
-      chiudiModaleKit();
-      await caricaKit();
-      await refreshComponentDatalists();
-      await refreshFilterDatalists();
-    } else {
-      showMessage(result.message, 'error');
-    }
-  } catch (err) {
-    showMessage('Errore: ' + err.message, 'error');
-  }
-}
+  async function salvaModificaKit() {
     const id = currentEditId;
     const magazzino = editKitMagazzino.value;
     const quantita = parseInt(document.getElementById('editKitQuantita').value);
-    const sciInput = document.getElementById('editKitSci').value;
-    const attacchiInput = document.getElementById('editKitAttacchi').value;
-    const skistopperInput = document.getElementById('editKitSkistopper').value;
     const note = document.getElementById('editKitNote').value.trim();
 
-    if (!magazzino || isNaN(quantita) || !sciInput || !attacchiInput) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
-    }
-
-    const idSci = getArticleIdFromInput(sciInput, 'editSciList');
-    const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
-    let idSkistopper = null;
-    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
-    if (!idSci || !idAttacchi) {
-      showMessage('Seleziona uno sci e un attacchi dalla lista suggerita', 'error');
+    if (!magazzino || isNaN(quantita) || !currentEditSciId || !currentEditAttacchiId) {
+      showMessage('Compila tutti i campi obbligatori (magazzino, quantità, sci, attacchi)', 'error');
       return;
     }
 
     const payload = {
       magazzino: parseInt(magazzino),
-      quantita,
-      id_sci: parseInt(idSci),
-      id_attacchi: parseInt(idAttacchi),
-      id_skistopper: idSkistopper ? parseInt(idSkistopper) : null,
-      sigla: null,
+      quantita: quantita,
+      id_sci: currentEditSciId,
+      id_attacchi: currentEditAttacchiId,
+      id_skistopper: currentEditSkistopperId || null,
+      sigla_id: null,
       note: note || null
     };
 
@@ -1639,111 +855,138 @@ async function salvaModificaKit() {
     }
   }
 
- function chiudiModaleKit() {
-  document.getElementById('modalEditKit').style.display = 'none';
-  // Rimuovi i listener per evitare memory leak (opzionale)
-  const sciInput = document.getElementById('editKitSci');
-  const attInput = document.getElementById('editKitAttacchi');
-  const skInput = document.getElementById('editKitSkistopper');
-  sciInput?.removeEventListener('change', () => {});
-  attInput?.removeEventListener('change', () => {});
-  skInput?.removeEventListener('change', () => {});
-  currentEditId = null;
-  currentEditSciId = null;
-  currentEditAttacchiId = null;
-  currentEditSkistopperId = null;
-}
+  function chiudiModaleKit() {
+    document.getElementById('modalEditKit').style.display = 'none';
+    // Pulisci listener e variabili
+    const sciInput = document.getElementById('editKitSci');
+    const attInput = document.getElementById('editKitAttacchi');
+    const skInput = document.getElementById('editKitSkistopper');
+    sciInput?.removeEventListener('change', () => {});
+    attInput?.removeEventListener('change', () => {});
+    skInput?.removeEventListener('change', () => {});
+    currentEditId = null;
+    currentEditSciId = null;
+    currentEditAttacchiId = null;
+    currentEditSkistopperId = null;
+  }
 
-  // ---------- GESTIONE FILTRI GLOBALI ----------
-  let debounceTimer;
-  async function handleFilterChange() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(async () => {
+  // ========== GESTIONE DESTINAZIONI E BATCH ==========
+  function toggleSelectAll() {
+    const checkAll = document.getElementById('selectAllCheckbox').checked;
+    document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
+  }
+  function getSelectedKits() {
+    const sel = [];
+    document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
+      const id = parseInt(cb.getAttribute('data-kit-id'));
+      const kit = kitFiltrati.find(k => k.id === id);
+      if (kit && kit.assegnato_a) sel.push(kit);
+    });
+    return sel;
+  }
+  async function rientraSelezionati() {
+    const sel = getSelectedKits();
+    if (!sel.length) { showMessage('Seleziona kit assegnati','error'); return; }
+    const magId = kitMagazzinoSelect.value;
+    if (!magId) { showMessage('Seleziona magazzino','error'); return; }
+    const oggetti = sel.map(k => ({ tipoOggetto:'KIT', oggettoId:k.id, quantita:k.assegnato_a.quantita, daTipo:k.assegnato_a.tipo, daId:k.assegnato_a.id }));
+    const payload = { magazzinoId: parseInt(magId), note: `Rientro batch di ${sel.length} kit`, oggetti };
+    const btn = document.getElementById('btnRientraMagazzino');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+    try {
+      const res = await apiFetch('/api/assegnazioni/rientro/batch', { method:'POST', body:JSON.stringify(payload) });
+      if(res.success) { showMessage(res.message,'success'); document.getElementById('selectAllCheckbox').checked=false; await caricaKit(); await refreshComponentDatalists(); await refreshFilterDatalists(); }
+      else showMessage(res.message,'error');
+    } catch(err) { showMessage('Errore: '+err.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='📦 Rientra in magazzino'; }
+  }
+  function apriModalTrasferimento() {
+    if (!getSelectedKits().length) { showMessage('Seleziona kit assegnati','error'); return; }
+    destinatarioTipoSelect.value='';
+    destinatarioIdSelect.disabled=true;
+    destinatarioIdSelect.innerHTML='<option value="">Seleziona prima il tipo</option>';
+    document.getElementById('transferNote').value='';
+    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value=magazzini[0].id;
+    document.getElementById('modalTrasferimento').style.display='flex';
+  }
+  function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display='none'; }
+  async function eseguiTrasferimento() {
+    const sel = getSelectedKits();
+    if (!sel.length) { chiudiModalTrasferimento(); return; }
+    const magId = transferMagazzinoSelect.value;
+    const destTipo = destinatarioTipoSelect.value;
+    const destId = destinatarioIdSelect.value;
+    if (!magId || !destTipo || !destId) { showMessage('Compila tutti i campi','error'); return; }
+    const note = document.getElementById('transferNote').value.trim();
+    const oggetti = sel.map(k => ({ tipoOggetto:'KIT', oggettoId:k.id, quantita:k.assegnato_a.quantita }));
+    const daTipo = sel[0].assegnato_a.tipo, daId = sel[0].assegnato_a.id;
+    if (!sel.every(k => k.assegnato_a.tipo===daTipo && k.assegnato_a.id===daId)) { showMessage('I kit devono essere dello stesso soggetto','error'); return; }
+    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magId), oggetti, note: note||`Trasferimento batch di ${sel.length} kit` };
+    const btn = document.querySelector('#modalTrasferimento .btn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method:'POST', body:JSON.stringify(payload) });
+      if(res.success) { showMessage(res.message,'success'); chiudiModalTrasferimento(); document.getElementById('selectAllCheckbox').checked=false; await caricaKit(); await refreshComponentDatalists(); await refreshFilterDatalists(); }
+      else showMessage(res.message,'error');
+    } catch(err) { showMessage('Errore: '+err.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='Conferma trasferimento'; }
+  }
+
+  async function caricaDestinazioni() {
+    const tipo = destinazioneTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => { let testo = tipo==='PROMOTER'?`${item.nome} ${item.cognome||''}`.trim():item.nome; destinazioneId.appendChild(new Option(testo, item.id)); });
+    } catch(err) { showMessage('Errore destinazioni','error'); }
+  }
+  function setupExternalMode() {
+    externalCheckbox.addEventListener('change', () => {
+      assegnazioneSection.style.display = externalCheckbox.checked ? 'block' : 'none';
+      if (externalCheckbox.checked) caricaDestinazioni();
+    });
+    destinazioneTipo.addEventListener('change', () => { if (externalCheckbox.checked) caricaDestinazioni(); });
+    destinatarioTipoSelect.addEventListener('change', () => {
+      const tipo = destinatarioTipoSelect.value;
+      if (!tipo) { destinatarioIdSelect.disabled=true; destinatarioIdSelect.innerHTML='<option value="">Seleziona prima il tipo</option>'; return; }
+      const filtrati = allSoggetti.filter(s => s.tipo === tipo);
+      destinatarioIdSelect.disabled=false;
+      destinatarioIdSelect.innerHTML='<option value="">Seleziona destinatario...</option>';
+      filtrati.forEach(s => { let nome = s.tipo==='PROMOTER'?`${s.nome} ${s.cognome||''}`.trim():s.nome; destinatarioIdSelect.appendChild(new Option(nome, s.id)); });
+    });
+  }
+
+  // ========== FILTRI EVENTI ==========
+  let debTimer;
+  function handleFilterChange() {
+    clearTimeout(debTimer);
+    debTimer = setTimeout(async () => {
       await refreshComponentDatalists();
       await refreshFilterDatalists();
       filtraKit();
     }, 300);
   }
-
   function attachFilterEvents() {
-    const filterInputs = [filtroDesc, filtroSigla, filtroCodMod, filtroLung, filtroDur];
-    filterInputs.forEach(input => {
-      if (input) input.addEventListener('input', handleFilterChange);
-    });
-    const selectFilters = [filtroMag, filtroSet, filtroMar];
-    selectFilters.forEach(select => {
-      if (select) select.addEventListener('change', handleFilterChange);
-    });
-    kitMagazzinoSelect.addEventListener('change', () => {
-      if (!externalCheckbox.checked) refreshComponentDatalists();
-    });
-    if (editKitMagazzino) {
-      editKitMagazzino.addEventListener('change', () => {
-        if (document.getElementById('modalEditKit').style.display === 'flex') refreshEditDatalists();
-      });
-    }
+    [filtroDesc, filtroSigla, filtroCodMod, filtroLung, filtroDur].forEach(inp => inp?.addEventListener('input', handleFilterChange));
+    [filtroMag, filtroSet, filtroMar].forEach(sel => sel?.addEventListener('change', handleFilterChange));
+    kitMagazzinoSelect.addEventListener('change', () => { if (!externalCheckbox.checked) refreshComponentDatalists(); });
+    editKitMagazzino.addEventListener('change', () => { if (document.getElementById('modalEditKit').style.display === 'flex') refreshEditDatalists(); });
   }
 
-  async function applicaFiltri() {
-    await refreshComponentDatalists();
-    await refreshFilterDatalists();
-    filtraKit();
-  }
-
-  async function resetFiltri() {
-    if (filtroMag) filtroMag.value = '';
-    if (filtroSet) filtroSet.value = '';
-    if (filtroMar) filtroMar.value = '';
-    if (filtroDesc) filtroDesc.value = '';
-    if (filtroSigla) filtroSigla.value = '';
-    if (filtroCodMod) filtroCodMod.value = '';
-    if (filtroLung) filtroLung.value = '';
-    if (filtroDur) filtroDur.value = '';
-    await refreshComponentDatalists();
-    await refreshFilterDatalists();
-    filtraKit();
-  }
-
-  // ---------- LOGOUT ----------
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'Login.html';
-  }
-
-  // ---------- INIZIALIZZAZIONE ----------
+  // ========== INIT ==========
   window.onload = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
-      return;
-    }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-    } catch(e) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'Login.html';
-      return;
-    }
-    const loginInfo = document.createElement('div');
-    loginInfo.className = 'toolbar';
-    loginInfo.style.justifyContent = 'flex-end';
-    loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
+    if (!localStorage.getItem('token')) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>'; return; }
+    try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { logout(); return; }
+    const loginInfo = document.createElement('div'); loginInfo.style.display='flex'; loginInfo.style.justifyContent='flex-end'; loginInfo.style.marginBottom='10px'; loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato||currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
-
     await caricaAnagrafiche();
     attachFilterEvents();
     setupExternalMode();
     await caricaKit();
-    await refreshComponentDatalists();
-    await refreshFilterDatalists();
     attachSortListeners();
-    
-    // Setup per le sigle nei componenti del kit
-    setupArticoloConSigle('kitSci', 'kitSciSigla', 'sciSiglaGroup');
-    setupArticoloConSigle('kitAttacchi', 'kitAttacchiSigla', 'attacchiSiglaGroup');
-    setupArticoloConSigle('kitSkistopper', 'kitSkistopperSigla', 'skistopperSiglaGroup');
+    setupArticoloConSigle('kitSci','kitSciSigla','sciSiglaGroup');
+    setupArticoloConSigle('kitAttacchi','kitAttacchiSigla','attacchiSiglaGroup');
+    setupArticoloConSigle('kitSkistopper','kitSkistopperSigla','skistopperSiglaGroup');
   };
 </script>
 </body>
