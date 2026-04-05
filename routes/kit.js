@@ -6,6 +6,7 @@ const { aggiornaSintesiCarico } = require('./assegnazioni');
 const router = express.Router();
 
 // Helper: consuma un articolo per un kit (aumenta solo quantita_in_kit)
+// Consuma un articolo per un kit: aumenta solo quantita_in_kit (NON tocca quantita_totale)
 async function consumaPerKit(connection, articoloId, quantita) {
   const [art] = await connection.query(
     'SELECT quantita_totale, quantita_in_kit FROM articoli WHERE articolo_id = ? FOR UPDATE',
@@ -18,6 +19,21 @@ async function consumaPerKit(connection, articoloId, quantita) {
   }
   await connection.query(
     'UPDATE articoli SET quantita_in_kit = quantita_in_kit + ? WHERE articolo_id = ?',
+    [quantita, articoloId]
+  );
+}
+
+async function rilasciaDaKit(connection, articoloId, quantita) {
+  await connection.query(
+    'UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?',
+    [quantita, articoloId]
+  );
+}
+
+// Rilascia un articolo da un kit: diminuisce quantita_in_kit (NON tocca quantita_totale)
+async function rilasciaDaKit(connection, articoloId, quantita) {
+  await connection.query(
+    'UPDATE articoli SET quantita_in_kit = quantita_in_kit - ? WHERE articolo_id = ?',
     [quantita, articoloId]
   );
 }
@@ -197,7 +213,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       if (id_skistopper) await consumaPerKit(connection, id_skistopper, nuovaQuantita);
     }
 
-    // 3. Gestisci variazione di quantità (se lo stesso kit cambia solo quantità)
+    // 3. Gestisci variazione di quantità (se stesso kit, solo cambio quantità)
     if (oldKit.quantita !== nuovaQuantita && oldKit.id_sci === id_sci && oldKit.id_attacchi === id_attacchi && oldKit.id_skistopper === id_skistopper) {
       const diff = nuovaQuantita - oldKit.quantita;
       if (diff > 0) {
