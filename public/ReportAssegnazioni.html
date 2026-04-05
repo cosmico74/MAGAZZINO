@@ -14,7 +14,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       background: white;
       border-radius: 16px;
@@ -86,14 +86,16 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
+      font-size: 0.85rem;
     }
     th, td {
       border: 1px solid #ddd;
       padding: 8px;
       text-align: left;
+      vertical-align: top;
     }
     th {
-      background: #f8f9fa;
+      background: #f1f5f9;
       font-weight: 600;
     }
     .assigned-group {
@@ -128,7 +130,14 @@
     .density-medium th, .density-medium td { padding: 6px; }
     .density-large table { font-size: 14px; }
     .density-large th, .density-large td { padding: 10px; }
-
+    .badge {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      display: inline-block;
+    }
+    .error { color: #dc3545; background: #ffe6e6; padding: 10px; border-radius: 8px; }
     @media print {
       body { background: white; padding: 0; }
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
@@ -138,11 +147,8 @@
 </head>
 <body>
 <div class="container">
-  <!-- Barra superiore con logo e pulsanti (senza il terzo pulsante non definito) -->
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <div class="logo">
-      <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
-    </div>
+    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;"></div>
     <div style="display: flex; gap: 10px;">
       <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
       <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
@@ -173,9 +179,7 @@
             <option value="CLIENTE">Cliente</option>
             <option value="AGENTE">Agente</option>
           </select>
-          <select id="soggettoId" style="flex:2;" disabled>
-            <option value="">Seleziona...</option>
-          </select>
+          <select id="soggettoId" style="flex:2;" disabled><option value="">Seleziona...</option></select>
         </div>
       </div>
       <div class="filter-group">
@@ -213,7 +217,7 @@
       <div id="assegnazioniTable"></div>
     </div>
     <div class="report-section" id="movimentiSection" style="display: none;">
-      <h2>🚚 Oggetti inviati dal soggetto (uscite e rientri)</h2>
+      <h2>🚚 Movimenti in uscita / rientro dal soggetto selezionato</h2>
       <div id="movimentiTable"></div>
     </div>
   </div>
@@ -239,6 +243,8 @@
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
   let magazzinoKey = 'id';
+  let cacheOggetti = new Map();     // cache per dettagli articoli/kit
+  let cacheSoggetti = new Map();    // cache per nomi soggetti
 
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
@@ -284,6 +290,7 @@
         if (!tipo) {
           soggettoId.innerHTML = '<option value="">Seleziona...</option>';
           soggettoId.disabled = true;
+          movimentiSection.style.display = 'none';
           return;
         }
         soggettoId.disabled = false;
@@ -293,12 +300,49 @@
           data.forEach(item => {
             let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
             soggettoId.appendChild(new Option(testo, item.id));
+            cacheSoggetti.set(`${tipo}|${item.id}`, testo);
           });
         } catch (err) { console.error(err); }
       });
       soggettoId.addEventListener('change', () => { if (soggettoId.value) caricaReport(); });
       mostraMovimenti.addEventListener('change', () => { if (soggettoId.value) caricaReport(); });
     } catch (err) { console.error(err); }
+  }
+
+  // Helper per ottenere dettaglio oggetto (articolo o kit)
+  async function getDettaglioOggetto(tipo, id) {
+    const cacheKey = `${tipo}|${id}`;
+    if (cacheOggetti.has(cacheKey)) return cacheOggetti.get(cacheKey);
+    try {
+      let dettaglio;
+      if (tipo === 'ARTICOLO') {
+        const res = await apiFetch(`/api/articoli/${id}`);
+        dettaglio = { codice: res.codice, descrizione: res.descrizione_completa || res.descrizione };
+      } else {
+        const res = await apiFetch(`/api/kit/${id}`);
+        dettaglio = { codice: res.codice_kit, descrizione: res.descrizione };
+      }
+      cacheOggetti.set(cacheKey, dettaglio);
+      return dettaglio;
+    } catch(e) {
+      console.warn(`Errore dettaglio ${tipo} ${id}`, e);
+      return { codice: `${tipo.slice(0,3)}-${id}`, descrizione: 'N/D' };
+    }
+  }
+
+  // Helper per ottenere nome soggetto
+  async function getNomeSoggetto(tipo, id) {
+    if (!tipo || !id) return '-';
+    const key = `${tipo}|${id}`;
+    if (cacheSoggetti.has(key)) return cacheSoggetti.get(key);
+    try {
+      const res = await apiFetch(`/api/soggetti/${id}`);
+      const nome = tipo === 'PROMOTER' ? `${res.nome} ${res.cognome || ''}`.trim() : res.nome;
+      cacheSoggetti.set(key, nome);
+      return nome;
+    } catch(e) {
+      return `${tipo} ${id}`;
+    }
   }
 
   async function getAssegnazioni() {
@@ -317,15 +361,13 @@
     if (!tipo || !id) return [];
 
     const movimenti = [];
-
-    // Rientri dal soggetto
+    // Rientri dal soggetto (da_magazzino = tipo-id)
     const paramsRientro = new URLSearchParams();
     paramsRientro.append('tipo', 'RIENTRO');
     paramsRientro.append('da_magazzino', `${tipo}-${id}`);
     if (filtroMag.value) paramsRientro.append('a_magazzino', `MAGAZZINO-${filtroMag.value}`);
     if (filtroTipo.value) paramsRientro.append('tipo_oggetto', filtroTipo.value);
-    const urlRientro = `/api/movimenti?${paramsRientro.toString()}`;
-    const resRientro = await apiFetch(urlRientro);
+    const resRientro = await apiFetch(`/api/movimenti?${paramsRientro.toString()}`);
     if (resRientro.success) movimenti.push(...resRientro.data);
 
     // Uscite con provenienza
@@ -335,10 +377,10 @@
     paramsUscita.append('provenienza_id', id);
     if (filtroMag.value) paramsUscita.append('magazzino', filtroMag.value);
     if (filtroTipo.value) paramsUscita.append('tipo_oggetto', filtroTipo.value);
-    const urlUscita = `/api/movimenti?${paramsUscita.toString()}`;
-    const resUscita = await apiFetch(urlUscita);
+    const resUscita = await apiFetch(`/api/movimenti?${paramsUscita.toString()}`);
     if (resUscita.success) movimenti.push(...resUscita.data);
 
+    // Rimuovi duplicati
     const seen = new Set();
     const unici = movimenti.filter(m => {
       if (seen.has(m.id)) return false;
@@ -346,7 +388,38 @@
       return true;
     });
     unici.sort((a,b) => new Date(b.data) - new Date(a.data));
-    return unici;
+
+    // Arricchisci ogni movimento con dettagli oggetto e destinazione
+    const movimentiArricchiti = [];
+    for (const m of unici) {
+      const dettaglio = await getDettaglioOggetto(m.tipo_oggetto, m.id_articolo_kit);
+      let destinazioneNome = '';
+      if (m.tipo === 'RIENTRO') {
+        // a_magazzino es: "MAGAZZINO-2"
+        const magId = m.a_magazzino ? m.a_magazzino.split('-')[1] : null;
+        if (magId) {
+          const mag = magazzini.find(mg => mg.id == magId);
+          destinazioneNome = mag ? `Magazzino ${mag.nome}` : `Magazzino ${magId}`;
+        } else {
+          destinazioneNome = m.a_magazzino || '-';
+        }
+      } else {
+        // a_magazzino es: "PROMOTER-5"
+        if (m.a_magazzino && m.a_magazzino.includes('-')) {
+          const [destTipo, destId] = m.a_magazzino.split('-');
+          destinazioneNome = await getNomeSoggetto(destTipo, parseInt(destId));
+        } else {
+          destinazioneNome = m.a_magazzino || '-';
+        }
+      }
+      movimentiArricchiti.push({
+        ...m,
+        oggetto_codice: dettaglio.codice,
+        oggetto_descrizione: dettaglio.descrizione,
+        destinazione_nome: destinazioneNome
+      });
+    }
+    return movimentiArricchiti;
   }
 
   async function caricaReport() {
@@ -365,16 +438,13 @@
       if (filtroDur.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.DUREZZA == filtroDur.value);
       if (filtroSigla.value) assegnazioniFiltrate = assegnazioniFiltrate.filter(a => a.SIGLA?.toLowerCase() === filtroSigla.value.toLowerCase());
 
+      // Raggruppa per soggetto destinatario
       const grouped = new Map();
       for (const a of assegnazioniFiltrate) {
         const key = `${a.destinazioneTipo}|${a.destinazioneId}`;
         if (!grouped.has(key)) {
-          grouped.set(key, {
-            tipo: a.destinazioneTipo,
-            id: a.destinazioneId,
-            nome: a.destinatarioNome || `${a.destinazioneTipo} ${a.destinazioneId}`,
-            items: []
-          });
+          const nome = a.destinatarioNome || `${a.destinazioneTipo} ${a.destinazioneId}`;
+          grouped.set(key, { tipo: a.destinazioneTipo, id: a.destinazioneId, nome, items: [] });
         }
         grouped.get(key).items.push(a);
       }
@@ -403,9 +473,9 @@
     let html = '';
     for (const [key, group] of grouped.entries()) {
       html += `<div class="assigned-group"><h3>${group.tipo}: ${group.nome}</h3>`;
-      html += '<table>\n<thead>\n<tr>\n';
-      html += '<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th>\n';
-      html += '</tr>\n</thead>\n<tbody>\n';
+      html += '<table><thead><tr>';
+      html += '<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th>';
+      html += '</tr></thead><tbody>';
       group.items.forEach(item => {
         const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
         html += '<tr>';
@@ -416,9 +486,9 @@
         html += `<td>${item.DUREZZA || '-'}</td>`;
         html += `<td>${item.SIGLA || '-'}</td>`;
         html += `<td>${item.quantita}</td>`;
-        html += '</tr>\n';
+        html += '</tr>';
       });
-      html += '</tbody>\n</table>\n</div>';
+      html += '</tbody></div>';
     }
     container.innerHTML = html;
   }
@@ -429,32 +499,24 @@
       container.innerHTML = '<p>Nessun movimento trovato per questo soggetto con i filtri selezionati.</p>';
       return;
     }
-    let html = '<table>\n<thead>\n<tr>\n';
-    html += '<th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Quantità</th><th>Destinazione / Provenienza</th><th>Note</th>\n';
-    html += '</tr>\n</thead>\n<tbody>\n';
-    movimenti.forEach(m => {
+    let html = '<table><thead><tr>';
+    html += '<th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Quantità</th><th>Destinazione / Provenienza</th><th>Note</th>';
+    html += '</tr></thead><tbody>';
+    for (const m of movimenti) {
       const data = new Date(m.data).toLocaleString();
-      const oggetto = m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo';
-      let destinazione = '';
-      if (m.tipo === 'RIENTRO') {
-        destinazione = `Rientro a ${m.destinazione_nome || m.a_magazzino || '-'}`;
-      } else if (m.tipo === 'USCITA') {
-        destinazione = `Uscita verso ${m.destinazione_nome || m.a_magazzino || '-'}`;
-      } else {
-        destinazione = m.destinazione_nome || '-';
-      }
+      const tipoOggetto = m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo';
       html += '<tr>';
       html += `<td>${data}</td>`;
-      html += `<td>${m.tipo === 'RIENTRO' ? 'Rientro' : 'Uscita'}</td>`;
-      html += `<td>${oggetto}</td>`;
-      html += `<td>${m.codice || '-'}</td>`;
-      html += `<td>${m.descrizione_oggetto || '-'}</td>`;
+      html += `<td><span class="badge">${m.tipo === 'RIENTRO' ? 'Rientro' : 'Uscita'}</span></td>`;
+      html += `<td>${tipoOggetto}</td>`;
+      html += `<td>${m.oggetto_codice || '-'}</td>`;
+      html += `<td>${m.oggetto_descrizione || '-'}</td>`;
       html += `<td>${m.quantita}</td>`;
-      html += `<td>${destinazione}</td>`;
+      html += `<td>${m.destinazione_nome || '-'}</td>`;
       html += `<td>${m.note || '-'}</td>`;
-      html += '</tr>\n';
-    });
-    html += '</tbody>\n</table>';
+      html += '</tr>';
+    }
+    html += '</tbody></div>';
     container.innerHTML = html;
   }
 
@@ -499,10 +561,11 @@
       window.location.href = 'Login.html';
       return;
     }
-    // Aggiungi info utente (opzionale)
+    // Info utente
     const loginInfo = document.createElement('div');
-    loginInfo.className = 'toolbar';
+    loginInfo.style.display = 'flex';
     loginInfo.style.justifyContent = 'flex-end';
+    loginInfo.style.marginBottom = '10px';
     loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
 
