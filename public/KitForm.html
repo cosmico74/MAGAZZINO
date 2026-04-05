@@ -150,9 +150,7 @@
 
     <h4>Componenti del kit</h4>
     <table class="componenti-table" id="componentiTable">
-      <thead>
-        <th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th>
-      </thead>
+      <thead><th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th></thead>
       <tbody id="componentiTbody"></tbody>
     </table>
     <button type="button" class="btn" onclick="aggiungiRigaComponente()" style="margin-top:5px;">➕ Aggiungi componente</button>
@@ -227,7 +225,233 @@
     </form>
   </div>
 </div>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📦 Composizione Kit - Componenti Multipli</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+    .compact-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      border-radius: 0 0 12px 12px;
+      padding: 4px 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .btn-secondary {
+      background: #6c757d;
+      border: none;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      padding: 2px 20px 20px 20px;
+      overflow-y: auto;
+    }
+    h2 { margin: 5px 0 8px 0; font-size: 1.3rem; border-left: 5px solid #1a73e8; padding-left: 12px; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .external-checkbox { display: flex; align-items: center; gap: 6px; background: #f8f9fa; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; }
+    h3 { font-size: 1.1rem; margin: 8px 0 5px; }
+    .form-row { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-end; }
+    .form-group { flex: 1; margin-bottom: 6px; }
+    label { display: block; font-weight: 600; margin-bottom: 2px; font-size: 0.7rem; }
+    input, select, textarea { width: 100%; padding: 4px 6px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.75rem; }
+    .btn {
+      background: #1a73e8; color: white; border: none; padding: 3px 8px; border-radius: 4px;
+      cursor: pointer; font-size: 0.7rem;
+    }
+    .btn:hover { background: #0f5bb5; }
+    .btn-danger { background: #dc3545; }
+    .filter-section { background: #f8f9fa; border-radius: 10px; padding: 6px 10px; margin: 5px 0; }
+    .filter-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 5px; }
+    .table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 180px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+    th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; }
+    th { background: #f8f9fa; position: sticky; top: 0; cursor: pointer; }
+    .action-buttons { display: flex; gap: 4px; justify-content: center; }
+    .message { padding: 6px; margin-bottom: 8px; border-radius: 6px; font-size: 0.75rem; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
+    .assignment-group { background: #f8f9fa; padding: 8px 10px; border-radius: 10px; margin-top: 6px; }
+    .modal {
+      display: none;
+      position: fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .checkbox-column { width: 30px; text-align: center; }
+    .batch-toolbar { margin: 10px 0; display: flex; gap: 10px; justify-content: flex-end; }
+    .kit-esaurito { opacity: 0.6; background-color: #f9f9f9; }
+    .componenti-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+    .componenti-table th, .componenti-table td { border: 1px solid #ddd; padding: 4px; font-size: 0.7rem; }
+    .componenti-table th { background: #e9ecef; }
+  </style>
+</head>
+<body>
+<div class="compact-bar">
+  <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;"></div>
+  <div style="display: flex; gap: 6px;">
+    <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+    <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
+  </div>
+</div>
 
+<div class="container">
+  <div class="header-bar">
+    <h2>📦 Composizione Kit (componenti multipli)</h2>
+    <div class="external-checkbox">
+      <input type="checkbox" id="assegnazioniEsterneCheckbox">
+      <label for="assegnazioniEsterneCheckbox">📤 Assegna a destinatario esterno</label>
+    </div>
+  </div>
+  <div id="messageArea"></div>
+
+  <h3>➕ Nuovo Kit</h3>
+  <div id="assegnazioneSection" style="display:none;" class="assignment-group">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Destinazione</label>
+        <select id="destinazioneTipo">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+        </select>
+        <select id="destinazioneId" style="margin-top:4px;"><option value="">Seleziona...</option></select>
+      </div>
+    </div>
+  </div>
+
+  <form id="kitForm" onsubmit="return false;">
+    <div class="form-row">
+      <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" required></select></div>
+      <div class="form-group"><label>Note</label><textarea id="kitNote" rows="1"></textarea></div>
+    </div>
+
+    <h4>Componenti del kit</h4>
+    <table class="componenti-table" id="componentiTable">
+      <thead><th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th></thead>
+      <tbody id="componentiTbody"></tbody>
+    </table>
+    <button type="button" class="btn" onclick="aggiungiRigaComponente()" style="margin-top:5px;">➕ Aggiungi componente</button>
+
+    <div class="form-group" style="margin-top:10px;">
+      <button type="button" class="btn" id="saveKitBtn" onclick="salvaKit()">💾 Salva Kit</button>
+      <button type="button" class="btn btn-secondary" onclick="resetForm()">🔄 Reset</button>
+    </div>
+  </form>
+
+  <!-- FILTRI -->
+  <div class="filter-section">
+    <div class="filter-row">
+      <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
+      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="filtroDescrizioneList"><datalist id="filtroDescrizioneList"></datalist></div>
+      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="filtroSiglaList"><datalist id="filtroSiglaList"></datalist></div>
+    </div>
+  </div>
+
+  <div class="batch-toolbar">
+    <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
+    <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="tabellaKit">
+      <thead>
+         <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
+         <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="descrizione">Descrizione</th>
+         <th data-sort="magazzino_nome">Magazzino</th><th data-sort="quantita">Quantità</th>
+         <th data-sort="assegnato_nome">Assegnato a</th><th>Componenti</th><th>Azioni</th>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODALE TRASFERIMENTO -->
+<div id="modalTrasferimento" class="modal">
+  <div class="modal-content" style="max-width:500px;">
+    <h3>🔄 Trasferisci kit selezionati</h3>
+    <div class="form-group"><label>Magazzino transito *</label><select id="transferMagazzino"></select></div>
+    <div class="form-group"><label>Tipo destinazione *</label><select id="destinatarioTipo"><option value="">Seleziona...</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Destinatario *</label><select id="destinatarioId" disabled><option value="">Seleziona prima il tipo</option></select></div>
+    <div class="form-group"><label>Note</label><input type="text" id="transferNote"></div>
+    <div class="modal-buttons"><button class="btn" onclick="eseguiTrasferimento()">Conferma</button><button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button></div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA KIT -->
+<div id="modalEditKit" class="modal">
+  <div class="modal-content">
+    <h3>✏️ Modifica Kit</h3>
+    <form id="editKitForm" onsubmit="return false;">
+      <input type="hidden" id="editKitId">
+      <div class="form-row">
+        <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
+        <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="1"></textarea></div>
+      </div>
+      <h4>Componenti</h4>
+      <table class="componenti-table" id="editComponentiTable">
+        <thead><th>Tipo</th><th>Articolo</th><th>Sigla</th><th>Quantità</th><th></th></thead>
+        <tbody id="editComponentiTbody"></tbody>
+      </table>
+      <button type="button" class="btn" onclick="aggiungiRigaComponenteEdit()">➕ Aggiungi componente</button>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
+        <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
+      </div>
+    </form>
+  </div>
+</div>
 <script>
   // ========== UTILITY ==========
   function getAuthHeader() {
@@ -358,17 +582,19 @@
     return parts.join(' ');
   }
 
-  // ========== GESTIONE RIGHE COMPONENTI (creazione e modifica) ==========
+  // ========== GESTIONE RIGHE COMPONENTI (creazione) ==========
   function aggiungiRigaComponente(tbodyId = 'componentiTbody', editMode = false, prefill = null) {
     const tbody = document.getElementById(tbodyId);
     const row = tbody.insertRow();
+
     // Tipo
     const tdTipo = row.insertCell(0);
     const tipoSelect = document.createElement('select');
     tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-    if (prefill && prefill.tipo) tipoSelect.value = prefill.tipo;
+    if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
     tdTipo.appendChild(tipoSelect);
-    // Articolo (datalist)
+
+    // Articolo
     const tdArt = row.insertCell(1);
     const artInput = document.createElement('input');
     artInput.type = 'text';
@@ -379,11 +605,13 @@
     document.body.appendChild(datalist);
     tdArt.appendChild(artInput);
     tdArt.appendChild(datalist);
-    // Sigla (select)
+
+    // Sigla
     const tdSigla = row.insertCell(2);
     const siglaSelect = document.createElement('select');
     siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
     tdSigla.appendChild(siglaSelect);
+
     // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
@@ -392,6 +620,7 @@
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
+
     // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
@@ -415,7 +644,11 @@
       });
       if (prefill && prefill.articolo_id) {
         const found = articoli.find(a => a.id === prefill.articolo_id);
-        if (found) artInput.value = formatArticleDisplay(found);
+        if (found) {
+          artInput.value = formatArticleDisplay(found);
+        } else {
+          artInput.value = `Articolo ID ${prefill.articolo_id}`;
+        }
       }
     };
     tipoSelect.addEventListener('change', aggiornaDatalist);
@@ -426,7 +659,7 @@
       let articoloId = null;
       for (let opt of datalist.options) {
         if (opt.value === val) {
-          articoloId = opt.getAttribute('data-id');
+          articoloId = parseInt(opt.getAttribute('data-id'));
           break;
         }
       }
@@ -439,7 +672,9 @@
             if (s.durezza) testo += ` - ${s.durezza}`;
             siglaSelect.appendChild(new Option(testo, s.id));
           });
-          if (prefill && prefill.sigla_id) siglaSelect.value = prefill.sigla_id;
+          if (prefill && prefill.sigla_id) {
+            siglaSelect.value = prefill.sigla_id;
+          }
         } catch(e) {
           siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
         }
@@ -447,8 +682,9 @@
         siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
       }
     });
-    if (prefill) {
-      artInput.dispatchEvent(new Event('change'));
+
+    if (prefill && prefill.articolo_id) {
+      setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
     }
   }
 
@@ -492,16 +728,12 @@
       showMessage('Compila magazzino e almeno un componente', 'error');
       return;
     }
-    const payload = {
-      magazzino: parseInt(magazzino),
-      note: note,
-      dettagli: dettagli
-    };
+    const payload = { magazzino: parseInt(magazzino), note, dettagli };
     if (externalCheckbox.checked) {
       const destTipo = destinazioneTipo.value;
       const destId = destinazioneId.value;
       if (!destId) {
-        showMessage('Seleziona una destinazione per l\'assegnazione', 'error');
+        showMessage('Seleziona destinazione', 'error');
         return;
       }
       payload.destinazioneTipo = destTipo;
@@ -529,13 +761,13 @@
 
   function resetForm() {
     document.getElementById('componentiTbody').innerHTML = '';
-    aggiungiRigaComponente(); // almeno una riga vuota
+    aggiungiRigaComponente(); // almeno una riga
     document.getElementById('kitNote').value = '';
     externalCheckbox.checked = false;
     assegnazioneSection.style.display = 'none';
   }
 
-  // ========== CARICAMENTO KIT ==========
+  // ========== CARICAMENTO E VISUALIZZAZIONE KIT ==========
   async function caricaKit() {
     try {
       const data = await apiFetch('/api/kit');
@@ -551,7 +783,7 @@
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
     if (!kitFiltrati.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center">Nessun kit trovato</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9">Nessun kit trovato</td></tr>';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -577,22 +809,24 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
+
+      // Componenti (corretto: usa tipo_articolo)
       const compCell = row.insertCell(7);
       if (k.dettagli && k.dettagli.length) {
-  compCell.innerHTML = k.dettagli.map(d => {
-    const nomeArticolo = d.descrizione || `Articolo ID ${d.articolo_id}`;
-    const siglaTesto = d.sigla ? ` (${d.sigla})` : '';
-    return `${d.tipo_articolo}: ${nomeArticolo}${siglaTesto} x${d.quantita}`;
-  }).join('<br>');
-} else {
-  compCell.innerText = '-';
-}
+        compCell.innerHTML = k.dettagli.map(d => {
+          const tipo = d.tipo_articolo || d.tipo;
+          const nomeArt = d.descrizione || `Articolo ID ${d.articolo_id}`;
+          const siglaTesto = d.sigla ? ` (${d.sigla})` : '';
+          return `${tipo}: ${nomeArt}${siglaTesto} x${d.quantita}`;
+        }).join('<br>');
+      } else {
+        compCell.innerText = '-';
+      }
+
       const actions = row.insertCell(8);
       actions.className = 'action-buttons';
-      actions.innerHTML = `
-        <button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
-        <button class="btn btn-danger" onclick="eliminaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>🗑️</button>
-      `;
+      actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
+                           <button class="btn btn-danger" onclick="eliminaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>🗑️</button>`;
     });
   }
 
@@ -607,138 +841,34 @@
       const tbody = document.getElementById('editComponentiTbody');
       tbody.innerHTML = '';
       if (kit.dettagli && kit.dettagli.length) {
-  for (let d of kit.dettagli) {
-    aggiungiRigaComponenteEdit({
-      tipo_articolo: d.tipo_articolo,
-      articolo_id: d.articolo_id,
-      sigla_id: d.sigla_id,
-      quantita: d.quantita
-    });
-  }
-}
+        for (let d of kit.dettagli) {
+          aggiungiRigaComponenteEdit({
+            tipo_articolo: d.tipo_articolo,
+            articolo_id: d.articolo_id,
+            sigla_id: d.sigla_id,
+            quantita: d.quantita
+          });
+        }
+      } else {
+        aggiungiRigaComponenteEdit();
+      }
       document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
   }
 
- function aggiungiRigaComponenteEdit(prefill = null) {
-  const tbody = document.getElementById('editComponentiTbody');
-  const row = tbody.insertRow();
-
-  // Tipo
-  const tdTipo = row.insertCell(0);
-  const tipoSelect = document.createElement('select');
-  tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-  if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
-  tdTipo.appendChild(tipoSelect);
-
-  // Articolo
-  const tdArt = row.insertCell(1);
-  const artInput = document.createElement('input');
-  artInput.type = 'text';
-  const datalistId = `edit_dl_${Date.now()}_${Math.random()}`;
-  artInput.setAttribute('list', datalistId);
-  const datalist = document.createElement('datalist');
-  datalist.id = datalistId;
-  document.body.appendChild(datalist);
-  tdArt.appendChild(artInput);
-  tdArt.appendChild(datalist);
-
-  // Sigla
-  const tdSigla = row.insertCell(2);
-  const siglaSelect = document.createElement('select');
-  siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-  tdSigla.appendChild(siglaSelect);
-
-  // Quantità
-  const tdQta = row.insertCell(3);
-  const qtyInput = document.createElement('input');
-  qtyInput.type = 'number';
-  qtyInput.value = prefill ? prefill.quantita : 1;
-  qtyInput.min = 1;
-  qtyInput.style.width = '70px';
-  tdQta.appendChild(qtyInput);
-
-  // Azioni
-  const tdAz = row.insertCell(4);
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑️';
-  delBtn.className = 'btn btn-danger';
-  delBtn.onclick = () => row.remove();
-  tdAz.appendChild(delBtn);
-
-  const aggiornaDatalist = () => {
-    const tipo = tipoSelect.value;
-    let articoli = [];
-    if (tipo === 'SCI') articoli = articoliSci;
-    else if (tipo === 'ATTACCHI') articoli = articoliAttacchi;
-    else articoli = articoliSkistopper;
-    datalist.innerHTML = '';
-    articoli.forEach(art => {
-      const opt = document.createElement('option');
-      opt.value = formatArticleDisplay(art);
-      opt.setAttribute('data-id', art.id);
-      datalist.appendChild(opt);
-    });
-    // Prefill: imposta il valore dell'input articolo
-    if (prefill && prefill.articolo_id) {
-      const found = articoli.find(a => a.id === prefill.articolo_id);
-      if (found) {
-        artInput.value = formatArticleDisplay(found);
-      } else {
-        artInput.value = `Articolo ID ${prefill.articolo_id}`;
-      }
-    }
-  };
-  tipoSelect.addEventListener('change', aggiornaDatalist);
-  aggiornaDatalist();
-
-  // Carica sigle quando si seleziona un articolo
-  artInput.addEventListener('change', async () => {
-    const val = artInput.value;
-    let articoloId = null;
-    for (let opt of datalist.options) {
-      if (opt.value === val) {
-        articoloId = parseInt(opt.getAttribute('data-id'));
-        break;
-      }
-    }
-    if (articoloId) {
-      try {
-        const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-        sigle.forEach(s => {
-          let testo = s.sigla;
-          if (s.durezza) testo += ` - ${s.durezza}`;
-          siglaSelect.appendChild(new Option(testo, s.id));
-        });
-        if (prefill && prefill.sigla_id) {
-          siglaSelect.value = prefill.sigla_id;
-        }
-      } catch(e) {
-        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-      }
-    } else {
-      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-    }
-  });
-
-  // Forza il caricamento delle sigle dopo che la datalist è pronta
-  if (prefill && prefill.articolo_id) {
-    setTimeout(() => {
-      artInput.dispatchEvent(new Event('change'));
-    }, 100);
-  }
-}
+  function aggiungiRigaComponenteEdit(prefill = null) {
     const tbody = document.getElementById('editComponentiTbody');
     const row = tbody.insertRow();
+
     // Tipo
     const tdTipo = row.insertCell(0);
     const tipoSelect = document.createElement('select');
     tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-    if (prefill && prefill.tipo) tipoSelect.value = prefill.tipo;
+    if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
     tdTipo.appendChild(tipoSelect);
+
     // Articolo
     const tdArt = row.insertCell(1);
     const artInput = document.createElement('input');
@@ -750,11 +880,13 @@
     document.body.appendChild(datalist);
     tdArt.appendChild(artInput);
     tdArt.appendChild(datalist);
+
     // Sigla
     const tdSigla = row.insertCell(2);
     const siglaSelect = document.createElement('select');
     siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
     tdSigla.appendChild(siglaSelect);
+
     // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
@@ -763,6 +895,7 @@
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
+
     // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
@@ -787,6 +920,7 @@
       if (prefill && prefill.articolo_id) {
         const found = articoli.find(a => a.id === prefill.articolo_id);
         if (found) artInput.value = formatArticleDisplay(found);
+        else artInput.value = `Articolo ID ${prefill.articolo_id}`;
       }
     };
     tipoSelect.addEventListener('change', aggiornaDatalist);
@@ -797,7 +931,7 @@
       let articoloId = null;
       for (let opt of datalist.options) {
         if (opt.value === val) {
-          articoloId = opt.getAttribute('data-id');
+          articoloId = parseInt(opt.getAttribute('data-id'));
           break;
         }
       }
@@ -818,8 +952,8 @@
         siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
       }
     });
-    if (prefill) {
-      artInput.dispatchEvent(new Event('change'));
+    if (prefill && prefill.articolo_id) {
+      setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
     }
   }
 
@@ -860,20 +994,16 @@
     const note = document.getElementById('editKitNote').value.trim();
     const dettagli = raccogliDettagliEdit();
     if (!magazzino || dettagli.length === 0) {
-      showMessage('Dati incompleti (magazzino e almeno un componente)', 'error');
+      showMessage('Dati incompleti', 'error');
       return;
     }
     try {
       const result = await apiFetch(`/api/kit/${id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          magazzino: parseInt(magazzino),
-          note: note,
-          dettagli: dettagli
-        })
+        body: JSON.stringify({ magazzino: parseInt(magazzino), note, dettagli })
       });
       if (result.success) {
-        showMessage('Kit aggiornato con successo', 'success');
+        showMessage('Kit aggiornato', 'success');
         chiudiModaleKit();
         await caricaKit();
       } else {
@@ -945,12 +1075,8 @@
   // ========== GESTIONE DESTINAZIONE ESTERNA ==========
   function setupExternalMode() {
     externalCheckbox.addEventListener('change', () => {
-      if (externalCheckbox.checked) {
-        assegnazioneSection.style.display = 'block';
-        caricaDestinazioni();
-      } else {
-        assegnazioneSection.style.display = 'none';
-      }
+      assegnazioneSection.style.display = externalCheckbox.checked ? 'block' : 'none';
+      if (externalCheckbox.checked) caricaDestinazioni();
     });
     destinazioneTipo.addEventListener('change', () => {
       if (externalCheckbox.checked) caricaDestinazioni();
@@ -971,7 +1097,7 @@
     }
   }
 
-  // ========== FUNZIONI BATCH (da completare se necessario) ==========
+  // ========== FUNZIONI BATCH (esistenti) ==========
   function toggleSelectAll() {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
     document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
@@ -1040,9 +1166,7 @@
     destinatarioIdSelect.disabled = true;
     destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
     document.getElementById('transferNote').value = '';
-    if (!transferMagazzinoSelect.value && magazzini.length) {
-      transferMagazzinoSelect.value = magazzini[0].id;
-    }
+    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
     document.getElementById('modalTrasferimento').style.display = 'flex';
   }
 
@@ -1106,13 +1230,12 @@
     }
   }
 
-  // ========== EVENTI FILTRI ==========
+  // ========== FILTRI EVENTI ==========
   let debTimer;
   function handleFilterChange() {
     clearTimeout(debTimer);
     debTimer = setTimeout(async () => {
       await refreshFilterDatalists();
-      // Qui puoi aggiungere filtri lato client se necessario
     }, 300);
   }
 
