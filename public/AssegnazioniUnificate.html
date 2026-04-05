@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - con Sigle</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle e Referenti</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -492,7 +492,7 @@
     }
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO ----------
+  // ---------- CARICAMENTO DAL MAGAZZINO (come prima) ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     if (!magId) {
@@ -501,10 +501,8 @@
       showMessage('Seleziona un magazzino', 'info');
       return;
     }
-
     const tipo = tipoOggettoSelect.value;
     let lista = [];
-
     try {
       const paramsArticoli = new URLSearchParams();
       paramsArticoli.append('magazzino', magId);
@@ -525,7 +523,7 @@
             a.sigleDisponibili = sigle;
           } catch(e) { a.sigleDisponibili = []; }
         }
-        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me' })));
+        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
 
       if (tipo === '' || tipo === 'KIT') {
@@ -544,21 +542,21 @@
             }
           } catch(e) { k.sigleDisponibili = []; }
         }
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me' })));
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
 
-      oggetti = lista.map(item => {
-        const base = {
-          id: item.id,
-          tipo: item.tipo,
-          descrizione: item.descrizione,
-          disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
-          sigleDisponibili: item.sigleDisponibili || [],
-          siglaId: null,
-          codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit
-        };
-        return base;
-      });
+      oggetti = lista.map(item => ({
+        id: item.id,
+        tipo: item.tipo,
+        codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit,
+        descrizione: item.descrizione,
+        disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
+        sigleDisponibili: item.sigleDisponibili || [],
+        siglaId: null,
+        destinatarioNome: 'Magazzino',
+        tipoAssegnazione: 'me',
+        referenteDa: null
+      }));
       popolaTabella();
       assegnaBtn.disabled = false;
     } catch (err) {
@@ -567,13 +565,13 @@
     }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) con gestione referenti ----------
   async function caricaOggettiInCarico() {
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
       body.targetTipo = sourceTipo.value;
       body.targetId = parseInt(sourceId.value);
-      if (includeReferenced.checked) body.includeReferenced = true;
+      body.includeReferenced = includeReferenced.checked;
     } else if (currentUser.ruolo !== 'admin') {
       if (!currentUser.riferimento_id) {
         oggetti = [];
@@ -582,6 +580,11 @@
       }
       body.targetTipo = currentUser.ruolo.toUpperCase();
       body.targetId = currentUser.riferimento_id;
+      body.includeReferenced = includeReferenced.checked;
+    } else {
+      oggetti = [];
+      popolaTabella();
+      return;
     }
 
     if (!body.targetTipo || !body.targetId) {
@@ -611,10 +614,9 @@
           disponibile: obj.quantita,
           sigleDisponibili: obj.sigleDisponibili || [],
           siglaId: obj.siglaId || null,
-          destinazioneTipo: obj.destinazioneTipo,
-          destinazioneId: obj.destinazioneId,
-          destinatarioNome: obj.destinatarioNome,
-          tipoAssegnazione: obj.tipoAssegnazione
+          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome || ''} ${obj.destinatario_cognome || ''}`.trim() : (obj.destinatario_nome || 'Magazzino')),
+          tipoAssegnazione: obj.tipoAssegnazione,
+          referenteDa: obj.referenteDa
         }));
         popolaTabella();
         assegnaBtn.disabled = false;
@@ -631,7 +633,7 @@
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile</td>';
+      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>';
       return;
     }
     tbody.innerHTML = '';
@@ -685,10 +687,10 @@
       row.insertCell(4).appendChild(qtaInput);
       
       // Colonna "Assegnato a"
-      let assegnatoANome = '';
-      if (isReferenced && obj.destinatarioNome) {
-        assegnatoANome = obj.destinatarioNome;
-      } else {
+      let assegnatoANome = obj.destinatarioNome;
+      if (isReferenced && obj.referenteDa) {
+        assegnatoANome = `${obj.destinatarioNome} (in carico a referente)`;
+      } else if (!assegnatoANome) {
         assegnatoANome = 'Magazzino';
       }
       row.insertCell(5).innerText = assegnatoANome;
