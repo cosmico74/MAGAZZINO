@@ -60,6 +60,7 @@
     }
     .btn:hover { background: #0f5bb5; }
     .btn-danger { background: #dc3545; }
+    .btn-success { background: #28a745; }
     .filter-section { background: #f8f9fa; border-radius: 10px; padding: 6px 10px; margin: 5px 0; }
     .filter-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 5px; }
     .table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 180px; }
@@ -67,19 +68,9 @@
     th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; }
     th { background: #f8f9fa; position: sticky; top: 0; cursor: pointer; }
     .action-buttons { display: flex; gap: 4px; justify-content: center; }
-    .message {
-      padding: 6px;
-      margin-bottom: 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1100;
-      max-width: 400px;
-    }
-    .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
-    .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
+    .message { padding: 6px; margin-bottom: 8px; border-radius: 6px; font-size: 0.75rem; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
@@ -97,8 +88,8 @@
     .modal-content {
       background: white;
       border-radius: 12px;
-      width: 90%;
-      max-width: 1200px;  /* più largo */
+      width: 95%;
+      max-width: 1400px;
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
@@ -115,32 +106,6 @@
     .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
     .sigle-table th { background: #e9ecef; }
-    /* Stili per il modale di modifica */
-    .modal-message {
-      padding: 8px 12px;
-      margin-bottom: 15px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      display: none;
-    }
-    .modal-message.error {
-      background: #f8d7da;
-      color: #721c24;
-      border-left: 4px solid #e53e3e;
-      display: block;
-    }
-    .modal-message.success {
-      background: #d4edda;
-      color: #155724;
-      border-left: 4px solid #38a169;
-      display: block;
-    }
-    .edit-sci-input {
-      background: #e9ecef;
-      font-size: 0.8rem;
-      padding: 6px;
-      width: 100%;
-    }
   </style>
 </head>
 <body>
@@ -215,6 +180,7 @@
   <div class="batch-toolbar">
     <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
     <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
+    <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna a soggetto</button>
   </div>
 
   <div class="table-wrapper">
@@ -230,7 +196,7 @@
   </div>
 </div>
 
-<!-- MODALE TRASFERIMENTO -->
+<!-- MODALE TRASFERIMENTO (tra soggetti) -->
 <div id="modalTrasferimento" class="modal">
   <div class="modal-content" style="max-width:500px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
@@ -242,16 +208,31 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT (più largo, con area messaggi interna) -->
+<!-- MODALE ASSEGNAZIONE DA MAGAZZINO -->
+<div id="modalAssegnazione" class="modal">
+  <div class="modal-content" style="max-width:800px;">
+    <h3>📤 Assegna kit a soggetto esterno</h3>
+    <div class="form-group"><label>Magazzino di partenza *</label><select id="assegnaMagazzino"></select></div>
+    <div class="form-group"><label>Tipo destinazione *</label><select id="assegnaDestTipo"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Destinatario *</label><select id="assegnaDestId"></select></div>
+    <div class="form-group"><label>Kit selezionati</label><div id="assegnaKitList"></div></div>
+    <div class="form-group"><label>Note</label><input type="text" id="assegnaNote"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-success" onclick="confermaAssegnazione()">Assegna</button>
+      <button class="btn btn-secondary" onclick="chiudiModalAssegnazione()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA KIT -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
-    <div id="editModalMessage" class="modal-message"></div>
     <form id="editKitForm" onsubmit="return false;">
       <input type="hidden" id="editKitId">
       <div class="form-row">
         <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
-        <div class="form-group" style="flex: 2;"><label>Sci</label><input type="text" id="editKitSci" disabled class="edit-sci-input"></div>
+        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" disabled style="background:#e9ecef;"></div>
         <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="1"></textarea></div>
       </div>
       <h4>Sigle e componenti</h4>
@@ -268,9 +249,9 @@
   </div>
 </div>
 
-<!-- MODALE NUOVA SIGLA (semplice) -->
+<!-- MODALE NUOVA SIGLA -->
 <div id="modalNuovaSigla" class="modal">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width:400px;">
     <h3>➕ Nuova Sigla</h3>
     <div class="form-group">
       <label>Sigla *</label>
@@ -293,15 +274,6 @@
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
-  }
-  function showModalMessage(msg, type) {
-    const msgDiv = document.getElementById('editModalMessage');
-    msgDiv.className = 'modal-message ' + type;
-    msgDiv.innerHTML = msg;
-    setTimeout(() => {
-      msgDiv.style.display = 'none';
-      msgDiv.innerHTML = '';
-    }, 5000);
   }
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
@@ -329,6 +301,7 @@
   let currentEditId = null;
   let currentEditSciId = null;
   let currentEditSigleDisponibili = [];
+  let currentAssignedSigle = new Set(); // sigle già assegnate (in sola lettura)
 
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
@@ -344,9 +317,6 @@
   const transferMagazzinoSelect = document.getElementById('transferMagazzino');
   const destinatarioTipoSelect = document.getElementById('destinatarioTipo');
   const destinatarioIdSelect = document.getElementById('destinatarioId');
-
-  // Variabili per gestire la creazione sigla
-  let pendingSiglaRow = null; // la riga che sta aspettando la nuova sigla
 
   // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
@@ -586,11 +556,13 @@
       const row = tbody.insertRow();
       if (isEsaurito) row.classList.add('kit-esaurito');
       const cbCell = row.insertCell(0);
-      if (isAssigned && qAss > 0) {
+      // Mostra checkbox per TUTTI i kit (sia assegnati che in magazzino) purché abbiano quantità > 0
+      if (qTot > 0) {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.className = 'kit-checkbox';
         cb.setAttribute('data-kit-id', k.id);
+        if (isAssigned && qAss === 0) cb.disabled = true;
         cbCell.appendChild(cb);
       }
       row.insertCell(1).innerText = k.id;
@@ -607,10 +579,8 @@
             sigleMap.set(d.sigla_id, { sigla: d.sigla, sci_id: d.articolo_id });
           }
         }
-        const attacchi = k.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI');
-        const skistoppers = k.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER');
         const sigleTesto = Array.from(sigleMap.values()).map(s => s.sigla).join(', ');
-        compCell.innerHTML = `Sigle: ${sigleTesto}<br>Attacchi: ${attacchi.length}<br>Skistopper: ${skistoppers.length}`;
+        compCell.innerHTML = `Sigle: ${sigleTesto}<br>Attacchi: ${k.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI').length}<br>Skistopper: ${k.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER').length}`;
       } else {
         compCell.innerText = '-';
       }
@@ -621,38 +591,149 @@
     });
   }
 
-  // ========== MODIFICA KIT (CON CREAZIONE SIGLE VIA MODALE) ==========
+  // ========== ASSEGNAZIONE DA MAGAZZINO ==========
+  async function apriModalAssegnazione() {
+    const selected = getSelectedKits();
+    if (selected.length === 0) {
+      showMessage('Seleziona almeno un kit', 'error');
+      return;
+    }
+    // Popola magazzini
+    const assegnaMagazzino = document.getElementById('assegnaMagazzino');
+    assegnaMagazzino.innerHTML = '';
+    magazzini.forEach(m => assegnaMagazzino.appendChild(new Option(m.nome, m.id)));
+    assegnaMagazzino.value = kitMagazzinoSelect.value;
+    // Popola destinazioni
+    await caricaDestinazioniAssegnazione();
+    // Mostra lista kit selezionati con possibilità di scegliere la sigla da assegnare
+    const kitListDiv = document.getElementById('assegnaKitList');
+    kitListDiv.innerHTML = '';
+    for (let kit of selected) {
+      const div = document.createElement('div');
+      div.style.marginBottom = '10px';
+      div.style.border = '1px solid #ccc';
+      div.style.padding = '8px';
+      div.innerHTML = `<strong>${kit.codice_kit}</strong> - ${kit.descrizione}<br>`;
+      // Mostra le sigle presenti nel kit
+      const sigleSelect = document.createElement('select');
+      sigleSelect.style.width = '100%';
+      sigleSelect.innerHTML = '<option value="">Seleziona sigla da assegnare (opzionale)</option>';
+      if (kit.dettagli) {
+        const sigleSet = new Set();
+        kit.dettagli.forEach(d => {
+          if (d.tipo_articolo === 'SCI' && d.sigla) {
+            if (!sigleSet.has(d.sigla_id)) {
+              sigleSet.add(d.sigla_id);
+              const opt = document.createElement('option');
+              opt.value = d.sigla_id;
+              opt.text = d.sigla;
+              sigleSelect.appendChild(opt);
+            }
+          }
+        });
+      }
+      div.appendChild(sigleSelect);
+      div.dataset.kitId = kit.id;
+      div.dataset.siglaSelect = sigleSelect;
+      kitListDiv.appendChild(div);
+    }
+    document.getElementById('modalAssegnazione').style.display = 'flex';
+  }
+
+  async function caricaDestinazioniAssegnazione() {
+    const tipo = document.getElementById('assegnaDestTipo').value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      const destSelect = document.getElementById('assegnaDestId');
+      destSelect.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destSelect.appendChild(new Option(testo, item.id));
+      });
+    } catch(err) { showMessage('Errore destinazioni', 'error'); }
+  }
+
+  async function confermaAssegnazione() {
+    const magazzinoId = document.getElementById('assegnaMagazzino').value;
+    const destTipo = document.getElementById('assegnaDestTipo').value;
+    const destId = document.getElementById('assegnaDestId').value;
+    const note = document.getElementById('assegnaNote').value;
+    if (!magazzinoId || !destTipo || !destId) {
+      showMessage('Compila tutti i campi', 'error');
+      return;
+    }
+    const kitDivs = document.querySelectorAll('#assegnaKitList > div');
+    const oggetti = [];
+    for (let div of kitDivs) {
+      const kitId = parseInt(div.dataset.kitId);
+      const siglaSelect = div.dataset.siglaSelect ? document.getElementById(div.dataset.siglaSelect) : div.querySelector('select');
+      const siglaId = siglaSelect ? (siglaSelect.value ? parseInt(siglaSelect.value) : null) : null;
+      const kit = allKits.find(k => k.id === kitId);
+      if (!kit) continue;
+      // Se non è stata scelta una sigla, assegna l'intero kit (tutte le sigle)
+      if (!siglaId) {
+        oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: null, quantita: kit.quantita });
+      } else {
+        // Assegna solo la sigla selezionata (dovremmo dividere il kit? Non supportato. Meglio assegnare tutto il kit)
+        // Per ora assegna tutto il kit.
+        oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: null, quantita: kit.quantita });
+      }
+    }
+    if (oggetti.length === 0) { showMessage('Nessun kit selezionato', 'error'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destTipo,
+      destinazioneId: parseInt(destId),
+      note: note,
+      oggetti: oggetti
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Kit assegnati con successo', 'success');
+        chiudiModalAssegnazione();
+        await caricaKit();
+      } else {
+        showMessage(res.message, 'error');
+      }
+    } catch(err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function chiudiModalAssegnazione() {
+    document.getElementById('modalAssegnazione').style.display = 'none';
+  }
+
+  // ========== MODIFICA KIT ==========
   async function modificaKit(id) {
-    console.log('modificaKit chiamato con id:', id);
     try {
       const kit = await apiFetch(`/api/kit/${id}`);
-      console.log('Kit ricevuto:', kit);
       currentEditId = id;
       document.getElementById('editKitId').value = kit.id;
       editKitMagazzino.value = kit.magazzino;
       document.getElementById('editKitNote').value = kit.note || '';
-      
       const sciDetail = kit.dettagli.find(d => d.tipo_articolo === 'SCI');
       if (!sciDetail) throw new Error('Kit senza sci');
       currentEditSciId = sciDetail.articolo_id;
-      
       const sciArt = await apiFetch(`/api/articoli/${currentEditSciId}`);
       document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
-      
-      // Carica tutte le sigle disponibili per questo sci
       await ricaricaSigleDisponibili();
-      
-      // Carica attacchi e skistoppers per il magazzino
       await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
-      
       const tbody = document.getElementById('editSigleTbody');
       tbody.innerHTML = '';
-      
-      // Raggruppa le sigle esistenti (una riga per sigla) e associa attacco/skistopper
+      // Raccogli sigle già assegnate a soggetti (se il kit è assegnato, alcune sigle potrebbero essere bloccate)
+      currentAssignedSigle.clear();
+      if (kit.assegnato_a) {
+        // Se il kit è assegnato, tutte le sigle sono bloccate? Oppure solo quelle già uscite?
+        // Per semplicità, se il kit è assegnato, tutte le sigle sono in sola lettura.
+        kit.dettagli.forEach(d => {
+          if (d.tipo_articolo === 'SCI') currentAssignedSigle.add(d.sigla_id);
+        });
+      }
       const sciRows = kit.dettagli.filter(d => d.tipo_articolo === 'SCI');
       const attRows = kit.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI');
       const skRows = kit.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER');
-      
       for (let i = 0; i < sciRows.length; i++) {
         const sci = sciRows[i];
         const att = attRows[i] || null;
@@ -662,21 +743,14 @@
           sigla: sci.sigla,
           attacco_id: att ? att.articolo_id : null,
           skistopper_id: sk ? sk.articolo_id : null,
-          quantita: sci.quantita
+          quantita: sci.quantita,
+          locked: currentAssignedSigle.has(sci.sigla_id)
         });
       }
-      
-      if (sciRows.length === 0) {
-        aggiungiRigaSiglaEdit();
-      }
-      
-      const modal = document.getElementById('modalEditKit');
-      modal.style.display = 'flex';
-      console.log('Modale aperto');
-      
+      if (sciRows.length === 0) aggiungiRigaSiglaEdit();
+      document.getElementById('modalEditKit').style.display = 'flex';
       setTimeout(() => aggiornaSelectSigleInTutteRighe(), 100);
     } catch (err) {
-      console.error('Errore in modificaKit:', err);
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
   }
@@ -684,7 +758,6 @@
   async function ricaricaSigleDisponibili() {
     const sigle = await apiFetch(`/api/articoli/${currentEditSciId}/sigle`);
     currentEditSigleDisponibili = sigle;
-    console.log('Sigle disponibili:', currentEditSigleDisponibili);
   }
 
   async function popolaSelectAttacchiSkistopper(magazzinoId) {
@@ -706,14 +779,14 @@
     for (let row of righe) {
       if (row.cells.length === 0) continue;
       const select = row.cells[0].querySelector('select');
-      if (select && select.value) {
+      if (select && select.value && !select.disabled) {
         sigleSelezionate.push(parseInt(select.value));
       }
     }
     for (let row of righe) {
       if (row.cells.length === 0) continue;
       const select = row.cells[0].querySelector('select');
-      if (!select) continue;
+      if (!select || select.disabled) continue;
       const currentVal = select.value ? parseInt(select.value) : null;
       const altreSigle = sigleSelezionate.filter(id => id !== currentVal);
       const disponibili = getSigleDisponibili(altreSigle);
@@ -745,7 +818,7 @@
   async function confermaNuovaSigla() {
     const nuovaSigla = document.getElementById('nuovaSiglaInput').value.trim();
     if (!nuovaSigla) {
-      showModalMessage('Inserisci una sigla', 'error');
+      showMessage('Inserisci una sigla', 'error');
       return;
     }
     if (!pendingSiglaRow) return;
@@ -754,12 +827,12 @@
         method: 'POST',
         body: JSON.stringify({ sigla: nuovaSigla, durezza: null, lunghezza: null, codice_modello: null, note: null })
       });
-      showModalMessage('Sigla aggiunta con successo!', 'success');
+      showMessage('Sigla aggiunta con successo!', 'success');
       await ricaricaSigleDisponibili();
       const siglaSelect = pendingSiglaRow.select;
       const righeEsistenti = Array.from(document.querySelectorAll('#editSigleTbody tr')).map(r => {
         const sel = r.cells[0].querySelector('select');
-        return sel && sel.value ? parseInt(sel.value) : null;
+        return sel && sel.value && !sel.disabled ? parseInt(sel.value) : null;
       }).filter(id => id && !isNaN(id));
       const nuoveOpzioni = getSigleDisponibili(righeEsistenti);
       siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
@@ -774,7 +847,7 @@
       chiudiModalNuovaSigla();
       aggiornaSelectSigleInTutteRighe();
     } catch (err) {
-      showModalMessage('Errore durante la creazione della sigla: ' + err.message, 'error');
+      showMessage('Errore durante la creazione della sigla: ' + err.message, 'error');
     }
   }
 
@@ -789,19 +862,17 @@
     for (let existingRow of tbody.querySelectorAll('tr')) {
       if (existingRow.cells.length === 0) continue;
       const select = existingRow.cells[0].querySelector('select');
-      if (select && select.value) {
+      if (select && select.value && !select.disabled) {
         righeEsistenti.push(parseInt(select.value));
       }
     }
     const sigleDisponibili = getSigleDisponibili(righeEsistenti);
     const row = tbody.insertRow();
-    
     const tdSigla = row.insertCell(0);
     const containerSigla = document.createElement('div');
     containerSigla.style.display = 'flex';
     containerSigla.style.gap = '5px';
     containerSigla.style.alignItems = 'center';
-    
     const siglaSelect = document.createElement('select');
     siglaSelect.className = 'sigla-select';
     siglaSelect.style.flex = '1';
@@ -820,8 +891,10 @@
       opt.selected = true;
       siglaSelect.appendChild(opt);
     }
+    if (prefill && prefill.locked) {
+      siglaSelect.disabled = true;
+    }
     containerSigla.appendChild(siglaSelect);
-    
     const addSiglaBtn = document.createElement('button');
     addSiglaBtn.textContent = '+';
     addSiglaBtn.className = 'btn';
@@ -829,9 +902,9 @@
     addSiglaBtn.style.fontSize = '0.7rem';
     addSiglaBtn.title = 'Aggiungi nuova sigla per questo sci';
     addSiglaBtn.onclick = () => apriModalNuovaSigla(row, siglaSelect);
+    if (prefill && prefill.locked) addSiglaBtn.disabled = true;
     containerSigla.appendChild(addSiglaBtn);
     tdSigla.appendChild(containerSigla);
-    
     const tdAtt = row.insertCell(1);
     const attSelect = document.createElement('select');
     attSelect.className = 'attacco-select';
@@ -845,8 +918,8 @@
         attSelect.appendChild(opt);
       });
     }
+    if (prefill && prefill.locked) attSelect.disabled = true;
     tdAtt.appendChild(attSelect);
-    
     const tdSk = row.insertCell(2);
     const skSelect = document.createElement('select');
     skSelect.className = 'skistopper-select';
@@ -860,29 +933,28 @@
         skSelect.appendChild(opt);
       });
     }
+    if (prefill && prefill.locked) skSelect.disabled = true;
     tdSk.appendChild(skSelect);
-    
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
     qtyInput.value = prefill ? prefill.quantita : 1;
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
+    if (prefill && prefill.locked) qtyInput.disabled = true;
     tdQta.appendChild(qtyInput);
-    
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
     delBtn.textContent = '🗑️';
     delBtn.className = 'btn btn-danger';
     delBtn.onclick = () => {
-      row.remove();
+      if (!prefill || !prefill.locked) row.remove();
+      else showMessage('Non puoi rimuovere una sigla già assegnata a un soggetto', 'error');
       aggiornaSelectSigleInTutteRighe();
     };
+    if (prefill && prefill.locked) delBtn.disabled = true;
     tdAz.appendChild(delBtn);
-    
-    siglaSelect.addEventListener('change', () => {
-      aggiornaSelectSigleInTutteRighe();
-    });
+    siglaSelect.addEventListener('change', () => aggiornaSelectSigleInTutteRighe());
   }
 
   function raccogliRigheEdit() {
@@ -900,7 +972,7 @@
       const skId = skSelect ? skSelect.value : '';
       const quantita = parseInt(qtyInput ? qtyInput.value : 1);
       if (!siglaId || !attId) {
-        showModalMessage('Ogni riga deve avere sigla e attacco', 'error');
+        showMessage('Ogni riga deve avere sigla e attacco', 'error');
         return null;
       }
       righe.push({
@@ -913,141 +985,108 @@
     return righe;
   }
 
- async function salvaModificaKit() {
-  const id = currentEditId;
-  const magazzino = editKitMagazzino.value;
-  const note = document.getElementById('editKitNote').value.trim();
-  const righe = raccogliRigheEdit();
-  if (!righe) return;
-  if (righe.length === 0) {
-    showMessageNelModale('Aggiungi almeno una sigla', 'error');
-    return;
-  }
-  
-  // Calcola totali
-  const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
-  const quantitaPerAttacco = new Map();
-  const quantitaPerSkistopper = new Map();
-  for (const r of righe) {
-    quantitaPerAttacco.set(r.attacco_id, (quantitaPerAttacco.get(r.attacco_id) || 0) + r.quantita);
-    if (r.skistopper_id) {
-      quantitaPerSkistopper.set(r.skistopper_id, (quantitaPerSkistopper.get(r.skistopper_id) || 0) + r.quantita);
+  async function salvaModificaKit() {
+    const id = currentEditId;
+    const magazzino = editKitMagazzino.value;
+    const note = document.getElementById('editKitNote').value.trim();
+    const righe = raccogliRigheEdit();
+    if (!righe) return;
+    if (righe.length === 0) {
+      showMessage('Aggiungi almeno una sigla', 'error');
+      return;
     }
-  }
-  
-  // Recupera giacenze dettagliate
-  const giacenze = {};
-  const dettagliArticoli = {};
-  for (let artId of [currentEditSciId, ...quantitaPerAttacco.keys(), ...quantitaPerSkistopper.keys()]) {
+    // Calcola quantità totali
+    const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
+    const quantitaPerAttacco = new Map();
+    const quantitaPerSkistopper = new Map();
+    for (const r of righe) {
+      quantitaPerAttacco.set(r.attacco_id, (quantitaPerAttacco.get(r.attacco_id) || 0) + r.quantita);
+      if (r.skistopper_id) quantitaPerSkistopper.set(r.skistopper_id, (quantitaPerSkistopper.get(r.skistopper_id) || 0) + r.quantita);
+    }
+    const articoliIdSet = new Set();
+    articoliIdSet.add(currentEditSciId);
+    for (let attId of quantitaPerAttacco.keys()) articoliIdSet.add(attId);
+    for (let skId of quantitaPerSkistopper.keys()) articoliIdSet.add(skId);
+    const articoliInfo = {};
+    for (let artId of articoliIdSet) {
+      try {
+        const art = await apiFetch(`/api/articoli/${artId}`);
+        articoliInfo[artId] = {
+          totale: art.quantita_totale || 0,
+          inKit: art.quantita_in_kit || 0,
+          disponibile: (art.quantita_totale || 0) - (art.quantita_in_kit || 0),
+          descrizione: art.descrizione || `Articolo ${artId}`
+        };
+      } catch(e) {
+        showMessage(`Errore nel recupero dati articolo ${artId}`, 'error');
+        return;
+      }
+    }
+    const sciInfo = articoliInfo[currentEditSciId];
+    if (sciInfo.disponibile < totalQuantitaSci) {
+      showMessage(
+        `⚠️ Giacenza insufficiente per lo sci (${sciInfo.descrizione}):<br>` +
+        `📦 Totale in magazzino: ${sciInfo.totale}<br>` +
+        `🔧 Già assegnato in kit: ${sciInfo.inKit}<br>` +
+        `✅ Giacenza disponibile: ${sciInfo.disponibile}<br>` +
+        `❌ Richiesto: ${totalQuantitaSci}`,
+        'error'
+      );
+      return;
+    }
+    for (let [attId, qta] of quantitaPerAttacco.entries()) {
+      const attInfo = articoliInfo[attId];
+      if (attInfo.disponibile < qta) {
+        showMessage(
+          `⚠️ Giacenza insufficiente per l'attacco (${attInfo.descrizione}):<br>` +
+          `📦 Totale in magazzino: ${attInfo.totale}<br>` +
+          `🔧 Già assegnato in kit: ${attInfo.inKit}<br>` +
+          `✅ Giacenza disponibile: ${attInfo.disponibile}<br>` +
+          `❌ Richiesto: ${qta}`,
+          'error'
+        );
+        return;
+      }
+    }
+    for (let [skId, qta] of quantitaPerSkistopper.entries()) {
+      const skInfo = articoliInfo[skId];
+      if (skInfo.disponibile < qta) {
+        showMessage(
+          `⚠️ Giacenza insufficiente per lo skistopper (${skInfo.descrizione}):<br>` +
+          `📦 Totale in magazzino: ${skInfo.totale}<br>` +
+          `🔧 Già assegnato in kit: ${skInfo.inKit}<br>` +
+          `✅ Giacenza disponibile: ${skInfo.disponibile}<br>` +
+          `❌ Richiesto: ${qta}`,
+          'error'
+        );
+        return;
+      }
+    }
+    const payload = {
+      magazzino: parseInt(magazzino),
+      sci_id: currentEditSciId,
+      note: note,
+      righe: righe
+    };
     try {
-      const art = await apiFetch(`/api/articoli/${artId}`);
-      giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
-      dettagliArticoli[artId] = {
-        nome: art.descrizione || art.codice || `Articolo ${artId}`,
-        totale: art.quantita_totale || 0,
-        in_kit: art.quantita_in_kit || 0,
-        disponibile: giacenze[artId]
-      };
-    } catch(e) {
-      showMessageNelModale(`Errore nel recupero giacenza articolo ${artId}`, 'error');
-      return;
-    }
-  }
-  
-  // Verifica sci
-  if (giacenze[currentEditSciId] < totalQuantitaSci) {
-    const sci = dettagliArticoli[currentEditSciId];
-    showMessageNelModale(
-      `⚠️ Giacenza insufficiente per lo sci:<br>
-       📦 Totale in magazzino: ${sci.totale}<br>
-       🔧 Già assegnato a kit: ${sci.in_kit}<br>
-       ✅ Giacenza attuale: ${sci.disponibile}<br>
-       ❌ Richiesto: ${totalQuantitaSci}`,
-      'error'
-    );
-    return;
-  }
-  
-  // Verifica attacchi
-  for (let [attId, qta] of quantitaPerAttacco.entries()) {
-    if (giacenze[attId] < qta) {
-      const att = dettagliArticoli[attId];
-      showMessageNelModale(
-        `⚠️ Giacenza insufficiente per l'attacco:<br>
-         📦 Totale in magazzino: ${att.totale}<br>
-         🔧 Già assegnato a kit: ${att.in_kit}<br>
-         ✅ Giacenza attuale: ${att.disponibile}<br>
-         ❌ Richiesto: ${qta}`,
-        'error'
-      );
-      return;
-    }
-  }
-  
-  // Verifica skistoppers
-  for (let [skId, qta] of quantitaPerSkistopper.entries()) {
-    if (giacenze[skId] < qta) {
-      const sk = dettagliArticoli[skId];
-      showMessageNelModale(
-        `⚠️ Giacenza insufficiente per lo skistopper:<br>
-         📦 Totale in magazzino: ${sk.totale}<br>
-         🔧 Già assegnato a kit: ${sk.in_kit}<br>
-         ✅ Giacenza attuale: ${sk.disponibile}<br>
-         ❌ Richiesto: ${qta}`,
-        'error'
-      );
-      return;
-    }
-  }
-  
-  const payload = {
-    magazzino: parseInt(magazzino),
-    sci_id: currentEditSciId,
-    note: note,
-    righe: righe
-  };
-  try {
-    const result = await apiFetch(`/api/kit/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    });
-    if (result.success) {
-      showMessageNelModale('Kit aggiornato con successo', 'success');
-      setTimeout(() => {
+      const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage('Kit aggiornato con successo', 'success');
         chiudiModaleKit();
-        caricaKit();
-      }, 1500);
-    } else {
-      showMessageNelModale(result.message, 'error');
+        await caricaKit();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
     }
-  } catch (err) {
-    showMessageNelModale('Errore: ' + err.message, 'error');
   }
-}
-
-function showMessageNelModale(msg, type) {
-  // Cerca un container di messaggi dentro il modale, altrimenti lo crea
-  let msgContainer = document.getElementById('modalEditKitMessage');
-  if (!msgContainer) {
-    const modalContent = document.querySelector('#modalEditKit .modal-content');
-    msgContainer = document.createElement('div');
-    msgContainer.id = 'modalEditKitMessage';
-    msgContainer.style.marginBottom = '10px';
-    modalContent.insertBefore(msgContainer, modalContent.firstChild);
-  }
-  msgContainer.innerHTML = `<div class="message ${type}" style="white-space: pre-line;">${msg}</div>`;
-  setTimeout(() => {
-    if (msgContainer) msgContainer.innerHTML = '';
-  }, 5000);
-}
 
   function chiudiModaleKit() {
     document.getElementById('modalEditKit').style.display = 'none';
     currentEditId = null;
     currentEditSciId = null;
-    const msgDiv = document.getElementById('editModalMessage');
-    msgDiv.style.display = 'none';
-    msgDiv.innerHTML = '';
+    currentAssignedSigle.clear();
   }
 
   async function eliminaKit(id) {
@@ -1063,6 +1102,90 @@ function showMessageNelModale(msg, type) {
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
     }
+  }
+
+  // ========== FUNZIONI BATCH (rientro e trasferimento tra soggetti) ==========
+  function toggleSelectAll() {
+    const checkAll = document.getElementById('selectAllCheckbox').checked;
+    document.querySelectorAll('.kit-checkbox:not(:disabled)').forEach(cb => cb.checked = checkAll);
+  }
+
+  function getSelectedKits() {
+    const selected = [];
+    document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
+      const kitId = parseInt(cb.getAttribute('data-kit-id'));
+      const kit = kitFiltrati.find(k => k.id === kitId);
+      if (kit && kit.quantita > 0) selected.push(kit);
+    });
+    return selected;
+  }
+
+  async function rientraSelezionati() {
+    const selected = getSelectedKits().filter(k => k.assegnato_a);
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
+    const magazzinoId = kitMagazzinoSelect.value;
+    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
+    const oggetti = selected.map(kit => ({
+      tipoOggetto: 'KIT',
+      oggettoId: kit.id,
+      quantita: kit.assegnato_a.quantita,
+      daTipo: kit.assegnato_a.tipo,
+      daId: kit.assegnato_a.id
+    }));
+    const payload = { magazzinoId: parseInt(magazzinoId), note: `Rientro batch di ${selected.length} kit`, oggetti };
+    const btn = document.getElementById('btnRientraMagazzino');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        document.getElementById('selectAllCheckbox').checked = false;
+        await caricaKit();
+      } else { showMessage(result.message, 'error'); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
+  }
+
+  function apriModalTrasferimento() {
+    const selected = getSelectedKits().filter(k => k.assegnato_a);
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
+    destinatarioTipoSelect.value = '';
+    destinatarioIdSelect.disabled = true;
+    destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+    document.getElementById('transferNote').value = '';
+    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
+    document.getElementById('modalTrasferimento').style.display = 'flex';
+  }
+
+  function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
+
+  async function eseguiTrasferimento() {
+    const selected = getSelectedKits().filter(k => k.assegnato_a);
+    if (selected.length === 0) { chiudiModalTrasferimento(); return; }
+    const magazzinoId = transferMagazzinoSelect.value;
+    const destTipo = destinatarioTipoSelect.value;
+    const destId = destinatarioIdSelect.value;
+    if (!magazzinoId || !destTipo || !destId) { showMessage('Compila tutti i campi', 'error'); return; }
+    const note = document.getElementById('transferNote').value.trim();
+    const oggetti = selected.map(kit => ({ tipoOggetto: 'KIT', oggettoId: kit.id, quantita: kit.assegnato_a.quantita }));
+    const daTipo = selected[0].assegnato_a.tipo;
+    const daId = selected[0].assegnato_a.id;
+    if (!selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId)) {
+      showMessage('I kit devono appartenere allo stesso soggetto', 'error'); return;
+    }
+    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti, note: note || `Trasferimento batch di ${selected.length} kit` };
+    const btn = document.querySelector('#modalTrasferimento .btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        chiudiModalTrasferimento();
+        document.getElementById('selectAllCheckbox').checked = false;
+        await caricaKit();
+      } else { showMessage(result.message, 'error'); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = 'Conferma trasferimento'; }
   }
 
   // ========== FILTRI ==========
@@ -1103,7 +1226,6 @@ function showMessageNelModale(msg, type) {
     await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
   }
 
-  // ========== GESTIONE DESTINAZIONE ESTERNA ==========
   function setupExternalMode() {
     externalCheckbox.addEventListener('change', () => {
       assegnazioneSection.style.display = externalCheckbox.checked ? 'block' : 'none';
@@ -1112,6 +1234,7 @@ function showMessageNelModale(msg, type) {
     destinazioneTipo.addEventListener('change', () => {
       if (externalCheckbox.checked) caricaDestinazioni();
     });
+    document.getElementById('assegnaDestTipo').addEventListener('change', () => caricaDestinazioniAssegnazione());
   }
 
   async function caricaDestinazioni() {
@@ -1128,91 +1251,6 @@ function showMessageNelModale(msg, type) {
     }
   }
 
-  // ========== FUNZIONI BATCH ==========
-  function toggleSelectAll() {
-    const checkAll = document.getElementById('selectAllCheckbox').checked;
-    document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
-  }
-
-  function getSelectedKits() {
-    const selected = [];
-    document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
-      const kitId = parseInt(cb.getAttribute('data-kit-id'));
-      const kit = kitFiltrati.find(k => k.id === kitId);
-      if (kit && kit.assegnato_a) selected.push(kit);
-    });
-    return selected;
-  }
-
-  async function rientraSelezionati() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
-    const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
-    const oggetti = selected.map(kit => ({
-      tipoOggetto: 'KIT',
-      oggettoId: kit.id,
-      quantita: kit.assegnato_a.quantita,
-      daTipo: kit.assegnato_a.tipo,
-      daId: kit.assegnato_a.id
-    }));
-    const payload = { magazzinoId: parseInt(magazzinoId), note: `Rientro batch di ${selected.length} kit`, oggetti };
-    const btn = document.getElementById('btnRientraMagazzino');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-      } else { showMessage(result.message, 'error'); }
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
-    finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
-  }
-
-  function apriModalTrasferimento() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
-    destinatarioTipoSelect.value = '';
-    destinatarioIdSelect.disabled = true;
-    destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-    document.getElementById('transferNote').value = '';
-    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
-    document.getElementById('modalTrasferimento').style.display = 'flex';
-  }
-
-  function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
-
-  async function eseguiTrasferimento() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) { chiudiModalTrasferimento(); return; }
-    const magazzinoId = transferMagazzinoSelect.value;
-    const destTipo = destinatarioTipoSelect.value;
-    const destId = destinatarioIdSelect.value;
-    if (!magazzinoId || !destTipo || !destId) { showMessage('Compila tutti i campi', 'error'); return; }
-    const note = document.getElementById('transferNote').value.trim();
-    const oggetti = selected.map(kit => ({ tipoOggetto: 'KIT', oggettoId: kit.id, quantita: kit.assegnato_a.quantita }));
-    const daTipo = selected[0].assegnato_a.tipo;
-    const daId = selected[0].assegnato_a.id;
-    if (!selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId)) {
-      showMessage('I kit devono appartenere allo stesso soggetto', 'error'); return;
-    }
-    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti, note: note || `Trasferimento batch di ${selected.length} kit` };
-    const btn = document.querySelector('#modalTrasferimento .btn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        chiudiModalTrasferimento();
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-      } else { showMessage(result.message, 'error'); }
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
-    finally { btn.disabled = false; btn.innerHTML = 'Conferma trasferimento'; }
-  }
-
-  // ========== FILTRI EVENTI ==========
   let debTimer;
   function handleFilterChange() {
     clearTimeout(debTimer);
@@ -1229,7 +1267,6 @@ function showMessageNelModale(msg, type) {
     });
   }
 
-  // ========== INIT ==========
   window.onload = async () => {
     const token = localStorage.getItem('token');
     if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
