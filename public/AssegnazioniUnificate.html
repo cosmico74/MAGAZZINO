@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - Gestione Kit/Articoli</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle e Modifica Singola</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -75,6 +75,7 @@
     .btn-secondary:hover { background: #5a6268; }
     .btn-warning { background: #f39c12; }
     .btn-warning:hover { background: #e67e22; }
+    .btn-sm { padding: 2px 6px; font-size: 0.7rem; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -291,24 +292,25 @@
     <table id="tabellaOggetti">
       <thead>
          <th style="width:30px"><input type="checkbox" id="selectAll"></th>
-         <th>Codice / Sigla</th>
+         <th>Codice / Sigle Sci</th>
          <th>Descrizione</th>
          <th>Disponibile</th>
-         <th>Quantità da inviare</th>
+         <th>Quantità</th>
          <th>Assegnato a</th>
+         <th>Azioni</th>
       </thead>
       <tbody id="tabellaBody">
-         <td colspan="6" class="text-center">Caricamento...<\/td>
+         <td colspan="7" class="text-center">Caricamento...<\/td>
       </tbody>
-    表格
+    </table>
   </div>
 
   <div class="selected-info" id="selectedInfo">Nessun oggetto selezionato</div>
 
-  <!-- Destinazione e azione -->
+  <!-- Destinazione e azione (batch) -->
   <div class="filter-row" id="destinazioneRow">
     <div class="filter-group">
-      <label>Destinazione</label>
+      <label>Destinazione (batch)</label>
       <div class="inline-refresh">
         <select id="destinazioneTipo" onchange="caricaDestinazioni()">
           <option value="PROMOTER">👤 Promoter</option>
@@ -326,6 +328,18 @@
   <div class="action-buttons">
     <button class="btn btn-success" id="assegnaBtn" onclick="assegnaSelezionati()">📤 Assegna selezionati</button>
     <button class="btn btn-warning" id="rientroBtn" onclick="rientraSelezionati()" style="display: none;">📦 Rientra in magazzino</button>
+  </div>
+</div>
+
+<!-- Modale per modifica singola assegnazione -->
+<div id="editAssignmentModal" class="modal">
+  <div class="modal-content">
+    <h3>✏️ Modifica Assegnazione</h3>
+    <div id="editAssignmentContent"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-success" id="saveEditBtn">Salva modifiche</button>
+      <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
+    </div>
   </div>
 </div>
 
@@ -377,6 +391,7 @@
   let magazzini = [], settori = [], marche = [];
   let oggetti = [];
   let magazzinoKey = 'id';
+  let currentEditObj = null; // oggetto in modifica
 
   // Elementi DOM
   const radioMagazzino = document.getElementById('sourceMagazzino');
@@ -467,7 +482,7 @@
     }
   }
 
-  // ---------- DESTINAZIONI ----------
+  // ---------- DESTINAZIONI (batch) ----------
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
@@ -486,7 +501,7 @@
     }
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO (senza dropdown sigle) ----------
+  // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     if (!magId) {
@@ -512,15 +527,12 @@
         const resArticoli = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         for (let a of articoli) {
-          // Recupera la prima sigla (se presente) da mostrare
-          let siglaTesto = '';
           try {
             const sigle = await apiFetch(`/api/articoli/${a.id}/sigle`);
-            if (sigle.length) siglaTesto = sigle[0].sigla;
-          } catch(e) {}
-          a.siglaTesto = siglaTesto;
+            a.sigleDisponibili = sigle;
+          } catch(e) { a.sigleDisponibili = []; }
         }
-        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino', siglaTesto: a.siglaTesto })));
+        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
 
       if (tipo === '' || tipo === 'KIT') {
@@ -528,19 +540,15 @@
         let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
         kits = kits.filter(k => k.magazzino == magId);
         for (let k of kits) {
-          // Recupera le sigle del kit (dallo sci) per mostrarle come testo
-          let sigleTesto = '';
           try {
-            const kitDetails = await apiFetch(`/api/kit/${k.id}`);
-            const idSci = kitDetails.id_sci;
-            if (idSci) {
-              const sigle = await apiFetch(`/api/articoli/${idSci}/sigle`);
-              if (sigle.length) sigleTesto = sigle.map(s => s.sigla).join(', ');
-            }
-          } catch(e) {}
-          k.sigleTesto = sigleTesto;
+            // Recupera sigle dello sci dal kit
+            const sigle = await getSigleKit(k.id);
+            k.sigleDisponibili = sigle;
+            // Recupera la descrizione delle sigle per visualizzazione
+            k.sigleTesto = sigle.map(s => s.sigla).join(', ');
+          } catch(e) { k.sigleDisponibili = []; k.sigleTesto = '-'; }
         }
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino', siglaTesto: k.sigleTesto })));
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino', sigleTesto: k.sigleTesto || '-' })));
       }
 
       oggetti = lista.map(item => ({
@@ -549,10 +557,10 @@
         codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit,
         descrizione: item.descrizione,
         disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
-        siglaTesto: item.siglaTesto || '',
-        siglaId: null,  // non usato perché non c'è selezione sigla
+        sigleTesto: item.tipo === 'KIT' ? (item.sigleTesto || '-') : (item.sigle ? item.sigle : '-'),
         destinatarioNome: 'Magazzino',
-        tipoAssegnazione: 'me'
+        tipoAssegnazione: 'me',
+        referenteDa: null
       }));
       popolaTabella();
       assegnaBtn.disabled = false;
@@ -562,7 +570,26 @@
     }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) con gestione referenti ----------
+  // Helper per ottenere le sigle di un kit
+  async function getSigleKit(kitId) {
+    try {
+      const [rows] = await pool.query?.(`SELECT d.sigla_id, s.sigla, s.durezza, s.lunghezza 
+        FROM kit_dettaglio d 
+        LEFT JOIN sigle_articoli s ON d.sigla_id = s.id 
+        WHERE d.kit_id = ? AND d.tipo_articolo = 'SCI'`, [kitId]);
+      return rows;
+    } catch(e) {
+      // Fallback: chiamata API
+      const kitDetails = await apiFetch(`/api/kit/${kitId}`);
+      const sciDetail = kitDetails.dettagli?.find(d => d.tipo_articolo === 'SCI');
+      if (sciDetail && sciDetail.sigla) {
+        return [{ sigla: sciDetail.sigla, id: sciDetail.sigla_id }];
+      }
+      return [];
+    }
+  }
+
+  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
   async function caricaOggettiInCarico() {
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
@@ -603,17 +630,28 @@
         if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
         if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
         
+        // Per ogni oggetto, se è kit, recupera le sigle dello sci
+        for (let obj of tutti) {
+          if (obj.tipo === 'KIT') {
+            const sigle = await getSigleKit(obj.ID);
+            obj.sigleTesto = sigle.map(s => s.sigla).join(', ') || '-';
+          } else {
+            obj.sigleTesto = obj.SIGLA_CORRENTE || '-';
+          }
+        }
+        
         oggetti = tutti.map(obj => ({
           id: obj.ID,
           tipo: obj.tipo,
           codice: obj.codice,
           descrizione: obj.descrizione,
           disponibile: obj.quantita,
-          siglaTesto: obj.SIGLA_CORRENTE || '', // la sigla corrente del kit/articolo
-          siglaId: obj.siglaId || null,
+          sigleTesto: obj.sigleTesto || '-',
           destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome || ''} ${obj.destinatario_cognome || ''}`.trim() : (obj.destinatario_nome || 'Magazzino')),
           tipoAssegnazione: obj.tipoAssegnazione,
-          referenteDa: obj.referenteDa
+          referenteDa: obj.referenteDa,
+          destinazioneTipo: obj.destinazioneTipo,
+          destinazioneId: obj.destinazioneId
         }));
         popolaTabella();
         assegnaBtn.disabled = false;
@@ -626,11 +664,11 @@
     }
   }
 
-  // ---------- POPOLA TABELLA (senza combo box, solo testo) ----------
+  // ---------- POPOLA TABELLA (con sigle testo e pulsante modifica) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>';
+      tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>';
       return;
     }
     tbody.innerHTML = '';
@@ -647,13 +685,9 @@
       
       row.insertCell(0).appendChild(cb);
       
-      // Colonna "Codice / Sigla": mostra il codice e la sigla (se presente)
+      // Colonna "Codice / Sigle Sci"
       const cellCodice = row.insertCell(1);
-      let codiceMostrato = obj.codice || '-';
-      if (obj.siglaTesto) {
-        codiceMostrato += ` (${obj.siglaTesto})`;
-      }
-      cellCodice.innerText = codiceMostrato;
+      cellCodice.innerText = obj.codice ? `${obj.codice} - ${obj.sigleTesto}` : obj.sigleTesto;
       
       row.insertCell(2).innerText = obj.descrizione;
       row.insertCell(3).innerText = obj.disponibile;
@@ -675,6 +709,16 @@
         assegnatoANome = 'Magazzino';
       }
       row.insertCell(5).innerText = assegnatoANome;
+      
+      // Colonna Azioni
+      const cellAzioni = row.insertCell(6);
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '✏️';
+      editBtn.className = 'btn btn-secondary btn-sm';
+      editBtn.title = 'Modifica assegnazione';
+      editBtn.onclick = () => apriModificaSingola(idx);
+      if (isDisabled || obj.tipoAssegnazione === 'referente') editBtn.disabled = true;
+      cellAzioni.appendChild(editBtn);
     });
     document.getElementById('selectAll').onclick = () => toggleSelectAll();
     aggiornaSelezione();
@@ -703,6 +747,142 @@
       }
     });
     document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
+  }
+
+  // ---------- MODIFICA SINGOLA ASSEGNAZIONE ----------
+  function apriModificaSingola(idx) {
+    const obj = oggetti[idx];
+    currentEditObj = { ...obj, idx }; // copia
+    const modal = document.getElementById('editAssignmentModal');
+    const content = document.getElementById('editAssignmentContent');
+    // Costruisci form per modificare destinazione e quantità
+    content.innerHTML = `
+      <div class="form-group">
+        <label>Oggetto</label>
+        <input type="text" value="${obj.codice} - ${obj.descrizione}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Quantità disponibile</label>
+        <input type="number" value="${obj.disponibile}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Quantità da trasferire/rientrare</label>
+        <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Nuova destinazione (solo se trasferisci)</label>
+        <div class="inline-refresh">
+          <select id="editDestTipo" style="flex:1;">
+            <option value="PROMOTER">Promoter</option>
+            <option value="NEGOZIO">Negozio</option>
+            <option value="CLIENTE">Cliente</option>
+            <option value="AGENTE">Agente</option>
+          </select>
+          <button class="btn btn-secondary" style="padding: 2px 6px;" onclick="caricaEditDestinazioni()">🔄</button>
+        </div>
+        <select id="editDestId" style="margin-top:4px;"></select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <input type="text" id="editNote" class="form-control">
+      </div>
+    `;
+    // Carica destinazioni per il tipo selezionato
+    caricaEditDestinazioni();
+    modal.style.display = 'flex';
+    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
+  }
+
+  async function caricaEditDestinazioni() {
+    const tipo = document.getElementById('editDestTipo').value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      const destSelect = document.getElementById('editDestId');
+      destSelect.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destSelect.appendChild(new Option(testo, item.id));
+      });
+    } catch(err) {
+      showMessage('Errore caricamento destinazioni', 'error');
+    }
+  }
+
+  async function salvaModificaSingola() {
+    const obj = currentEditObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('editQta').value);
+    const destTipo = document.getElementById('editDestTipo').value;
+    const destId = document.getElementById('editDestId').value;
+    const note = document.getElementById('editNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.disponibile) {
+      showErrorModal('Quantità non valida');
+      return;
+    }
+    // Determinare l'operazione: se l'oggetto è in carico a un soggetto (destinatarioNome != 'Magazzino'), possiamo trasferirlo o rientrarlo.
+    // Se è in magazzino, possiamo assegnarlo.
+    const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) {
+      showErrorModal('Seleziona un magazzino');
+      return;
+    }
+    if (isInMagazzino) {
+      // Assegnazione diretta
+      if (!destId) {
+        showErrorModal('Seleziona una destinazione');
+        return;
+      }
+      const payload = {
+        magazzinoId: parseInt(magazzinoId),
+        destinazioneTipo: destTipo,
+        destinazioneId: parseInt(destId),
+        note: note,
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta }]
+      };
+      try {
+        const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) {
+          showMessage('Assegnazione effettuata', 'success');
+          chiudiEditModal();
+          await caricaOggetti();
+        } else {
+          showErrorModal(res.message);
+        }
+      } catch(err) { showErrorModal(err.message); }
+    } else {
+      // L'oggetto è già assegnato. Possiamo fare rientro o trasferimento.
+      // Chiediamo all'utente se vuole rientrarlo o trasferirlo? Per semplicità, offriamo trasferimento.
+      if (!destId) {
+        showErrorModal('Seleziona una destinazione per il trasferimento');
+        return;
+      }
+      const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
+      const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
+      const payload = {
+        daTipo, daId,
+        aTipo: destTipo,
+        aId: parseInt(destId),
+        magazzinoId: parseInt(magazzinoId),
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta }],
+        note: note
+      };
+      try {
+        const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) {
+          showMessage('Trasferimento effettuato', 'success');
+          chiudiEditModal();
+          await caricaOggetti();
+        } else {
+          showErrorModal(res.message);
+        }
+      } catch(err) { showErrorModal(err.message); }
+    }
+  }
+
+  function chiudiEditModal() {
+    document.getElementById('editAssignmentModal').style.display = 'none';
+    currentEditObj = null;
   }
 
   // ---------- FILTRI ----------
@@ -792,7 +972,7 @@
     await caricaOggetti();
   }
 
-  // ---------- ASSEGNAZIONE (trasferimento) ----------
+  // ---------- BATCH OPERATIONS ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -825,8 +1005,7 @@
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
           if (obj.tipoAssegnazione === 'referente') return;
-          // Non c'è scelta sigla, usiamo la siglaId già associata (se presente)
-          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: obj.siglaId || null, quantita: qta });
+          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
         }
       });
       if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -868,7 +1047,7 @@
         const max = parseInt(qtaInput.max);
         if (qta > max) qta = max;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta }); // dal magazzino, sigla non ancora assegnata
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
       }
     });
     if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -894,7 +1073,6 @@
     finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
   }
 
-  // ---------- RIENTRO IN MAGAZZINO ----------
   async function rientraSelezionati() {
     if (!radioCarico.checked) {
       showMessage('La funzione "Rientra in magazzino" è disponibile solo in modalità "In carico".', 'error');
@@ -926,7 +1104,7 @@
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: obj.siglaId || null, quantita: qta });
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
       }
     });
     if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto da rientrare', 'error'); return; }
