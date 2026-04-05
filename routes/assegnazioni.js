@@ -63,7 +63,7 @@ async function registraRientroTransazionale(connection, params) {
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
-// ========== RECUPERA SIGLE ==========
+// ========== RECUPERA SIGLE DISPONIBILI PER UN ARTICOLO ==========
 async function getSigleArticolo(articoloId) {
   try {
     const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [articoloId]);
@@ -73,6 +73,7 @@ async function getSigleArticolo(articoloId) {
   }
 }
 
+// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT (dallo sci associato tramite kit_dettaglio) ==========
 async function getSigleKit(kitId) {
   try {
     const [sciRow] = await pool.query(
@@ -88,8 +89,19 @@ async function getSigleKit(kitId) {
   }
 }
 
-// ========== OTTIENI OGGETTI IN CARICO (con destinatario e referenti) ==========
-async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null, includeReferenced = false, currentUserTipo = null, currentUserId = null) {
+// ========== RECUPERA LA SIGLA CORRENTE DI UN KIT (quella presente in carico_sintesi) ==========
+async function getSiglaCorrenteKit(kitId, siglaId) {
+  if (!siglaId) return '';
+  try {
+    const [rows] = await pool.query('SELECT sigla FROM sigle_articoli WHERE id = ?', [siglaId]);
+    return rows.length ? rows[0].sigla : '';
+  } catch(e) {
+    return '';
+  }
+}
+
+// ========== OTTIENI OGGETTI IN CARICO (con sigle) – VERSIONE CORRETTA PER NUOVA STRUTTURA ==========
+async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null) {
   let query = `
     SELECT 
       cs.destinazione_tipo,
@@ -106,6 +118,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
         WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
       END AS codice,
+      -- Per i kit, lunghezza e durezza dalla prima riga SCI in kit_dettaglio
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
         WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
@@ -114,6 +127,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
       END AS DUREZZA,
+      -- Sigla corrente (quella associata in carico)
       (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
       a.settore AS SETTORE,
       a.marca AS MARCA,
@@ -134,6 +148,7 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
   }
   const [rows] = await pool.query(query, params);
   
+  // Arricchisci ogni riga con le sigle disponibili (per articoli e kit)
   const risultati = [];
   for (const row of rows) {
     let sigleDisponibili = [];
@@ -177,14 +192,11 @@ async function getSoggettiReferenziati(soggettoId) {
   return result;
 }
 
-// ========== OTTIENI OGGETTI PER SOGGETTO CON REFERENTI ==========
 async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null, currentUserTipo = null, currentUserId = null) {
   let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
   oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta', referenteDa: null }));
   
   // Trova i referenti (soggetti che hanno questo soggetto come referente)
-  // In realtà la tabella soggetti_referenti ha referente_id (colui che può vedere) e soggetto_id (il referenziato)
-  // Quindi se il soggetto corrente è referente_id, può vedere gli oggetti dei soggetti_id associati
   const [referiti] = await pool.query('SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?', [id]);
   for (const ref of referiti) {
     const [sog] = await pool.query('SELECT tipo FROM soggetti WHERE id = ?', [ref.soggetto_id]);
@@ -196,7 +208,7 @@ async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = nul
       destinazioneTipo: tipoRef,
       destinazioneId: ref.soggetto_id,
       tipoAssegnazione: 'referente',
-      referenteDa: { tipo: tipo, id: id } // chi sta visualizzando
+      referenteDa: { tipo: tipo, id: id }
     })));
   }
   return oggetti;
@@ -224,7 +236,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
         }
         return res.json({ success: true, oggetti });
       } else {
-        // Admin senza target: tutti gli oggetti in carico (per debug, ma non usato)
+        // Admin senza target: restituisci tutti gli oggetti in carico
         let query = `
           SELECT cs.*,
             CASE 
@@ -237,7 +249,12 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             END AS codice,
             (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
             sog.nome AS destinatario_nome,
-            sog.cognome AS destinatario_cognome
+            sog.cognome AS destinatario_cognome,
+            a.lunghezza AS LUNGHEZZA,
+            a.durezza AS DUREZZA,
+            a.settore AS SETTORE,
+            a.marca AS MARCA,
+            a.codice_modello AS CODICE_MODELLO
           FROM carico_sintesi cs
           LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
           LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -266,12 +283,16 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             descrizione: row.descrizione || '',
             codice: row.codice || '',
             quantita: row.quantita,
+            LUNGHEZZA: row.LUNGHEZZA || '',
+            DUREZZA: row.DUREZZA || '',
             SIGLA_CORRENTE: row.SIGLA_CORRENTE || '',
+            SETTORE: row.SETTORE,
+            MARCA: row.MARCA,
+            CODICE_MODELLO: row.CODICE_MODELLO,
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
-            destinatarioNome,
-            sigleDisponibili: sigleDisponibili,
-            tipoAssegnazione: 'admin'
+            destinatarioNome: destinatarioNome,
+            sigleDisponibili: sigleDisponibili
           });
         }
         return res.json({ success: true, oggetti: tutte });
@@ -297,7 +318,43 @@ router.post('/oggetti', verifyToken, async (req, res) => {
   }
 });
 
-// ========== RIENTRI MULTIPLI (supporto anche per oggetti in carico a referenti) ==========
+// ========== USCITE MULTIPLE ==========
+router.post('/uscita/batch', verifyToken, async (req, res) => {
+  const { magazzinoId, destinazioneTipo, destinazioneId, note, oggetti } = req.body;
+  if (!destinazioneTipo || !destinazioneId || !oggetti || !oggetti.length) {
+    return res.status(400).json({ success: false, message: 'Parametri mancanti' });
+  }
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+  try {
+    const [user] = await connection.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
+    const operatore = user[0].username;
+    for (const item of oggetti) {
+      if (!magazzinoId) throw new Error('Magazzino di partenza richiesto');
+      await registraUscitaTransazionale(connection, {
+        magazzinoId,
+        tipoOggetto: item.tipoOggetto,
+        oggettoId: item.oggettoId,
+        siglaId: item.siglaId || null,
+        quantita: item.quantita,
+        destinazioneTipo,
+        destinazioneId,
+        note,
+        operatore,
+        userId: req.userId
+      });
+    }
+    await connection.commit();
+    res.json({ success: true, message: `Assegnati ${oggetti.length} oggetti` });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// ========== RIENTRI MULTIPLI ==========
 router.post('/rientro/batch', verifyToken, async (req, res) => {
   const { magazzinoId, note, oggetti } = req.body;
   if (!magazzinoId || !oggetti || !oggetti.length) {
@@ -339,42 +396,7 @@ router.post('/rientro/batch', verifyToken, async (req, res) => {
   }
 });
 
-// ========== USCITE E TRASFERIMENTO (invariati) ==========
-router.post('/uscita/batch', verifyToken, async (req, res) => {
-  const { magazzinoId, destinazioneTipo, destinazioneId, note, oggetti } = req.body;
-  if (!destinazioneTipo || !destinazioneId || !oggetti || !oggetti.length) {
-    return res.status(400).json({ success: false, message: 'Parametri mancanti' });
-  }
-  const connection = await pool.getConnection();
-  await connection.beginTransaction();
-  try {
-    const [user] = await connection.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
-    const operatore = user[0].username;
-    for (const item of oggetti) {
-      if (!magazzinoId) throw new Error('Magazzino di partenza richiesto');
-      await registraUscitaTransazionale(connection, {
-        magazzinoId,
-        tipoOggetto: item.tipoOggetto,
-        oggettoId: item.oggettoId,
-        siglaId: item.siglaId || null,
-        quantita: item.quantita,
-        destinazioneTipo,
-        destinazioneId,
-        note,
-        operatore,
-        userId: req.userId
-      });
-    }
-    await connection.commit();
-    res.json({ success: true, message: `Assegnati ${oggetti.length} oggetti` });
-  } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ success: false, message: error.message });
-  } finally {
-    connection.release();
-  }
-});
-
+// ========== TRASFERIMENTO ==========
 router.post('/trasferimento', verifyToken, async (req, res) => {
   const { daTipo, daId, aTipo, aId, magazzinoId, oggetti, note } = req.body;
   if (!daTipo || !daId || !aTipo || !aId || !oggetti || !oggetti.length) {
