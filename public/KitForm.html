@@ -913,87 +913,133 @@
     return righe;
   }
 
-  async function salvaModificaKit() {
-    const id = currentEditId;
-    const magazzino = editKitMagazzino.value;
-    const note = document.getElementById('editKitNote').value.trim();
-    const righe = raccogliRigheEdit();
-    if (!righe) return;
-    if (righe.length === 0) {
-      showModalMessage('Aggiungi almeno una sigla', 'error');
-      return;
-    }
-    
-    // Calcola quantità totali per la verifica giacenza
-    const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
-    const quantitaPerAttacco = new Map();
-    const quantitaPerSkistopper = new Map();
-    for (const r of righe) {
-      quantitaPerAttacco.set(r.attacco_id, (quantitaPerAttacco.get(r.attacco_id) || 0) + r.quantita);
-      if (r.skistopper_id) {
-        quantitaPerSkistopper.set(r.skistopper_id, (quantitaPerSkistopper.get(r.skistopper_id) || 0) + r.quantita);
-      }
-    }
-    
-    const articoliIdSet = new Set();
-    articoliIdSet.add(currentEditSciId);
-    for (let attId of quantitaPerAttacco.keys()) articoliIdSet.add(attId);
-    for (let skId of quantitaPerSkistopper.keys()) articoliIdSet.add(skId);
-    
-    const giacenze = {};
-    for (let artId of articoliIdSet) {
-      try {
-        const art = await apiFetch(`/api/articoli/${artId}`);
-        giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
-      } catch(e) {
-        showModalMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
-        return;
-      }
-    }
-    
-    if (giacenze[currentEditSciId] < totalQuantitaSci) {
-      showModalMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richieste ${totalQuantitaSci} unità totali)`, 'error');
-      return;
-    }
-    for (let [attId, qta] of quantitaPerAttacco.entries()) {
-      if (giacenze[attId] < qta) {
-        const attaccoArt = window.attacchiDisponibili.find(a => a.id === attId);
-        const nomeAttacco = attaccoArt ? formatArticleDisplay(attaccoArt) : `Attacco ID ${attId}`;
-        showModalMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[attId]}, richieste ${qta})`, 'error');
-        return;
-      }
-    }
-    for (let [skId, qta] of quantitaPerSkistopper.entries()) {
-      if (giacenze[skId] < qta) {
-        const skArt = window.skistoppersDisponibili.find(s => s.id === skId);
-        const nomeSk = skArt ? formatArticleDisplay(skArt) : `Skistopper ID ${skId}`;
-        showModalMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[skId]}, richieste ${qta})`, 'error');
-        return;
-      }
-    }
-    
-    const payload = {
-      magazzino: parseInt(magazzino),
-      sci_id: currentEditSciId,
-      note: note,
-      righe: righe
-    };
-    try {
-      const result = await apiFetch(`/api/kit/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      if (result.success) {
-        showModalMessage('Kit aggiornato con successo', 'success');
-        chiudiModaleKit();
-        await caricaKit();
-      } else {
-        showModalMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showModalMessage('Errore: ' + err.message, 'error');
+ async function salvaModificaKit() {
+  const id = currentEditId;
+  const magazzino = editKitMagazzino.value;
+  const note = document.getElementById('editKitNote').value.trim();
+  const righe = raccogliRigheEdit();
+  if (!righe) return;
+  if (righe.length === 0) {
+    showMessageNelModale('Aggiungi almeno una sigla', 'error');
+    return;
+  }
+  
+  // Calcola totali
+  const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
+  const quantitaPerAttacco = new Map();
+  const quantitaPerSkistopper = new Map();
+  for (const r of righe) {
+    quantitaPerAttacco.set(r.attacco_id, (quantitaPerAttacco.get(r.attacco_id) || 0) + r.quantita);
+    if (r.skistopper_id) {
+      quantitaPerSkistopper.set(r.skistopper_id, (quantitaPerSkistopper.get(r.skistopper_id) || 0) + r.quantita);
     }
   }
+  
+  // Recupera giacenze dettagliate
+  const giacenze = {};
+  const dettagliArticoli = {};
+  for (let artId of [currentEditSciId, ...quantitaPerAttacco.keys(), ...quantitaPerSkistopper.keys()]) {
+    try {
+      const art = await apiFetch(`/api/articoli/${artId}`);
+      giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
+      dettagliArticoli[artId] = {
+        nome: art.descrizione || art.codice || `Articolo ${artId}`,
+        totale: art.quantita_totale || 0,
+        in_kit: art.quantita_in_kit || 0,
+        disponibile: giacenze[artId]
+      };
+    } catch(e) {
+      showMessageNelModale(`Errore nel recupero giacenza articolo ${artId}`, 'error');
+      return;
+    }
+  }
+  
+  // Verifica sci
+  if (giacenze[currentEditSciId] < totalQuantitaSci) {
+    const sci = dettagliArticoli[currentEditSciId];
+    showMessageNelModale(
+      `⚠️ Giacenza insufficiente per lo sci:<br>
+       📦 Totale in magazzino: ${sci.totale}<br>
+       🔧 Già assegnato a kit: ${sci.in_kit}<br>
+       ✅ Giacenza attuale: ${sci.disponibile}<br>
+       ❌ Richiesto: ${totalQuantitaSci}`,
+      'error'
+    );
+    return;
+  }
+  
+  // Verifica attacchi
+  for (let [attId, qta] of quantitaPerAttacco.entries()) {
+    if (giacenze[attId] < qta) {
+      const att = dettagliArticoli[attId];
+      showMessageNelModale(
+        `⚠️ Giacenza insufficiente per l'attacco:<br>
+         📦 Totale in magazzino: ${att.totale}<br>
+         🔧 Già assegnato a kit: ${att.in_kit}<br>
+         ✅ Giacenza attuale: ${att.disponibile}<br>
+         ❌ Richiesto: ${qta}`,
+        'error'
+      );
+      return;
+    }
+  }
+  
+  // Verifica skistoppers
+  for (let [skId, qta] of quantitaPerSkistopper.entries()) {
+    if (giacenze[skId] < qta) {
+      const sk = dettagliArticoli[skId];
+      showMessageNelModale(
+        `⚠️ Giacenza insufficiente per lo skistopper:<br>
+         📦 Totale in magazzino: ${sk.totale}<br>
+         🔧 Già assegnato a kit: ${sk.in_kit}<br>
+         ✅ Giacenza attuale: ${sk.disponibile}<br>
+         ❌ Richiesto: ${qta}`,
+        'error'
+      );
+      return;
+    }
+  }
+  
+  const payload = {
+    magazzino: parseInt(magazzino),
+    sci_id: currentEditSciId,
+    note: note,
+    righe: righe
+  };
+  try {
+    const result = await apiFetch(`/api/kit/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    if (result.success) {
+      showMessageNelModale('Kit aggiornato con successo', 'success');
+      setTimeout(() => {
+        chiudiModaleKit();
+        caricaKit();
+      }, 1500);
+    } else {
+      showMessageNelModale(result.message, 'error');
+    }
+  } catch (err) {
+    showMessageNelModale('Errore: ' + err.message, 'error');
+  }
+}
+
+function showMessageNelModale(msg, type) {
+  // Cerca un container di messaggi dentro il modale, altrimenti lo crea
+  let msgContainer = document.getElementById('modalEditKitMessage');
+  if (!msgContainer) {
+    const modalContent = document.querySelector('#modalEditKit .modal-content');
+    msgContainer = document.createElement('div');
+    msgContainer.id = 'modalEditKitMessage';
+    msgContainer.style.marginBottom = '10px';
+    modalContent.insertBefore(msgContainer, modalContent.firstChild);
+  }
+  msgContainer.innerHTML = `<div class="message ${type}" style="white-space: pre-line;">${msg}</div>`;
+  setTimeout(() => {
+    if (msgContainer) msgContainer.innerHTML = '';
+  }, 5000);
+}
 
   function chiudiModaleKit() {
     document.getElementById('modalEditKit').style.display = 'none';
