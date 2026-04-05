@@ -601,7 +601,12 @@
           });
         }
       }
-      // Aggiungi attacchi e skistoppers (non abbiamo legame diretto, quindi per ora lasciamo vuoti)
+      // Per ora attacco e skistopper non sono legati alla sigla, quindi li lasceremo vuoti.
+      // L'utente dovrà selezionarli manualmente.
+      
+      // Carica gli articoli per attacchi e skistopper (li useremo per popolare i dropdown)
+      await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
+      
       if (righeMap.size === 0) {
         aggiungiRigaSiglaEdit();
       } else {
@@ -616,10 +621,12 @@
         }
       }
       
-      await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
+      // Mostra il modale
       const modal = document.getElementById('modalEditKit');
       modal.style.display = 'flex';
       console.log('Modale aperto');
+      
+      // Aggiorna i dropdown delle sigle per evitare duplicati
       setTimeout(() => aggiornaSelectSigleInTutteRighe(), 100);
     } catch (err) {
       console.error('Errore in modificaKit:', err);
@@ -628,10 +635,12 @@
   }
 
   async function popolaSelectAttacchiSkistopper(magazzinoId) {
+    if (!magazzinoId) return;
     const attacchi = await caricaArticoliAttacchi(magazzinoId);
     const skistoppers = await caricaArticoliSkistopper(magazzinoId);
     window.attacchiDisponibili = attacchi;
     window.skistoppersDisponibili = skistoppers;
+    // Aggiorna tutti i select nelle righe esistenti
     document.querySelectorAll('#editSigleTbody .attacco-select').forEach(sel => {
       sel.innerHTML = '<option value="">Seleziona attacco</option>';
       attacchi.forEach(a => {
@@ -658,6 +667,7 @@
 
   function aggiornaSelectSigleInTutteRighe() {
     const righe = document.querySelectorAll('#editSigleTbody tr');
+    if (!righe.length) return;
     const sigleSelezionate = [];
     for (let row of righe) {
       const select = row.cells[0].querySelector('select');
