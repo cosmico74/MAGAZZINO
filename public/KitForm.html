@@ -618,98 +618,125 @@
     }
   }
 
-  function aggiungiRigaComponenteEdit(prefill = null) {
-    const tbody = document.getElementById('editComponentiTbody');
-    const row = tbody.insertRow();
+function aggiungiRigaComponenteEdit(prefill = null) {
+  const tbody = document.getElementById('editComponentiTbody');
+  const row = tbody.insertRow();
 
-    const tdTipo = row.insertCell(0);
-    const tipoSelect = document.createElement('select');
-    tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
-    if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
-    tdTipo.appendChild(tipoSelect);
+  // Colonna Tipo
+  const tdTipo = row.insertCell(0);
+  const tipoSelect = document.createElement('select');
+  tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
+  if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
+  tdTipo.appendChild(tipoSelect);
 
-    const tdArt = row.insertCell(1);
-    const artInput = document.createElement('input');
-    artInput.type = 'text';
-    const datalistId = `edit_dl_${Date.now()}_${Math.random()}`;
-    artInput.setAttribute('list', datalistId);
-    const datalist = document.createElement('datalist');
-    datalist.id = datalistId;
-    document.body.appendChild(datalist);
-    tdArt.appendChild(artInput);
-    tdArt.appendChild(datalist);
+  // Colonna Articolo
+  const tdArt = row.insertCell(1);
+  const artInput = document.createElement('input');
+  artInput.type = 'text';
+  const datalistId = `edit_dl_${Date.now()}_${Math.random()}`;
+  artInput.setAttribute('list', datalistId);
+  const datalist = document.createElement('datalist');
+  datalist.id = datalistId;
+  document.body.appendChild(datalist);
+  tdArt.appendChild(artInput);
+  tdArt.appendChild(datalist);
 
-    const tdSigla = row.insertCell(2);
-    const siglaSelect = document.createElement('select');
-    siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-    tdSigla.appendChild(siglaSelect);
+  // Colonna Sigla
+  const tdSigla = row.insertCell(2);
+  const siglaSelect = document.createElement('select');
+  siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
+  tdSigla.appendChild(siglaSelect);
 
-    const tdQta = row.insertCell(3);
-    const qtyInput = document.createElement('input');
-    qtyInput.type = 'number';
-    qtyInput.value = prefill ? prefill.quantita : 1;
-    qtyInput.min = 1;
-    qtyInput.style.width = '70px';
-    tdQta.appendChild(qtyInput);
+  // Colonna Quantità
+  const tdQta = row.insertCell(3);
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number';
+  qtyInput.value = prefill ? prefill.quantita : 1;
+  qtyInput.min = 1;
+  qtyInput.style.width = '70px';
+  tdQta.appendChild(qtyInput);
 
-    const tdAz = row.insertCell(4);
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '🗑️';
-    delBtn.className = 'btn btn-danger';
-    delBtn.onclick = () => row.remove();
-    tdAz.appendChild(delBtn);
+  // Colonna Azioni
+  const tdAz = row.insertCell(4);
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '🗑️';
+  delBtn.className = 'btn btn-danger';
+  delBtn.onclick = () => row.remove();
+  tdAz.appendChild(delBtn);
 
-    const aggiornaDatalist = () => {
-      const tipo = tipoSelect.value;
-      let articoli = [];
-      if (tipo === 'SCI') articoli = articoliSci;
-      else if (tipo === 'ATTACCHI') articoli = articoliAttacchi;
-      else articoli = articoliSkistopper;
-      datalist.innerHTML = '';
-      articoli.forEach(art => {
-        const opt = document.createElement('option');
-        opt.value = formatArticleDisplay(art);
-        opt.setAttribute('data-id', art.id);
-        datalist.appendChild(opt);
-      });
-      if (prefill && prefill.articolo_id) {
-        const found = articoli.find(a => a.id === prefill.articolo_id);
-        if (found) artInput.value = formatArticleDisplay(found);
-        else if (prefill.descrizione) artInput.value = prefill.descrizione;
-        else artInput.value = `Articolo ID ${prefill.articolo_id}`;
-      }
-    };
-    tipoSelect.addEventListener('change', aggiornaDatalist);
-    aggiornaDatalist();
-
-    artInput.addEventListener('change', async () => {
-      const val = artInput.value;
-      let articoloId = null;
-      for (let opt of datalist.options) {
-        if (opt.value === val) {
-          articoloId = parseInt(opt.getAttribute('data-id'));
-          break;
-        }
-      }
-      if (articoloId) {
-        try {
-          const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-          siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-          sigle.forEach(s => {
-            let testo = s.sigla;
-            if (s.durezza) testo += ` - ${s.durezza}`;
-            siglaSelect.appendChild(new Option(testo, s.id));
-          });
-          if (prefill && prefill.sigla_id) siglaSelect.value = prefill.sigla_id;
-        } catch(e) {
-          siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
-        }
+  // Funzione per aggiornare la datalist in base al tipo selezionato
+  const aggiornaDatalist = () => {
+    const tipo = tipoSelect.value;
+    let articoli = [];
+    if (tipo === 'SCI') articoli = articoliSci;
+    else if (tipo === 'ATTACCHI') articoli = articoliAttacchi;
+    else articoli = articoliSkistopper;
+    datalist.innerHTML = '';
+    articoli.forEach(art => {
+      const opt = document.createElement('option');
+      opt.value = formatArticleDisplay(art);
+      opt.setAttribute('data-id', art.id);
+      datalist.appendChild(opt);
+    });
+    // Precompila il campo articolo se abbiamo un prefill
+    if (prefill && prefill.articolo_id) {
+      const found = articoli.find(a => a.id === prefill.articolo_id);
+      if (found) {
+        artInput.value = formatArticleDisplay(found);
+      } else if (prefill.descrizione) {
+        artInput.value = prefill.descrizione;
       } else {
+        artInput.value = `Articolo ID ${prefill.articolo_id}`;
+      }
+    }
+  };
+
+  tipoSelect.addEventListener('change', aggiornaDatalist);
+  aggiornaDatalist();
+
+  // Quando l'utente seleziona un articolo, carica le sigle
+  artInput.addEventListener('change', async () => {
+    const val = artInput.value;
+    let articoloId = null;
+    for (let opt of datalist.options) {
+      if (opt.value === val) {
+        articoloId = parseInt(opt.getAttribute('data-id'));
+        break;
+      }
+    }
+    if (articoloId) {
+      try {
+        const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+        siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
+        sigle.forEach(s => {
+          let testo = s.sigla;
+          if (s.durezza) testo += ` - ${s.durezza}`;
+          siglaSelect.appendChild(new Option(testo, s.id));
+        });
+        // Dopo aver popolato, seleziona la sigla prefill se presente
+        if (prefill && prefill.sigla_id) {
+          // Potrebbe essere necessario un piccolo ritardo per assicurarsi che il DOM sia aggiornato
+          setTimeout(() => {
+            if (siglaSelect.querySelector(`option[value="${prefill.sigla_id}"]`)) {
+              siglaSelect.value = prefill.sigla_id;
+            }
+          }, 50);
+        }
+      } catch(e) {
         siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
       }
-    });
-    if (prefill && prefill.articolo_id) setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
+    } else {
+      siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
+    }
+  });
+
+  // Forza il caricamento delle sigle al primo rendering
+  if (prefill && prefill.articolo_id) {
+    setTimeout(() => {
+      artInput.dispatchEvent(new Event('change'));
+    }, 100);
   }
+}
 
   function raccogliDettagliEdit() {
     const dettagli = [];
