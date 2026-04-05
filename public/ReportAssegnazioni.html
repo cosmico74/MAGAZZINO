@@ -71,8 +71,6 @@
     .btn:hover { background: #0f5bb5; }
     .btn-secondary { background: #6c757d; }
     .btn-secondary:hover { background: #5a6268; }
-    .btn-print { background: #27ae60; margin-left: 10px; }
-    .btn-print:hover { background: #219653; }
     .report-section {
       margin-top: 30px;
       page-break-before: avoid;
@@ -137,6 +135,8 @@
       font-size: 0.7rem;
       display: inline-block;
     }
+    .badge-rientro { background: #d1fae5; color: #065f46; }
+    .badge-uscita { background: #fee2e2; color: #991b1b; }
     .error { color: #dc3545; background: #ffe6e6; padding: 10px; border-radius: 8px; }
     @media print {
       body { background: white; padding: 0; }
@@ -183,7 +183,7 @@
         </div>
       </div>
       <div class="filter-group">
-        <label>Mostra movimenti uscita</label>
+        <label>Mostra movimenti uscita/rientro</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           <input type="checkbox" id="mostraMovimenti">
           <label for="mostraMovimenti" style="margin:0; font-weight:normal;">Attiva</label>
@@ -217,7 +217,7 @@
       <div id="assegnazioniTable"></div>
     </div>
     <div class="report-section" id="movimentiSection" style="display: none;">
-      <h2>🚚 Movimenti in uscita / rientro dal soggetto selezionato</h2>
+      <h2>🚚 Movimenti (uscite/rientri) relativi al soggetto selezionato</h2>
       <div id="movimentiTable"></div>
     </div>
   </div>
@@ -243,7 +243,7 @@
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
   let magazzinoKey = 'id';
-  let cacheOggetti = new Map();     // cache per dettagli articoli/kit
+  let cacheOggetti = new Map();     // cache per dettagli articoli/kit (compresa sigla)
   let cacheSoggetti = new Map();    // cache per nomi soggetti
 
   const filtroMag = document.getElementById('filtroMagazzino');
@@ -309,7 +309,7 @@
     } catch (err) { console.error(err); }
   }
 
-  // Helper per ottenere dettaglio oggetto (articolo o kit)
+  // Helper per ottenere dettaglio oggetto (articolo o kit) inclusa la sigla dello sci
   async function getDettaglioOggetto(tipo, id) {
     const cacheKey = `${tipo}|${id}`;
     if (cacheOggetti.has(cacheKey)) return cacheOggetti.get(cacheKey);
@@ -317,16 +317,33 @@
       let dettaglio;
       if (tipo === 'ARTICOLO') {
         const res = await apiFetch(`/api/articoli/${id}`);
-        dettaglio = { codice: res.codice, descrizione: res.descrizione_completa || res.descrizione };
+        dettaglio = { 
+          codice: res.codice, 
+          descrizione: res.descrizione_completa || res.descrizione,
+          sigla: res.sigla || null   // per articolo, sigla singola (se presente)
+        };
       } else {
         const res = await apiFetch(`/api/kit/${id}`);
-        dettaglio = { codice: res.codice_kit, descrizione: res.descrizione };
+        let siglaSci = null;
+        if (res.sigla_id) {
+          // recupera la sigla dello sci
+          try {
+            const sigle = await apiFetch(`/api/articoli/${res.id_sci}/sigle`);
+            const siglaAssociata = sigle.find(s => s.id === res.sigla_id);
+            if (siglaAssociata) siglaSci = siglaAssociata.sigla;
+          } catch(e) { console.warn(`Errore sigla per kit ${id}`, e); }
+        }
+        dettaglio = { 
+          codice: res.codice_kit, 
+          descrizione: res.descrizione,
+          sigla: siglaSci
+        };
       }
       cacheOggetti.set(cacheKey, dettaglio);
       return dettaglio;
     } catch(e) {
       console.warn(`Errore dettaglio ${tipo} ${id}`, e);
-      return { codice: `${tipo.slice(0,3)}-${id}`, descrizione: 'N/D' };
+      return { codice: `${tipo.slice(0,3)}-${id}`, descrizione: 'N/D', sigla: null };
     }
   }
 
@@ -370,12 +387,11 @@
     const resRientro = await apiFetch(`/api/movimenti?${paramsRientro.toString()}`);
     if (resRientro.success) movimenti.push(...resRientro.data);
 
-    // Uscite con provenienza
+    // Uscite con provenienza (promoter_mittente = id)
     const paramsUscita = new URLSearchParams();
     paramsUscita.append('tipo', 'USCITA');
-    paramsUscita.append('provenienza_tipo', tipo);
-    paramsUscita.append('provenienza_id', id);
-    if (filtroMag.value) paramsUscita.append('magazzino', filtroMag.value);
+    paramsUscita.append('promoter_mittente', id);
+    if (filtroMag.value) paramsUscita.append('da_magazzino', `MAGAZZINO-${filtroMag.value}`);
     if (filtroTipo.value) paramsUscita.append('tipo_oggetto', filtroTipo.value);
     const resUscita = await apiFetch(`/api/movimenti?${paramsUscita.toString()}`);
     if (resUscita.success) movimenti.push(...resUscita.data);
@@ -389,34 +405,34 @@
     });
     unici.sort((a,b) => new Date(b.data) - new Date(a.data));
 
-    // Arricchisci ogni movimento con dettagli oggetto e destinazione
+    // Arricchisci ogni movimento con dettagli oggetto e destinazione chiara
     const movimentiArricchiti = [];
     for (const m of unici) {
       const dettaglio = await getDettaglioOggetto(m.tipo_oggetto, m.id_articolo_kit);
-      let destinazioneNome = '';
+      
+      // Costruisci destinazione/provenienza chiara
+      let destinazioneTesto = '';
       if (m.tipo === 'RIENTRO') {
-        // a_magazzino es: "MAGAZZINO-2"
-        const magId = m.a_magazzino ? m.a_magazzino.split('-')[1] : null;
-        if (magId) {
-          const mag = magazzini.find(mg => mg.id == magId);
-          destinazioneNome = mag ? `Magazzino ${mag.nome}` : `Magazzino ${magId}`;
-        } else {
-          destinazioneNome = m.a_magazzino || '-';
-        }
-      } else {
-        // a_magazzino es: "PROMOTER-5"
+        // Rientro: da soggetto a magazzino. Mostriamo "Rientro da [soggetto]"
+        const daSoggetto = await getNomeSoggetto(tipo, id);
+        destinazioneTesto = `Rientro da ${daSoggetto}`;
+      } else { // USCITA
+        // Uscita: da magazzino a destinatario. a_magazzino contiene destinazione es: "PROMOTER-5"
         if (m.a_magazzino && m.a_magazzino.includes('-')) {
           const [destTipo, destId] = m.a_magazzino.split('-');
-          destinazioneNome = await getNomeSoggetto(destTipo, parseInt(destId));
+          const nomeDest = await getNomeSoggetto(destTipo, parseInt(destId));
+          destinazioneTesto = `Uscita verso ${nomeDest}`;
         } else {
-          destinazioneNome = m.a_magazzino || '-';
+          destinazioneTesto = `Uscita verso ${m.a_magazzino || '-'}`;
         }
       }
+      
       movimentiArricchiti.push({
         ...m,
         oggetto_codice: dettaglio.codice,
         oggetto_descrizione: dettaglio.descrizione,
-        destinazione_nome: destinazioneNome
+        oggetto_sigla: dettaglio.sigla,
+        destinazione_testo: destinazioneTesto
       });
     }
     return movimentiArricchiti;
@@ -500,19 +516,21 @@
       return;
     }
     let html = '<table><thead><tr>';
-    html += '<th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Quantità</th><th>Destinazione / Provenienza</th><th>Note</th>';
+    html += '<th>Data</th><th>Tipo</th><th>Oggetto</th><th>Codice</th><th>Descrizione</th><th>Sigla</th><th>Quantità</th><th>Dettaglio movimento</th><th>Note</th>';
     html += '</tr></thead><tbody>';
     for (const m of movimenti) {
       const data = new Date(m.data).toLocaleString();
       const tipoOggetto = m.tipo_oggetto === 'KIT' ? 'Kit' : 'Articolo';
+      const badgeClass = m.tipo === 'RIENTRO' ? 'badge-rientro' : 'badge-uscita';
       html += '<tr>';
       html += `<td>${data}</td>`;
-      html += `<td><span class="badge">${m.tipo === 'RIENTRO' ? 'Rientro' : 'Uscita'}</span></td>`;
+      html += `<td><span class="badge ${badgeClass}">${m.tipo === 'RIENTRO' ? 'Rientro' : 'Uscita'}</span></td>`;
       html += `<td>${tipoOggetto}</td>`;
       html += `<td>${m.oggetto_codice || '-'}</td>`;
       html += `<td>${m.oggetto_descrizione || '-'}</td>`;
+      html += `<td>${m.oggetto_sigla || '-'}</td>`;
       html += `<td>${m.quantita}</td>`;
-      html += `<td>${m.destinazione_nome || '-'}</td>`;
+      html += `<td>${m.destinazione_testo || '-'}</td>`;
       html += `<td>${m.note || '-'}</td>`;
       html += '</tr>';
     }
