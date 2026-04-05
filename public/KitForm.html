@@ -154,9 +154,7 @@
 
     <h4>Sigle e componenti</h4>
     <table class="sigle-table" id="sigleTable">
-      <thead>
-        <th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th>
-      </thead>
+      <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
       <tbody id="sigleTbody"></tbody>
     </table>
     <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:5px;">➕ Aggiungi sigla</button>
@@ -221,9 +219,7 @@
       </div>
       <h4>Sigle e componenti</h4>
       <table class="sigle-table" id="editSigleTable">
-        <thead>
-          <th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th>
-        </thead>
+        <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
         <tbody id="editSigleTbody"></tbody>
       </table>
       <button type="button" class="btn" onclick="aggiungiRigaSiglaEdit()">➕ Aggiungi sigla</button>
@@ -270,8 +266,8 @@
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let sortColumn = 'id', sortAsc = true;
   let currentEditId = null;
-  let currentEditSciId = null;        // ID dell'articolo sci del kit in modifica
-  let currentEditSigleDisponibili = []; // tutte le sigle possibili per quello sci
+  let currentEditSciId = null;
+  let currentEditSigleDisponibili = [];
 
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
@@ -325,7 +321,6 @@
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) kitMagazzinoSelect.value = defaultMag.id;
 
-      // Carica articoli per datalist sci (solo categoria sci)
       await caricaArticoliSci();
       await refreshFilterDatalists();
       await caricaKit();
@@ -342,7 +337,6 @@
     if (categoryIds.sci) params.append('categoria', categoryIds.sci);
     const res = await apiFetch(`/api/articoli?${params.toString()}`);
     articoliSci = res.success ? res.data : [];
-    // Popola datalist sci
     const sciList = document.getElementById('sciList');
     sciList.innerHTML = '';
     articoliSci.forEach(art => {
@@ -384,20 +378,23 @@
   function aggiungiRigaSigla() {
     const tbody = document.getElementById('sigleTbody');
     const row = tbody.insertRow();
-    // Sigla (select con le sigle disponibili per lo sci selezionato)
+    // Sigla (select vuoto – verrà popolato dopo la selezione dello sci)
     const tdSigla = row.insertCell(0);
     const siglaSelect = document.createElement('select');
     siglaSelect.className = 'sigla-select';
+    siglaSelect.innerHTML = '<option value="">Seleziona prima lo sci</option>';
     tdSigla.appendChild(siglaSelect);
     // Attacco
     const tdAtt = row.insertCell(1);
     const attSelect = document.createElement('select');
     attSelect.className = 'attacco-select';
+    attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
     tdAtt.appendChild(attSelect);
     // Skistopper
     const tdSk = row.insertCell(2);
     const skSelect = document.createElement('select');
     skSelect.className = 'skistopper-select';
+    skSelect.innerHTML = '<option value="">Nessuno</option>';
     tdSk.appendChild(skSelect);
     // Quantità
     const tdQta = row.insertCell(3);
@@ -416,18 +413,11 @@
     tdAz.appendChild(delBtn);
   }
 
-  function aggiornaSelectSigle() {
-    // In fase di creazione, non implementiamo la logica dinamica delle sigle
-    // per semplicità, si assume che l'utente scelga prima lo sci e poi le sigle.
-    // In un'implementazione completa, si dovrebbero caricare le sigle dello sci selezionato.
-  }
-
   // ========== CREAZIONE KIT ==========
   async function salvaKit() {
     const magazzino = kitMagazzinoSelect.value;
     const sciInput = document.getElementById('kitSci').value;
     const note = document.getElementById('kitNote').value.trim();
-    // Recupera ID sci
     const sciList = document.getElementById('sciList');
     let sciId = null;
     for (let opt of sciList.options) {
@@ -502,7 +492,7 @@
 
   function resetForm() {
     document.getElementById('sigleTbody').innerHTML = '';
-    aggiungiRigaSigla(); // almeno una riga
+    aggiungiRigaSigla();
     document.getElementById('kitSci').value = '';
     document.getElementById('kitNote').value = '';
     externalCheckbox.checked = false;
@@ -551,11 +541,8 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
-
-      // Mostra riepilogo sigle/attacchi
       const compCell = row.insertCell(7);
       if (k.dettagli && k.dettagli.length) {
-        // Raggruppa per sigla (i dettagli sono piatti, ma possiamo estrarre le sigle)
         const sigleMap = new Map();
         for (let d of k.dettagli) {
           if (d.tipo_articolo === 'SCI') {
@@ -564,13 +551,11 @@
         }
         const attacchi = k.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI');
         const skistoppers = k.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER');
-        // Non abbiamo un collegamento diretto tra sigla e attacco, quindi mostriamo solo le sigle
         const sigleTesto = Array.from(sigleMap.values()).map(s => s.sigla).join(', ');
         compCell.innerHTML = `Sigle: ${sigleTesto}<br>Attacchi: ${attacchi.length}<br>Skistopper: ${skistoppers.length}`;
       } else {
         compCell.innerText = '-';
       }
-
       const actions = row.insertCell(8);
       actions.className = 'action-buttons';
       actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
@@ -580,50 +565,64 @@
 
   // ========== MODIFICA KIT ==========
   async function modificaKit(id) {
+    console.log('modificaKit chiamato con id:', id);
     try {
       const kit = await apiFetch(`/api/kit/${id}`);
+      console.log('Kit ricevuto:', kit);
       currentEditId = id;
       document.getElementById('editKitId').value = kit.id;
       editKitMagazzino.value = kit.magazzino;
       document.getElementById('editKitNote').value = kit.note || '';
-      // Recupera lo sci (primo componente di tipo SCI)
+      
       const sciDetail = kit.dettagli.find(d => d.tipo_articolo === 'SCI');
       if (!sciDetail) throw new Error('Kit senza sci');
       currentEditSciId = sciDetail.articolo_id;
-      // Carica descrizione sci
+      
       const sciArt = await apiFetch(`/api/articoli/${currentEditSciId}`);
       document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
-      // Carica tutte le sigle disponibili per questo sci
+      
       const sigleDisponibili = await apiFetch(`/api/articoli/${currentEditSciId}/sigle`);
       currentEditSigleDisponibili = sigleDisponibili;
-      // Popola tabella righe
+      console.log('Sigle disponibili:', currentEditSigleDisponibili);
+      
       const tbody = document.getElementById('editSigleTbody');
       tbody.innerHTML = '';
-      // Raggruppa i dettagli per sigla: ogni sigla ha una riga
-      const righeMap = new Map(); // key = sigla_id, value = { sigla, attacco_id, skistopper_id, quantita }
+      
+      // Raggruppa le sigle esistenti (una riga per sigla)
+      const righeMap = new Map();
       for (let d of kit.dettagli) {
         if (d.tipo_articolo === 'SCI') {
-          righeMap.set(d.sigla_id, { sigla_id: d.sigla_id, sigla: d.sigla, attacco_id: null, skistopper_id: null, quantita: d.quantita });
-        } else if (d.tipo_articolo === 'ATTACCHI') {
-          // Trova a quale sigla appartiene? Non abbiamo legame. Per ora assumiamo che l'attacco sia unico per kit, quindi lo mettiamo in tutte le righe? No.
-          // Dobbiamo ridefinire: la struttura attuale non supporta attacco per sigla. Quindi in modifica mostriamo solo le sigle e l'utente potrà selezionare attacco e skistopper per ciascuna.
-          // Alla fine, quando salviamo, invieremo un array di righe con sigla, attacco, skistopper.
-          // Per ora, durante la modifica, non possiamo sapere quale attacco era associato a quale sigla perché non c'è relazione.
-          // Quindi ricostruiamo da zero: per ogni sigla, l'utente dovrà scegliere attacco e skistopper (se non li aveva, saranno vuoti).
+          righeMap.set(d.sigla_id, {
+            sigla_id: d.sigla_id,
+            sigla: d.sigla,
+            quantita: d.quantita,
+            attacco_id: null,
+            skistopper_id: null
+          });
         }
       }
-      // Se non ci sono righe, aggiungine una vuota
+      // Aggiungi attacchi e skistoppers (non abbiamo legame diretto, quindi per ora lasciamo vuoti)
       if (righeMap.size === 0) {
         aggiungiRigaSiglaEdit();
       } else {
         for (let [sigla_id, info] of righeMap.entries()) {
-          aggiungiRigaSiglaEdit({ sigla_id: info.sigla_id, sigla: info.sigla, attacco_id: null, skistopper_id: null, quantita: info.quantita });
+          aggiungiRigaSiglaEdit({
+            sigla_id: info.sigla_id,
+            sigla: info.sigla,
+            attacco_id: null,
+            skistopper_id: null,
+            quantita: info.quantita
+          });
         }
       }
-      // Carica gli articoli per attacchi e skistopper nel magazzino selezionato
+      
       await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
-      document.getElementById('modalEditKit').style.display = 'flex';
+      const modal = document.getElementById('modalEditKit');
+      modal.style.display = 'flex';
+      console.log('Modale aperto');
+      setTimeout(() => aggiornaSelectSigleInTutteRighe(), 100);
     } catch (err) {
+      console.error('Errore in modificaKit:', err);
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
   }
@@ -631,10 +630,8 @@
   async function popolaSelectAttacchiSkistopper(magazzinoId) {
     const attacchi = await caricaArticoliAttacchi(magazzinoId);
     const skistoppers = await caricaArticoliSkistopper(magazzinoId);
-    // Salva globalmente per usare nei dropdown dinamici
     window.attacchiDisponibili = attacchi;
     window.skistoppersDisponibili = skistoppers;
-    // Aggiorna tutti i select esistenti
     document.querySelectorAll('#editSigleTbody .attacco-select').forEach(sel => {
       sel.innerHTML = '<option value="">Seleziona attacco</option>';
       attacchi.forEach(a => {
@@ -655,245 +652,222 @@
     });
   }
 
- function aggiungiRigaSiglaEdit(prefill = null) {
-  const tbody = document.getElementById('editSigleTbody');
-  const row = tbody.insertRow();
-  
-  // Ottieni le sigle già usate nelle righe esistenti (escludendo quella che stiamo aggiungendo)
-  const righeEsistenti = Array.from(tbody.querySelectorAll('tr')).map(r => {
-    const select = r.cells[0].querySelector('select');
-    return select ? parseInt(select.value) : null;
-  }).filter(id => id && !isNaN(id));
-  
-  const sigleDisponibili = getSigleDisponibili(righeEsistenti);
-  
-  // Colonna Sigla
-  const tdSigla = row.insertCell(0);
-  const siglaSelect = document.createElement('select');
-  siglaSelect.className = 'sigla-select';
-  siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
-  sigleDisponibili.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
-    if (prefill && prefill.sigla_id == s.id) opt.selected = true;
-    siglaSelect.appendChild(opt);
-  });
-  // Se prefill ha una sigla che non è più disponibile (caso raro), la aggiungiamo comunque
-  if (prefill && prefill.sigla_id && !sigleDisponibili.find(s => s.id == prefill.sigla_id)) {
-    const opt = document.createElement('option');
-    opt.value = prefill.sigla_id;
-    opt.text = prefill.sigla || `Sigla ${prefill.sigla_id}`;
-    opt.selected = true;
-    siglaSelect.appendChild(opt);
+  function getSigleDisponibili(sigleUsate) {
+    return currentEditSigleDisponibili.filter(s => !sigleUsate.includes(s.id));
   }
-  tdSigla.appendChild(siglaSelect);
-  
-  // Colonna Attacco
-  const tdAtt = row.insertCell(1);
-  const attSelect = document.createElement('select');
-  attSelect.className = 'attacco-select';
-  attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
-  if (window.attacchiDisponibili) {
-    window.attacchiDisponibili.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.id;
-      opt.text = formatArticleDisplay(a);
-      if (prefill && prefill.attacco_id == a.id) opt.selected = true;
-      attSelect.appendChild(opt);
-    });
-  }
-  tdAtt.appendChild(attSelect);
-  
-  // Colonna Skistopper
-  const tdSk = row.insertCell(2);
-  const skSelect = document.createElement('select');
-  skSelect.className = 'skistopper-select';
-  skSelect.innerHTML = '<option value="">Nessuno</option>';
-  if (window.skistoppersDisponibili) {
-    window.skistoppersDisponibili.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.id;
-      opt.text = formatArticleDisplay(s);
-      if (prefill && prefill.skistopper_id == s.id) opt.selected = true;
-      skSelect.appendChild(opt);
-    });
-  }
-  tdSk.appendChild(skSelect);
-  
-  // Colonna Quantità
-  const tdQta = row.insertCell(3);
-  const qtyInput = document.createElement('input');
-  qtyInput.type = 'number';
-  qtyInput.value = prefill ? prefill.quantita : 1;
-  qtyInput.min = 1;
-  qtyInput.style.width = '70px';
-  tdQta.appendChild(qtyInput);
-  
-  // Azioni
-  const tdAz = row.insertCell(4);
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑️';
-  delBtn.className = 'btn btn-danger';
-  delBtn.onclick = () => {
-    row.remove();
-    // Dopo la rimozione, aggiorna i dropdown delle sigle nelle altre righe
-    aggiornaSelectSigleInTutteRighe();
-  };
-  tdAz.appendChild(delBtn);
-  
-  // Quando cambia la selezione della sigla, non serve fare altro perché la validazione avviene al salvataggio
-  // Tuttavia, per evitare duplicati, possiamo disabilitare le sigle già usate in altre righe
-  siglaSelect.addEventListener('change', () => {
-    aggiornaSelectSigleInTutteRighe();
-  });
-}
 
-function aggiornaSelectSigleInTutteRighe() {
-  const righe = document.querySelectorAll('#editSigleTbody tr');
-  // Raccogli tutte le sigle attualmente selezionate (valori validi)
-  const sigleSelezionate = [];
-  for (let row of righe) {
-    const select = row.cells[0].querySelector('select');
-    if (select && select.value) {
-      sigleSelezionate.push(parseInt(select.value));
+  function aggiornaSelectSigleInTutteRighe() {
+    const righe = document.querySelectorAll('#editSigleTbody tr');
+    const sigleSelezionate = [];
+    for (let row of righe) {
+      const select = row.cells[0].querySelector('select');
+      if (select && select.value) {
+        sigleSelezionate.push(parseInt(select.value));
+      }
+    }
+    for (let row of righe) {
+      const select = row.cells[0].querySelector('select');
+      if (!select) continue;
+      const currentVal = select.value ? parseInt(select.value) : null;
+      const altreSigle = sigleSelezionate.filter(id => id !== currentVal);
+      const disponibili = getSigleDisponibili(altreSigle);
+      const currentOption = Array.from(select.options).find(opt => opt.value == currentVal);
+      select.innerHTML = '<option value="">Seleziona sigla</option>';
+      disponibili.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
+        if (currentVal === s.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+      if (currentVal && !disponibili.find(s => s.id === currentVal) && currentOption) {
+        const opt = document.createElement('option');
+        opt.value = currentVal;
+        opt.text = currentOption.text;
+        opt.selected = true;
+        select.appendChild(opt);
+      }
     }
   }
-  
-  // Per ogni riga, ricostruisci le opzioni escludendo le sigle selezionate nelle altre righe
-  for (let row of righe) {
-    const select = row.cells[0].querySelector('select');
-    if (!select) continue;
+
+  function aggiungiRigaSiglaEdit(prefill = null) {
+    const tbody = document.getElementById('editSigleTbody');
+    const row = tbody.insertRow();
+    const righeEsistenti = Array.from(tbody.querySelectorAll('tr')).map(r => {
+      const sel = r.cells[0].querySelector('select');
+      return sel && sel.value ? parseInt(sel.value) : null;
+    }).filter(id => id && !isNaN(id));
+    const sigleDisponibili = getSigleDisponibili(righeEsistenti);
     
-    const currentVal = select.value ? parseInt(select.value) : null;
-    // Escludi le sigle selezionate in altre righe (mantieni quella corrente)
-    const altreSigle = sigleSelezionate.filter(id => id !== currentVal);
-    const disponibili = getSigleDisponibili(altreSigle);
-    
-    // Salva l'opzione attualmente selezionata (per ripristinarla se ancora valida)
-    const currentOption = Array.from(select.options).find(opt => opt.value == currentVal);
-    
-    // Ricostruisci il select
-    select.innerHTML = '<option value="">Seleziona sigla</option>';
-    disponibili.forEach(s => {
+    const tdSigla = row.insertCell(0);
+    const siglaSelect = document.createElement('select');
+    siglaSelect.className = 'sigla-select';
+    siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+    sigleDisponibili.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
-      if (currentVal === s.id) opt.selected = true;
-      select.appendChild(opt);
+      if (prefill && prefill.sigla_id == s.id) opt.selected = true;
+      siglaSelect.appendChild(opt);
     });
-    
-    // Se la sigla corrente non è più tra le disponibili (caso di modifica di una riga esistente),
-    // la riaggiungiamo manualmente per non perderla
-    if (currentVal && !disponibili.find(s => s.id === currentVal) && currentOption) {
+    if (prefill && prefill.sigla_id && !sigleDisponibili.find(s => s.id == prefill.sigla_id)) {
       const opt = document.createElement('option');
-      opt.value = currentVal;
-      opt.text = currentOption.text;
+      opt.value = prefill.sigla_id;
+      opt.text = prefill.sigla || `Sigla ${prefill.sigla_id}`;
       opt.selected = true;
-      select.appendChild(opt);
+      siglaSelect.appendChild(opt);
     }
-  }
-}
-
-function raccogliRigheEdit() {
-  const righe = [];
-  const rows = document.querySelectorAll('#editSigleTbody tr');
-  for (let row of rows) {
-    const siglaSelect = row.cells[0].querySelector('select');
-    const attSelect = row.cells[1].querySelector('select');
-    const skSelect = row.cells[2].querySelector('select');
-    const qtyInput = row.cells[3].querySelector('input');
-    const siglaId = siglaSelect.value;
-    const attId = attSelect.value;
-    const skId = skSelect.value;
-    const quantita = parseInt(qtyInput.value);
-    if (!siglaId || !attId) {
-      showMessage('Ogni riga deve avere sigla e attacco', 'error');
-      return null;
+    tdSigla.appendChild(siglaSelect);
+    
+    const tdAtt = row.insertCell(1);
+    const attSelect = document.createElement('select');
+    attSelect.className = 'attacco-select';
+    attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
+    if (window.attacchiDisponibili) {
+      window.attacchiDisponibili.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.text = formatArticleDisplay(a);
+        if (prefill && prefill.attacco_id == a.id) opt.selected = true;
+        attSelect.appendChild(opt);
+      });
     }
-    righe.push({
-      sigla_id: parseInt(siglaId),
-      attacco_id: parseInt(attId),
-      skistopper_id: skId ? parseInt(skId) : null,
-      quantita: quantita
+    tdAtt.appendChild(attSelect);
+    
+    const tdSk = row.insertCell(2);
+    const skSelect = document.createElement('select');
+    skSelect.className = 'skistopper-select';
+    skSelect.innerHTML = '<option value="">Nessuno</option>';
+    if (window.skistoppersDisponibili) {
+      window.skistoppersDisponibili.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = formatArticleDisplay(s);
+        if (prefill && prefill.skistopper_id == s.id) opt.selected = true;
+        skSelect.appendChild(opt);
+      });
+    }
+    tdSk.appendChild(skSelect);
+    
+    const tdQta = row.insertCell(3);
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.value = prefill ? prefill.quantita : 1;
+    qtyInput.min = 1;
+    qtyInput.style.width = '70px';
+    tdQta.appendChild(qtyInput);
+    
+    const tdAz = row.insertCell(4);
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.className = 'btn btn-danger';
+    delBtn.onclick = () => {
+      row.remove();
+      aggiornaSelectSigleInTutteRighe();
+    };
+    tdAz.appendChild(delBtn);
+    
+    siglaSelect.addEventListener('change', () => {
+      aggiornaSelectSigleInTutteRighe();
     });
   }
-  return righe;
-}
 
-async function salvaModificaKit() {
-  const id = currentEditId;
-  const magazzino = editKitMagazzino.value;
-  const note = document.getElementById('editKitNote').value.trim();
-  const righe = raccogliRigheEdit();
-  if (!righe) return;
-  if (righe.length === 0) {
-    showMessage('Aggiungi almeno una sigla', 'error');
-    return;
+  function raccogliRigheEdit() {
+    const righe = [];
+    const rows = document.querySelectorAll('#editSigleTbody tr');
+    for (let row of rows) {
+      const siglaSelect = row.cells[0].querySelector('select');
+      const attSelect = row.cells[1].querySelector('select');
+      const skSelect = row.cells[2].querySelector('select');
+      const qtyInput = row.cells[3].querySelector('input');
+      const siglaId = siglaSelect.value;
+      const attId = attSelect.value;
+      const skId = skSelect.value;
+      const quantita = parseInt(qtyInput.value);
+      if (!siglaId || !attId) {
+        showMessage('Ogni riga deve avere sigla e attacco', 'error');
+        return null;
+      }
+      righe.push({
+        sigla_id: parseInt(siglaId),
+        attacco_id: parseInt(attId),
+        skistopper_id: skId ? parseInt(skId) : null,
+        quantita: quantita
+      });
+    }
+    return righe;
   }
-  
-  // Verifica giacenza per ogni componente
-  // Carica le giacenze attuali degli articoli coinvolti
-  const articoliIdSet = new Set();
-  for (const r of righe) {
-    articoliIdSet.add(currentEditSciId);
-    articoliIdSet.add(r.attacco_id);
-    if (r.skistopper_id) articoliIdSet.add(r.skistopper_id);
-  }
-  const giacenze = {};
-  for (let artId of articoliIdSet) {
+
+  async function salvaModificaKit() {
+    const id = currentEditId;
+    const magazzino = editKitMagazzino.value;
+    const note = document.getElementById('editKitNote').value.trim();
+    const righe = raccogliRigheEdit();
+    if (!righe) return;
+    if (righe.length === 0) {
+      showMessage('Aggiungi almeno una sigla', 'error');
+      return;
+    }
+    
+    // Verifica giacenza
+    const articoliIdSet = new Set();
+    for (const r of righe) {
+      articoliIdSet.add(currentEditSciId);
+      articoliIdSet.add(r.attacco_id);
+      if (r.skistopper_id) articoliIdSet.add(r.skistopper_id);
+    }
+    const giacenze = {};
+    for (let artId of articoliIdSet) {
+      try {
+        const art = await apiFetch(`/api/articoli/${artId}`);
+        giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
+      } catch(e) {
+        showMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
+        return;
+      }
+    }
+    for (const r of righe) {
+      const qta = r.quantita;
+      if (giacenze[currentEditSciId] < qta) {
+        showMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richiesto ${qta})`, 'error');
+        return;
+      }
+      if (giacenze[r.attacco_id] < qta) {
+        const attaccoArt = window.attacchiDisponibili.find(a => a.id === r.attacco_id);
+        const nomeAttacco = attaccoArt ? formatArticleDisplay(attaccoArt) : `Attacco ID ${r.attacco_id}`;
+        showMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[r.attacco_id]}, richiesto ${qta})`, 'error');
+        return;
+      }
+      if (r.skistopper_id && giacenze[r.skistopper_id] < qta) {
+        const skArt = window.skistoppersDisponibili.find(s => s.id === r.skistopper_id);
+        const nomeSk = skArt ? formatArticleDisplay(skArt) : `Skistopper ID ${r.skistopper_id}`;
+        showMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[r.skistopper_id]}, richiesto ${qta})`, 'error');
+        return;
+      }
+    }
+    
+    const payload = {
+      magazzino: parseInt(magazzino),
+      sci_id: currentEditSciId,
+      note: note,
+      righe: righe
+    };
     try {
-      const art = await apiFetch(`/api/articoli/${artId}`);
-      giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
-    } catch(e) {
-      showMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
-      return;
+      const result = await apiFetch(`/api/kit/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      if (result.success) {
+        showMessage('Kit aggiornato con successo', 'success');
+        chiudiModaleKit();
+        await caricaKit();
+      } else {
+        showMessage(result.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Errore: ' + err.message, 'error');
     }
   }
-  
-  // Verifica che per ogni riga la quantità richiesta non superi la giacenza
-  for (const r of righe) {
-    const qta = r.quantita;
-    if (giacenze[currentEditSciId] < qta) {
-      showMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richiesto ${qta})`, 'error');
-      return;
-    }
-    if (giacenze[r.attacco_id] < qta) {
-      const attaccoArt = window.attacchiDisponibili.find(a => a.id === r.attacco_id);
-      const nomeAttacco = attaccoArt ? formatArticleDisplay(attaccoArt) : `Attacco ID ${r.attacco_id}`;
-      showMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[r.attacco_id]}, richiesto ${qta})`, 'error');
-      return;
-    }
-    if (r.skistopper_id && giacenze[r.skistopper_id] < qta) {
-      const skArt = window.skistoppersDisponibili.find(s => s.id === r.skistopper_id);
-      const nomeSk = skArt ? formatArticleDisplay(skArt) : `Skistopper ID ${r.skistopper_id}`;
-      showMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[r.skistopper_id]}, richiesto ${qta})`, 'error');
-      return;
-    }
-  }
-  
-  const payload = {
-    magazzino: parseInt(magazzino),
-    sci_id: currentEditSciId,
-    note: note,
-    righe: righe
-  };
-  try {
-    const result = await apiFetch(`/api/kit/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    });
-    if (result.success) {
-      showMessage('Kit aggiornato con successo', 'success');
-      chiudiModaleKit();
-      await caricaKit();
-    } else {
-      showMessage(result.message, 'error');
-    }
-  } catch (err) {
-    showMessage('Errore: ' + err.message, 'error');
-  }
-}
 
   function chiudiModaleKit() {
     document.getElementById('modalEditKit').style.display = 'none';
@@ -916,7 +890,7 @@ async function salvaModificaKit() {
     }
   }
 
-  // ========== FILTRI DATALIST ==========
+  // ========== FILTRI ==========
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
     if (filtroMag.value) params.append('magazzino', filtroMag.value);
@@ -979,7 +953,7 @@ async function salvaModificaKit() {
     }
   }
 
-  // ========== FUNZIONI BATCH (esistenti) ==========
+  // ========== FUNZIONI BATCH ==========
   function toggleSelectAll() {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
     document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
@@ -1096,10 +1070,6 @@ async function salvaModificaKit() {
     setupExternalMode();
     resetForm();
   };
-  function getSigleDisponibili(sigleUsate) {
-  // sigleUsate: array di id già presenti nel kit
-  return currentEditSigleDisponibili.filter(s => !sigleUsate.includes(s.id));
-}
 </script>
 </body>
 </html>
