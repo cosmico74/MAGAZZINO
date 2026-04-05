@@ -105,6 +105,14 @@
     .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
     .sigle-table th { background: #e9ecef; }
+    .inline-add-sigla {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .inline-add-sigla input { flex: 1; font-size: 0.7rem; padding: 3px; }
+    .inline-add-sigla button { padding: 2px 6px; font-size: 0.7rem; }
   </style>
 </head>
 <body>
@@ -156,7 +164,7 @@
     <table class="sigle-table" id="sigleTable">
       <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
       <tbody id="sigleTbody"></tbody>
-    </tr>
+    </table>
     <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:5px;">➕ Aggiungi sigla</button>
 
     <div class="form-group" style="margin-top:10px;">
@@ -557,7 +565,7 @@
     });
   }
 
-  // ========== MODIFICA KIT ==========
+  // ========== MODIFICA KIT (CON CREAZIONE SIGLE) ==========
   async function modificaKit(id) {
     console.log('modificaKit chiamato con id:', id);
     try {
@@ -575,9 +583,8 @@
       const sciArt = await apiFetch(`/api/articoli/${currentEditSciId}`);
       document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
       
-      const sigleDisponibili = await apiFetch(`/api/articoli/${currentEditSciId}/sigle`);
-      currentEditSigleDisponibili = sigleDisponibili;
-      console.log('Sigle disponibili:', currentEditSigleDisponibili);
+      // Carica tutte le sigle disponibili per questo sci
+      await ricaricaSigleDisponibili();
       
       // Carica attacchi e skistoppers per il magazzino
       await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
@@ -613,7 +620,6 @@
         }
       }
       
-      // Mostra il modale
       const modal = document.getElementById('modalEditKit');
       modal.style.display = 'flex';
       console.log('Modale aperto');
@@ -623,6 +629,12 @@
       console.error('Errore in modificaKit:', err);
       showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
+  }
+
+  async function ricaricaSigleDisponibili() {
+    const sigle = await apiFetch(`/api/articoli/${currentEditSciId}/sigle`);
+    currentEditSigleDisponibili = sigle;
+    console.log('Sigle disponibili:', currentEditSigleDisponibili);
   }
 
   async function popolaSelectAttacchiSkistopper(magazzinoId) {
@@ -674,6 +686,33 @@
     }
   }
 
+  // Funzione per creare una nuova sigla e aggiungerla al dropdown
+  async function creaNuovaSigla() {
+    const nuovaSigla = prompt('Inserisci la nuova sigla (es. AR12GFS26JPS):');
+    if (!nuovaSigla) return;
+    const durezza = prompt('Durezza (opzionale):', '');
+    const lunghezza = prompt('Lunghezza (opzionale, cm):', '');
+    const modello = prompt('Codice modello (opzionale):', '');
+    const noteSigla = prompt('Note (opzionale):', '');
+    const payload = {
+      sigla: nuovaSigla,
+      durezza: durezza || null,
+      lunghezza: lunghezza || null,
+      codice_modello: modello || null,
+      note: noteSigla || null
+    };
+    try {
+      await apiFetch(`/api/articoli/${currentEditSciId}/sigle`, { method: 'POST', body: JSON.stringify(payload) });
+      showMessage('Sigla aggiunta con successo!', 'success');
+      // Ricarica le sigle disponibili
+      await ricaricaSigleDisponibili();
+      // Aggiorna i dropdown in tutte le righe
+      aggiornaSelectSigleInTutteRighe();
+    } catch (err) {
+      showMessage('Errore durante la creazione della sigla: ' + err.message, 'error');
+    }
+  }
+
   function aggiungiRigaSiglaEdit(prefill = null) {
     const tbody = document.getElementById('editSigleTbody');
     
@@ -691,8 +730,14 @@
     const row = tbody.insertRow();
     
     const tdSigla = row.insertCell(0);
+    const containerSigla = document.createElement('div');
+    containerSigla.style.display = 'flex';
+    containerSigla.style.gap = '5px';
+    containerSigla.style.alignItems = 'center';
+    
     const siglaSelect = document.createElement('select');
     siglaSelect.className = 'sigla-select';
+    siglaSelect.style.flex = '1';
     siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
     sigleDisponibili.forEach(s => {
       const opt = document.createElement('option');
@@ -708,7 +753,33 @@
       opt.selected = true;
       siglaSelect.appendChild(opt);
     }
-    tdSigla.appendChild(siglaSelect);
+    containerSigla.appendChild(siglaSelect);
+    
+    // Bottone per aggiungere nuova sigla
+    const addSiglaBtn = document.createElement('button');
+    addSiglaBtn.textContent = '+';
+    addSiglaBtn.className = 'btn';
+    addSiglaBtn.style.padding = '2px 6px';
+    addSiglaBtn.style.fontSize = '0.7rem';
+    addSiglaBtn.title = 'Aggiungi nuova sigla per questo sci';
+    addSiglaBtn.onclick = async () => {
+      await creaNuovaSigla();
+      // Dopo la creazione, ricarica le opzioni del select corrente
+      const nuoveSigle = getSigleDisponibili(righeEsistenti);
+      siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+      nuoveSigle.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
+        siglaSelect.appendChild(opt);
+      });
+      if (prefill && prefill.sigla_id) {
+        const found = nuoveSigle.find(s => s.id == prefill.sigla_id);
+        if (found) siglaSelect.value = prefill.sigla_id;
+      }
+    };
+    containerSigla.appendChild(addSiglaBtn);
+    tdSigla.appendChild(containerSigla);
     
     const tdAtt = row.insertCell(1);
     const attSelect = document.createElement('select');
