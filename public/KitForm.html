@@ -156,7 +156,7 @@
     <table class="sigle-table" id="sigleTable">
       <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
       <tbody id="sigleTbody"></tbody>
-    </table>
+    </tr>
     <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:5px;">➕ Aggiungi sigla</button>
 
     <div class="form-group" style="margin-top:10px;">
@@ -378,25 +378,21 @@
   function aggiungiRigaSigla() {
     const tbody = document.getElementById('sigleTbody');
     const row = tbody.insertRow();
-    // Sigla (select vuoto – verrà popolato dopo la selezione dello sci)
     const tdSigla = row.insertCell(0);
     const siglaSelect = document.createElement('select');
     siglaSelect.className = 'sigla-select';
     siglaSelect.innerHTML = '<option value="">Seleziona prima lo sci</option>';
     tdSigla.appendChild(siglaSelect);
-    // Attacco
     const tdAtt = row.insertCell(1);
     const attSelect = document.createElement('select');
     attSelect.className = 'attacco-select';
     attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
     tdAtt.appendChild(attSelect);
-    // Skistopper
     const tdSk = row.insertCell(2);
     const skSelect = document.createElement('select');
     skSelect.className = 'skistopper-select';
     skSelect.innerHTML = '<option value="">Nessuno</option>';
     tdSk.appendChild(skSelect);
-    // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
@@ -404,7 +400,6 @@
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
-    // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
     delBtn.textContent = '🗑️';
@@ -430,7 +425,6 @@
       showMessage('Seleziona magazzino e sci', 'error');
       return;
     }
-    // Raccogli righe sigle
     const righe = [];
     const rows = document.querySelectorAll('#sigleTbody tr');
     for (let row of rows) {
@@ -585,6 +579,9 @@
       currentEditSigleDisponibili = sigleDisponibili;
       console.log('Sigle disponibili:', currentEditSigleDisponibili);
       
+      // Carica attacchi e skistoppers per il magazzino
+      await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
+      
       const tbody = document.getElementById('editSigleTbody');
       tbody.innerHTML = '';
       
@@ -601,11 +598,6 @@
           });
         }
       }
-      // Per ora attacco e skistopper non sono legati alla sigla, quindi li lasceremo vuoti.
-      // L'utente dovrà selezionarli manualmente.
-      
-      // Carica gli articoli per attacchi e skistopper (li useremo per popolare i dropdown)
-      await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
       
       if (righeMap.size === 0) {
         aggiungiRigaSiglaEdit();
@@ -626,7 +618,6 @@
       modal.style.display = 'flex';
       console.log('Modale aperto');
       
-      // Aggiorna i dropdown delle sigle per evitare duplicati
       setTimeout(() => aggiornaSelectSigleInTutteRighe(), 100);
     } catch (err) {
       console.error('Errore in modificaKit:', err);
@@ -640,25 +631,6 @@
     const skistoppers = await caricaArticoliSkistopper(magazzinoId);
     window.attacchiDisponibili = attacchi;
     window.skistoppersDisponibili = skistoppers;
-    // Aggiorna tutti i select nelle righe esistenti
-    document.querySelectorAll('#editSigleTbody .attacco-select').forEach(sel => {
-      sel.innerHTML = '<option value="">Seleziona attacco</option>';
-      attacchi.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a.id;
-        opt.text = formatArticleDisplay(a);
-        sel.appendChild(opt);
-      });
-    });
-    document.querySelectorAll('#editSigleTbody .skistopper-select').forEach(sel => {
-      sel.innerHTML = '<option value="">Nessuno</option>';
-      skistoppers.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.text = formatArticleDisplay(s);
-        sel.appendChild(opt);
-      });
-    });
   }
 
   function getSigleDisponibili(sigleUsate) {
@@ -670,12 +642,14 @@
     if (!righe.length) return;
     const sigleSelezionate = [];
     for (let row of righe) {
+      if (row.cells.length === 0) continue;
       const select = row.cells[0].querySelector('select');
       if (select && select.value) {
         sigleSelezionate.push(parseInt(select.value));
       }
     }
     for (let row of righe) {
+      if (row.cells.length === 0) continue;
       const select = row.cells[0].querySelector('select');
       if (!select) continue;
       const currentVal = select.value ? parseInt(select.value) : null;
@@ -702,12 +676,19 @@
 
   function aggiungiRigaSiglaEdit(prefill = null) {
     const tbody = document.getElementById('editSigleTbody');
-    const row = tbody.insertRow();
-    const righeEsistenti = Array.from(tbody.querySelectorAll('tr')).map(r => {
-      const sel = r.cells[0].querySelector('select');
-      return sel && sel.value ? parseInt(sel.value) : null;
-    }).filter(id => id && !isNaN(id));
+    
+    // Raccogli le sigle già usate PRIMA di aggiungere la nuova riga
+    const righeEsistenti = [];
+    for (let existingRow of tbody.querySelectorAll('tr')) {
+      if (existingRow.cells.length === 0) continue;
+      const select = existingRow.cells[0].querySelector('select');
+      if (select && select.value) {
+        righeEsistenti.push(parseInt(select.value));
+      }
+    }
+    
     const sigleDisponibili = getSigleDisponibili(righeEsistenti);
+    const row = tbody.insertRow();
     
     const tdSigla = row.insertCell(0);
     const siglaSelect = document.createElement('select');
@@ -786,14 +767,16 @@
     const righe = [];
     const rows = document.querySelectorAll('#editSigleTbody tr');
     for (let row of rows) {
+      if (row.cells.length === 0) continue;
       const siglaSelect = row.cells[0].querySelector('select');
       const attSelect = row.cells[1].querySelector('select');
       const skSelect = row.cells[2].querySelector('select');
       const qtyInput = row.cells[3].querySelector('input');
+      if (!siglaSelect || !attSelect) continue;
       const siglaId = siglaSelect.value;
       const attId = attSelect.value;
-      const skId = skSelect.value;
-      const quantita = parseInt(qtyInput.value);
+      const skId = skSelect ? skSelect.value : '';
+      const quantita = parseInt(qtyInput ? qtyInput.value : 1);
       if (!siglaId || !attId) {
         showMessage('Ogni riga deve avere sigla e attacco', 'error');
         return null;
