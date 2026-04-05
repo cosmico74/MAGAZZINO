@@ -4,7 +4,7 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// ========== HELPER: AGGIORNA SINTESI CARICO (con sigla) ==========
+// ========== HELPER: AGGIORNA SINTESI CARICO ==========
 async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione) {
   const query = `
     INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita)
@@ -73,19 +73,24 @@ async function getSigleArticolo(articoloId) {
   }
 }
 
-// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT (dallo sci associato) ==========
+// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT (dallo sci associato tramite kit_dettaglio) ==========
 async function getSigleKit(kitId) {
   try {
-    const [kit] = await pool.query('SELECT id_sci FROM kit WHERE id = ?', [kitId]);
-    if (!kit.length || !kit[0].id_sci) return [];
-    const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [kit[0].id_sci]);
+    // Trova l'articolo sci associato al kit (prima riga di tipo 'SCI')
+    const [sciRow] = await pool.query(
+      `SELECT d.articolo_id FROM kit_dettaglio d WHERE d.kit_id = ? AND d.tipo_articolo = 'SCI' LIMIT 1`,
+      [kitId]
+    );
+    if (!sciRow.length) return [];
+    const articoloId = sciRow[0].articolo_id;
+    const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [articoloId]);
     return rows;
   } catch(e) {
     return [];
   }
 }
 
-// ========== OTTIENI OGGETTI IN CARICO (con sigle disponibili) ==========
+// ========== OTTIENI OGGETTI IN CARICO (con sigle) – VERSIONE CORRETTA ==========
 async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null) {
   let query = `
     SELECT 
@@ -103,13 +108,14 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
         WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
       END AS codice,
+      -- Per i kit, recupera lunghezza/durezza dalla prima riga SCI in kit_dettaglio
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
-        WHEN cs.tipo_oggetto = 'KIT' THEN sci.lunghezza
+        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
       END AS LUNGHEZZA,
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
-        WHEN cs.tipo_oggetto = 'KIT' THEN sci.durezza
+        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
       END AS DUREZZA,
       -- Sigla corrente (quella associata in carico)
       (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
@@ -120,7 +126,6 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
     FROM carico_sintesi cs
     LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
     LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
-    LEFT JOIN articoli sci ON k.id_sci = sci.articolo_id
     WHERE cs.destinazione_tipo = ? AND cs.destinazione_id = ? AND cs.quantita > 0
   `;
   const params = [destinazioneTipo, destinazioneId];
@@ -230,7 +235,6 @@ router.post('/oggetti', verifyToken, async (req, res) => {
         }
         return res.json({ success: true, oggetti });
       } else {
-        // Admin senza target specifico: restituisci tutti gli oggetti in carico
         let query = `
           SELECT cs.*,
             CASE 
@@ -243,11 +247,11 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             END AS codice,
             CASE 
               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
-              ELSE sci.lunghezza
+              WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
             END AS LUNGHEZZA,
             CASE 
               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
-              ELSE sci.durezza
+              WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
             END AS DUREZZA,
             (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
             a.settore AS SETTORE,
@@ -256,7 +260,6 @@ router.post('/oggetti', verifyToken, async (req, res) => {
           FROM carico_sintesi cs
           LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
           LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
-          LEFT JOIN articoli sci ON k.id_sci = sci.articolo_id
           WHERE cs.quantita > 0
         `;
         const params = [];
