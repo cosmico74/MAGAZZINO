@@ -141,8 +141,7 @@ router.post('/', verifyToken, async (req, res) => {
       if (!sigla_id || !attacco_id) {
         throw new Error('Ogni riga deve avere sigla e attacco');
       }
-      // Ottieni l'articolo sci corrispondente alla sigla (la sigla appartiene a un articolo, che è lo sci_id passato)
-      // Verifica che la sigla appartenga effettivamente a sci_id
+      // Verifica che la sigla appartenga allo sci selezionato
       const [siglaCheck] = await connection.query(
         'SELECT articolo_id FROM sigle_articoli WHERE id = ?',
         [sigla_id]
@@ -221,7 +220,6 @@ router.put('/:id', verifyToken, async (req, res) => {
     // 1. Recupera il kit esistente e i suoi dettagli
     const [kitRows] = await connection.query('SELECT * FROM kit WHERE id = ? FOR UPDATE', [req.params.id]);
     if (kitRows.length === 0) throw new Error('Kit non trovato');
-    const oldKit = kitRows[0];
     
     // 2. Recupera i vecchi dettagli per rilasciare gli articoli
     const [oldDetails] = await connection.query(
@@ -229,7 +227,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       [req.params.id]
     );
     
-    // Rilascia tutti i vecchi componenti (per ogni riga di dettaglio)
+    // Rilascia tutti i vecchi componenti
     for (const det of oldDetails) {
       await rilasciaArticolo(connection, det.articolo_id, det.quantita);
     }
@@ -303,7 +301,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
   const connection = await db.getConnection();
   await connection.beginTransaction();
   try {
-    // Rilascia tutti i componenti
+    // Rilascia tutti i componenti del kit
     const [dettagli] = await connection.query('SELECT * FROM kit_dettaglio WHERE kit_id = ?', [req.params.id]);
     for (const d of dettagli) {
       await rilasciaArticolo(connection, d.articolo_id, d.quantita);
