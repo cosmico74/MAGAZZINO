@@ -67,9 +67,19 @@
     th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; }
     th { background: #f8f9fa; position: sticky; top: 0; cursor: pointer; }
     .action-buttons { display: flex; gap: 4px; justify-content: center; }
-    .message { padding: 6px; margin-bottom: 8px; border-radius: 6px; font-size: 0.75rem; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
+    .message {
+      padding: 6px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1100;
+      max-width: 400px;
+    }
+    .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
+    .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
@@ -88,7 +98,7 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 500px;
+      max-width: 1200px;  /* più largo */
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
@@ -105,6 +115,32 @@
     .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
     .sigle-table th { background: #e9ecef; }
+    /* Stili per il modale di modifica */
+    .modal-message {
+      padding: 8px 12px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      display: none;
+    }
+    .modal-message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border-left: 4px solid #e53e3e;
+      display: block;
+    }
+    .modal-message.success {
+      background: #d4edda;
+      color: #155724;
+      border-left: 4px solid #38a169;
+      display: block;
+    }
+    .edit-sci-input {
+      background: #e9ecef;
+      font-size: 0.8rem;
+      padding: 6px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -206,15 +242,16 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT -->
+<!-- MODALE MODIFICA KIT (più largo, con area messaggi interna) -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
+    <div id="editModalMessage" class="modal-message"></div>
     <form id="editKitForm" onsubmit="return false;">
       <input type="hidden" id="editKitId">
       <div class="form-row">
         <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
-        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" disabled style="background:#e9ecef;"></div>
+        <div class="form-group" style="flex: 2;"><label>Sci</label><input type="text" id="editKitSci" disabled class="edit-sci-input"></div>
         <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="1"></textarea></div>
       </div>
       <h4>Sigle e componenti</h4>
@@ -256,6 +293,15 @@
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
+  }
+  function showModalMessage(msg, type) {
+    const msgDiv = document.getElementById('editModalMessage');
+    msgDiv.className = 'modal-message ' + type;
+    msgDiv.innerHTML = msg;
+    setTimeout(() => {
+      msgDiv.style.display = 'none';
+      msgDiv.innerHTML = '';
+    }, 5000);
   }
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
@@ -603,12 +649,10 @@
       tbody.innerHTML = '';
       
       // Raggruppa le sigle esistenti (una riga per sigla) e associa attacco/skistopper
-      // Assumiamo che nell'ordine dei dettagli, le righe SCI e ATTACCHI siano in sequenza
       const sciRows = kit.dettagli.filter(d => d.tipo_articolo === 'SCI');
       const attRows = kit.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI');
       const skRows = kit.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER');
       
-      // Associa attacco e skistopper in base all'indice (ordine di inserimento)
       for (let i = 0; i < sciRows.length; i++) {
         const sci = sciRows[i];
         const att = attRows[i] || null;
@@ -692,7 +736,6 @@
     }
   }
 
-  // Funzione per aprire il modale di nuova sigla associato a una riga
   function apriModalNuovaSigla(rowElement, siglaSelect) {
     pendingSiglaRow = { row: rowElement, select: siglaSelect };
     document.getElementById('nuovaSiglaInput').value = '';
@@ -702,7 +745,7 @@
   async function confermaNuovaSigla() {
     const nuovaSigla = document.getElementById('nuovaSiglaInput').value.trim();
     if (!nuovaSigla) {
-      showMessage('Inserisci una sigla', 'error');
+      showModalMessage('Inserisci una sigla', 'error');
       return;
     }
     if (!pendingSiglaRow) return;
@@ -711,10 +754,8 @@
         method: 'POST',
         body: JSON.stringify({ sigla: nuovaSigla, durezza: null, lunghezza: null, codice_modello: null, note: null })
       });
-      showMessage('Sigla aggiunta con successo!', 'success');
-      // Ricarica le sigle disponibili
+      showModalMessage('Sigla aggiunta con successo!', 'success');
       await ricaricaSigleDisponibili();
-      // Aggiorna il dropdown della riga corrente
       const siglaSelect = pendingSiglaRow.select;
       const righeEsistenti = Array.from(document.querySelectorAll('#editSigleTbody tr')).map(r => {
         const sel = r.cells[0].querySelector('select');
@@ -728,13 +769,12 @@
         opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
         siglaSelect.appendChild(opt);
       });
-      // Seleziona la nuova sigla
       const nuovoId = currentEditSigleDisponibili.find(s => s.sigla === nuovaSigla)?.id;
       if (nuovoId) siglaSelect.value = nuovoId;
       chiudiModalNuovaSigla();
       aggiornaSelectSigleInTutteRighe();
     } catch (err) {
-      showMessage('Errore durante la creazione della sigla: ' + err.message, 'error');
+      showModalMessage('Errore durante la creazione della sigla: ' + err.message, 'error');
     }
   }
 
@@ -745,8 +785,6 @@
 
   function aggiungiRigaSiglaEdit(prefill = null) {
     const tbody = document.getElementById('editSigleTbody');
-    
-    // Raccogli le sigle già usate PRIMA di aggiungere la nuova riga
     const righeEsistenti = [];
     for (let existingRow of tbody.querySelectorAll('tr')) {
       if (existingRow.cells.length === 0) continue;
@@ -755,7 +793,6 @@
         righeEsistenti.push(parseInt(select.value));
       }
     }
-    
     const sigleDisponibili = getSigleDisponibili(righeEsistenti);
     const row = tbody.insertRow();
     
@@ -785,7 +822,6 @@
     }
     containerSigla.appendChild(siglaSelect);
     
-    // Bottone per aggiungere nuova sigla (apre modale)
     const addSiglaBtn = document.createElement('button');
     addSiglaBtn.textContent = '+';
     addSiglaBtn.className = 'btn';
@@ -864,7 +900,7 @@
       const skId = skSelect ? skSelect.value : '';
       const quantita = parseInt(qtyInput ? qtyInput.value : 1);
       if (!siglaId || !attId) {
-        showMessage('Ogni riga deve avere sigla e attacco', 'error');
+        showModalMessage('Ogni riga deve avere sigla e attacco', 'error');
         return null;
       }
       righe.push({
@@ -884,11 +920,11 @@
     const righe = raccogliRigheEdit();
     if (!righe) return;
     if (righe.length === 0) {
-      showMessage('Aggiungi almeno una sigla', 'error');
+      showModalMessage('Aggiungi almeno una sigla', 'error');
       return;
     }
     
-    // Verifica giacenza: somma le quantità per lo sci e per ogni attacco/skistopper
+    // Calcola quantità totali per la verifica giacenza
     const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
     const quantitaPerAttacco = new Map();
     const quantitaPerSkistopper = new Map();
@@ -899,7 +935,6 @@
       }
     }
     
-    // Recupera giacenze
     const articoliIdSet = new Set();
     articoliIdSet.add(currentEditSciId);
     for (let attId of quantitaPerAttacco.keys()) articoliIdSet.add(attId);
@@ -911,31 +946,28 @@
         const art = await apiFetch(`/api/articoli/${artId}`);
         giacenze[artId] = (art.quantita_totale || 0) - (art.quantita_in_kit || 0);
       } catch(e) {
-        showMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
+        showModalMessage(`Errore nel recupero giacenza articolo ${artId}`, 'error');
         return;
       }
     }
     
-    // Verifica sci
     if (giacenze[currentEditSciId] < totalQuantitaSci) {
-      showMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richieste ${totalQuantitaSci} unità totali)`, 'error');
+      showModalMessage(`Giacenza insufficiente per lo sci (disponibile ${giacenze[currentEditSciId]}, richieste ${totalQuantitaSci} unità totali)`, 'error');
       return;
     }
-    // Verifica attacchi
     for (let [attId, qta] of quantitaPerAttacco.entries()) {
       if (giacenze[attId] < qta) {
         const attaccoArt = window.attacchiDisponibili.find(a => a.id === attId);
         const nomeAttacco = attaccoArt ? formatArticleDisplay(attaccoArt) : `Attacco ID ${attId}`;
-        showMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[attId]}, richieste ${qta})`, 'error');
+        showModalMessage(`Giacenza insufficiente per ${nomeAttacco} (disponibile ${giacenze[attId]}, richieste ${qta})`, 'error');
         return;
       }
     }
-    // Verifica skistoppers
     for (let [skId, qta] of quantitaPerSkistopper.entries()) {
       if (giacenze[skId] < qta) {
         const skArt = window.skistoppersDisponibili.find(s => s.id === skId);
         const nomeSk = skArt ? formatArticleDisplay(skArt) : `Skistopper ID ${skId}`;
-        showMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[skId]}, richieste ${qta})`, 'error');
+        showModalMessage(`Giacenza insufficiente per ${nomeSk} (disponibile ${giacenze[skId]}, richieste ${qta})`, 'error');
         return;
       }
     }
@@ -952,14 +984,14 @@
         body: JSON.stringify(payload)
       });
       if (result.success) {
-        showMessage('Kit aggiornato con successo', 'success');
+        showModalMessage('Kit aggiornato con successo', 'success');
         chiudiModaleKit();
         await caricaKit();
       } else {
-        showMessage(result.message, 'error');
+        showModalMessage(result.message, 'error');
       }
     } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
+      showModalMessage('Errore: ' + err.message, 'error');
     }
   }
 
@@ -967,6 +999,9 @@
     document.getElementById('modalEditKit').style.display = 'none';
     currentEditId = null;
     currentEditSciId = null;
+    const msgDiv = document.getElementById('editModalMessage');
+    msgDiv.style.display = 'none';
+    msgDiv.innerHTML = '';
   }
 
   async function eliminaKit(id) {
