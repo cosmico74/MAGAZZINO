@@ -48,7 +48,6 @@
     }
     h2 { margin: 5px 0 8px 0; font-size: 1.3rem; border-left: 5px solid #1a73e8; padding-left: 12px; }
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .external-checkbox { display: flex; align-items: center; gap: 6px; background: #f8f9fa; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; }
     h3 { font-size: 1.1rem; margin: 8px 0 5px; }
     .form-row { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-end; }
     .form-group { flex: 1; margin-bottom: 6px; }
@@ -74,7 +73,6 @@
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
-    .assignment-group { background: #f8f9fa; padding: 8px 10px; border-radius: 10px; margin-top: 6px; }
     .modal {
       display: none;
       position: fixed;
@@ -120,29 +118,10 @@
 <div class="container">
   <div class="header-bar">
     <h2>📦 Composizione Kit</h2>
-    <div class="external-checkbox">
-      <input type="checkbox" id="assegnazioniEsterneCheckbox">
-      <label for="assegnazioniEsterneCheckbox">📤 Assegna a destinatario esterno</label>
-    </div>
   </div>
   <div id="messageArea"></div>
 
   <h3>➕ Nuovo Kit</h3>
-  <div id="assegnazioneSection" style="display:none;" class="assignment-group">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Destinazione</label>
-        <select id="destinazioneTipo">
-          <option value="PROMOTER">Promoter</option>
-          <option value="NEGOZIO">Negozio</option>
-          <option value="CLIENTE">Cliente</option>
-          <option value="AGENTE">Agente</option>
-        </select>
-        <select id="destinazioneId" style="margin-top:4px;"><option value="">Seleziona...</option></select>
-      </div>
-    </div>
-  </div>
-
   <form id="kitForm" onsubmit="return false;">
     <div class="form-row">
       <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" required></select></div>
@@ -198,13 +177,14 @@
 
 <!-- MODALE TRASFERIMENTO (tra soggetti) -->
 <div id="modalTrasferimento" class="modal">
-  <div class="modal-content" style="max-width:500px;">
+  <div class="modal-content" style="max-width:800px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
     <div class="form-group"><label>Magazzino transito *</label><select id="transferMagazzino"></select></div>
     <div class="form-group"><label>Tipo destinazione *</label><select id="destinatarioTipo"><option value="">Seleziona...</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
     <div class="form-group"><label>Destinatario *</label><select id="destinatarioId" disabled><option value="">Seleziona prima il tipo</option></select></div>
+    <div class="form-group"><label>Kit selezionati (scegli sigla per ciascuno)</label><div id="transferKitList"></div></div>
     <div class="form-group"><label>Note</label><input type="text" id="transferNote"></div>
-    <div class="modal-buttons"><button class="btn" onclick="eseguiTrasferimento()">Conferma</button><button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button></div>
+    <div class="modal-buttons"><button class="btn btn-success" onclick="confermaTrasferimento()">Conferma trasferimento</button><button class="btn btn-secondary" onclick="chiudiModalTrasferimento()">Annulla</button></div>
   </div>
 </div>
 
@@ -215,7 +195,7 @@
     <div class="form-group"><label>Magazzino di partenza *</label><select id="assegnaMagazzino"></select></div>
     <div class="form-group"><label>Tipo destinazione *</label><select id="assegnaDestTipo"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
     <div class="form-group"><label>Destinatario *</label><select id="assegnaDestId"></select></div>
-    <div class="form-group"><label>Kit selezionati</label><div id="assegnaKitList"></div></div>
+    <div class="form-group"><label>Kit selezionati (scegli sigla per ciascuno)</label><div id="assegnaKitList"></div></div>
     <div class="form-group"><label>Note</label><input type="text" id="assegnaNote"></div>
     <div class="modal-buttons">
       <button class="btn btn-success" onclick="confermaAssegnazione()">Assegna</button>
@@ -301,17 +281,13 @@
   let currentEditId = null;
   let currentEditSciId = null;
   let currentEditSigleDisponibili = [];
-  let currentAssignedSigle = new Set(); // sigle già assegnate (in sola lettura)
+  let currentAssignedSigle = new Set();
 
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
   const filtroMar = document.getElementById('filtroMarca');
   const filtroDesc = document.getElementById('filtroDescrizione');
   const filtroSigla = document.getElementById('filtroSigla');
-  const externalCheckbox = document.getElementById('assegnazioniEsterneCheckbox');
-  const assegnazioneSection = document.getElementById('assegnazioneSection');
-  const destinazioneTipo = document.getElementById('destinazioneTipo');
-  const destinazioneId = document.getElementById('destinazioneId');
   const kitMagazzinoSelect = document.getElementById('kitMagazzino');
   const editKitMagazzino = document.getElementById('editKitMagazzino');
   const transferMagazzinoSelect = document.getElementById('transferMagazzino');
@@ -491,13 +467,6 @@
       note: note,
       righe: righe
     };
-    if (externalCheckbox.checked) {
-      const destTipo = destinazioneTipo.value;
-      const destId = destinazioneId.value;
-      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
-      payload.destinazioneTipo = destTipo;
-      payload.destinazioneId = parseInt(destId);
-    }
     const saveBtn = document.getElementById('saveKitBtn');
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
@@ -523,8 +492,6 @@
     aggiungiRigaSigla();
     document.getElementById('kitSci').value = '';
     document.getElementById('kitNote').value = '';
-    externalCheckbox.checked = false;
-    assegnazioneSection.style.display = 'none';
   }
 
   // ========== CARICAMENTO KIT ==========
@@ -556,7 +523,6 @@
       const row = tbody.insertRow();
       if (isEsaurito) row.classList.add('kit-esaurito');
       const cbCell = row.insertCell(0);
-      // Mostra checkbox per TUTTI i kit (sia assegnati che in magazzino) purché abbiano quantità > 0
       if (qTot > 0) {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
@@ -591,52 +557,102 @@
     });
   }
 
-  // ========== ASSEGNAZIONE DA MAGAZZINO ==========
-  async function apriModalAssegnazione() {
-    const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Seleziona almeno un kit', 'error');
-      return;
-    }
-    // Popola magazzini
-    const assegnaMagazzino = document.getElementById('assegnaMagazzino');
-    assegnaMagazzino.innerHTML = '';
-    magazzini.forEach(m => assegnaMagazzino.appendChild(new Option(m.nome, m.id)));
-    assegnaMagazzino.value = kitMagazzinoSelect.value;
-    // Popola destinazioni
-    await caricaDestinazioniAssegnazione();
-    // Mostra lista kit selezionati con possibilità di scegliere la sigla da assegnare
-    const kitListDiv = document.getElementById('assegnaKitList');
-    kitListDiv.innerHTML = '';
-    for (let kit of selected) {
+  // ========== FUNZIONI PER MODALI DI ASSEGNAZIONE E TRASFERIMENTO ==========
+  function getSelectedKits() {
+    const selected = [];
+    document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
+      const kitId = parseInt(cb.getAttribute('data-kit-id'));
+      const kit = kitFiltrati.find(k => k.id === kitId);
+      if (kit && kit.quantita > 0) selected.push(kit);
+    });
+    return selected;
+  }
+
+  // Popola lista kit con scelta sigla (obbligatoria se esistono)
+  function popolaListaKit(containerId, kits, showFrom = false, prefillSelections = null) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (let kit of kits) {
       const div = document.createElement('div');
       div.style.marginBottom = '10px';
       div.style.border = '1px solid #ccc';
       div.style.padding = '8px';
       div.innerHTML = `<strong>${kit.codice_kit}</strong> - ${kit.descrizione}<br>`;
-      // Mostra le sigle presenti nel kit
-      const sigleSelect = document.createElement('select');
-      sigleSelect.style.width = '100%';
-      sigleSelect.innerHTML = '<option value="">Seleziona sigla da assegnare (opzionale)</option>';
+      // Estrai le sigle disponibili per questo kit
+      const sigleSet = new Map();
       if (kit.dettagli) {
-        const sigleSet = new Set();
         kit.dettagli.forEach(d => {
           if (d.tipo_articolo === 'SCI' && d.sigla) {
-            if (!sigleSet.has(d.sigla_id)) {
-              sigleSet.add(d.sigla_id);
-              const opt = document.createElement('option');
-              opt.value = d.sigla_id;
-              opt.text = d.sigla;
-              sigleSelect.appendChild(opt);
-            }
+            sigleSet.set(d.sigla_id, d.sigla);
           }
         });
       }
-      div.appendChild(sigleSelect);
+      const sigleArray = Array.from(sigleSet.entries());
+      let siglaSelect = null;
+      if (sigleArray.length > 0) {
+        const select = document.createElement('select');
+        select.style.width = '100%';
+        select.innerHTML = '<option value="">Seleziona sigla (obbligatoria)</option>';
+        for (let [id, sigla] of sigleArray) {
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.text = sigla;
+          select.appendChild(opt);
+        }
+        div.appendChild(select);
+        siglaSelect = select;
+      } else {
+        // Nessuna sigla: aggiungi un campo nascosto o una nota
+        const note = document.createElement('div');
+        note.style.fontSize = '0.8rem';
+        note.style.color = '#6c757d';
+        note.innerHTML = '⚠️ Questo kit non ha sigle associate. Verrà trasferito senza sigla.';
+        div.appendChild(note);
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.value = '';
+        hidden.className = 'sigla-hidden';
+        div.appendChild(hidden);
+        siglaSelect = hidden;
+      }
       div.dataset.kitId = kit.id;
-      div.dataset.siglaSelect = sigleSelect;
-      kitListDiv.appendChild(div);
+      div.dataset.siglaSelect = siglaSelect;
+      if (prefillSelections && prefillSelections[kit.id] !== undefined) {
+        if (siglaSelect && siglaSelect.tagName === 'SELECT') siglaSelect.value = prefillSelections[kit.id];
+      }
+      container.appendChild(div);
     }
+  }
+
+  function raccogliSigleDaLista(containerId) {
+    const selezione = {};
+    const divs = document.querySelectorAll(`#${containerId} > div`);
+    for (let div of divs) {
+      const kitId = parseInt(div.dataset.kitId);
+      const siglaSelect = div.dataset.siglaSelect ? document.getElementById(div.dataset.siglaSelect) : div.querySelector('select, .sigla-hidden');
+      let siglaId = null;
+      if (siglaSelect) {
+        if (siglaSelect.tagName === 'SELECT') siglaId = siglaSelect.value ? parseInt(siglaSelect.value) : null;
+        else siglaId = null;
+      }
+      selezione[kitId] = siglaId;
+    }
+    return selezione;
+  }
+
+  // Assegnazione da magazzino
+  async function apriModalAssegnazione() {
+    const selected = getSelectedKits().filter(k => !k.assegnato_a);
+    if (selected.length === 0) {
+      showMessage('Seleziona almeno un kit in magazzino', 'error');
+      return;
+    }
+    const assegnaMagazzino = document.getElementById('assegnaMagazzino');
+    assegnaMagazzino.innerHTML = '';
+    magazzini.forEach(m => assegnaMagazzino.appendChild(new Option(m.nome, m.id)));
+    assegnaMagazzino.value = kitMagazzinoSelect.value;
+    await caricaDestinazioniAssegnazione();
+    popolaListaKit('assegnaKitList', selected);
     document.getElementById('modalAssegnazione').style.display = 'flex';
   }
 
@@ -662,22 +678,12 @@
       showMessage('Compila tutti i campi', 'error');
       return;
     }
-    const kitDivs = document.querySelectorAll('#assegnaKitList > div');
+    const selezione = raccogliSigleDaLista('assegnaKitList');
     const oggetti = [];
-    for (let div of kitDivs) {
-      const kitId = parseInt(div.dataset.kitId);
-      const siglaSelect = div.dataset.siglaSelect ? document.getElementById(div.dataset.siglaSelect) : div.querySelector('select');
-      const siglaId = siglaSelect ? (siglaSelect.value ? parseInt(siglaSelect.value) : null) : null;
-      const kit = allKits.find(k => k.id === kitId);
+    for (let [kitId, siglaId] of Object.entries(selezione)) {
+      const kit = allKits.find(k => k.id == kitId);
       if (!kit) continue;
-      // Se non è stata scelta una sigla, assegna l'intero kit (tutte le sigle)
-      if (!siglaId) {
-        oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: null, quantita: kit.quantita });
-      } else {
-        // Assegna solo la sigla selezionata (dovremmo dividere il kit? Non supportato. Meglio assegnare tutto il kit)
-        // Per ora assegna tutto il kit.
-        oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: null, quantita: kit.quantita });
-      }
+      oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: siglaId || null, quantita: kit.quantita });
     }
     if (oggetti.length === 0) { showMessage('Nessun kit selezionato', 'error'); return; }
     const payload = {
@@ -705,7 +711,113 @@
     document.getElementById('modalAssegnazione').style.display = 'none';
   }
 
-  // ========== MODIFICA KIT ==========
+  // Trasferimento tra soggetti
+  async function apriModalTrasferimento() {
+    const selected = getSelectedKits().filter(k => k.assegnato_a);
+    if (selected.length === 0) {
+      showMessage('Seleziona almeno un kit assegnato', 'error');
+      return;
+    }
+    destinatarioTipoSelect.value = '';
+    destinatarioIdSelect.disabled = true;
+    destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+    document.getElementById('transferNote').value = '';
+    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
+    popolaListaKit('transferKitList', selected);
+    document.getElementById('modalTrasferimento').style.display = 'flex';
+  }
+
+  async function caricaDestinazioniTrasferimento() {
+    const tipo = destinatarioTipoSelect.value;
+    if (!tipo) {
+      destinatarioIdSelect.disabled = true;
+      destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
+      return;
+    }
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      destinatarioIdSelect.disabled = false;
+      destinatarioIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destinatarioIdSelect.appendChild(new Option(testo, item.id));
+      });
+    } catch(err) { showMessage('Errore destinazioni', 'error'); }
+  }
+
+  async function confermaTrasferimento() {
+    const magazzinoId = transferMagazzinoSelect.value;
+    const destTipo = destinatarioTipoSelect.value;
+    const destId = destinatarioIdSelect.value;
+    const note = document.getElementById('transferNote').value;
+    if (!magazzinoId || !destTipo || !destId) {
+      showMessage('Compila tutti i campi', 'error');
+      return;
+    }
+    const selezione = raccogliSigleDaLista('transferKitList');
+    const oggetti = [];
+    for (let [kitId, siglaId] of Object.entries(selezione)) {
+      const kit = allKits.find(k => k.id == kitId);
+      if (!kit || !kit.assegnato_a) continue;
+      oggetti.push({ tipoOggetto: 'KIT', oggettoId: kitId, siglaId: siglaId || null, quantita: kit.assegnato_a.quantita });
+    }
+    if (oggetti.length === 0) { showMessage('Nessun kit valido', 'error'); return; }
+    const daTipo = oggetti[0].daTipo || selected[0].assegnato_a.tipo;
+    const daId = oggetti[0].daId || selected[0].assegnato_a.id;
+    const payload = {
+      daTipo, daId,
+      aTipo: destTipo,
+      aId: parseInt(destId),
+      magazzinoId: parseInt(magazzinoId),
+      oggetti: oggetti,
+      note: note
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Trasferimento completato', 'success');
+        chiudiModalTrasferimento();
+        await caricaKit();
+      } else {
+        showMessage(res.message, 'error');
+      }
+    } catch(err) {
+      showMessage('Errore: ' + err.message, 'error');
+    }
+  }
+
+  function chiudiModalTrasferimento() {
+    document.getElementById('modalTrasferimento').style.display = 'none';
+  }
+
+  // Rientro in magazzino (semplice, senza scelta sigla)
+  async function rientraSelezionati() {
+    const selected = getSelectedKits().filter(k => k.assegnato_a);
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
+    const magazzinoId = kitMagazzinoSelect.value;
+    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
+    const oggetti = selected.map(kit => ({
+      tipoOggetto: 'KIT',
+      oggettoId: kit.id,
+      quantita: kit.assegnato_a.quantita,
+      daTipo: kit.assegnato_a.tipo,
+      daId: kit.assegnato_a.id
+    }));
+    const payload = { magazzinoId: parseInt(magazzinoId), note: `Rientro batch di ${selected.length} kit`, oggetti };
+    const btn = document.getElementById('btnRientraMagazzino');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        document.getElementById('selectAllCheckbox').checked = false;
+        await caricaKit();
+      } else { showMessage(result.message, 'error'); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
+  }
+
+  // ========== MODIFICA KIT (come prima, con blocco sigle assegnate) ==========
   async function modificaKit(id) {
     try {
       const kit = await apiFetch(`/api/kit/${id}`);
@@ -722,11 +834,8 @@
       await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
       const tbody = document.getElementById('editSigleTbody');
       tbody.innerHTML = '';
-      // Raccogli sigle già assegnate a soggetti (se il kit è assegnato, alcune sigle potrebbero essere bloccate)
       currentAssignedSigle.clear();
       if (kit.assegnato_a) {
-        // Se il kit è assegnato, tutte le sigle sono bloccate? Oppure solo quelle già uscite?
-        // Per semplicità, se il kit è assegnato, tutte le sigle sono in sola lettura.
         kit.dettagli.forEach(d => {
           if (d.tipo_articolo === 'SCI') currentAssignedSigle.add(d.sigla_id);
         });
@@ -809,6 +918,7 @@
     }
   }
 
+  let pendingSiglaRow = null;
   function apriModalNuovaSigla(rowElement, siglaSelect) {
     pendingSiglaRow = { row: rowElement, select: siglaSelect };
     document.getElementById('nuovaSiglaInput').value = '';
@@ -899,8 +1009,7 @@
     addSiglaBtn.textContent = '+';
     addSiglaBtn.className = 'btn';
     addSiglaBtn.style.padding = '2px 6px';
-    addSiglaBtn.style.fontSize = '0.7rem';
-    addSiglaBtn.title = 'Aggiungi nuova sigla per questo sci';
+    addSiglaBtn.title = 'Aggiungi nuova sigla';
     addSiglaBtn.onclick = () => apriModalNuovaSigla(row, siglaSelect);
     if (prefill && prefill.locked) addSiglaBtn.disabled = true;
     containerSigla.appendChild(addSiglaBtn);
@@ -949,7 +1058,7 @@
     delBtn.className = 'btn btn-danger';
     delBtn.onclick = () => {
       if (!prefill || !prefill.locked) row.remove();
-      else showMessage('Non puoi rimuovere una sigla già assegnata a un soggetto', 'error');
+      else showMessage('Non puoi rimuovere una sigla già assegnata', 'error');
       aggiornaSelectSigleInTutteRighe();
     };
     if (prefill && prefill.locked) delBtn.disabled = true;
@@ -995,7 +1104,6 @@
       showMessage('Aggiungi almeno una sigla', 'error');
       return;
     }
-    // Calcola quantità totali
     const totalQuantitaSci = righe.reduce((sum, r) => sum + r.quantita, 0);
     const quantitaPerAttacco = new Map();
     const quantitaPerSkistopper = new Map();
@@ -1104,90 +1212,6 @@
     }
   }
 
-  // ========== FUNZIONI BATCH (rientro e trasferimento tra soggetti) ==========
-  function toggleSelectAll() {
-    const checkAll = document.getElementById('selectAllCheckbox').checked;
-    document.querySelectorAll('.kit-checkbox:not(:disabled)').forEach(cb => cb.checked = checkAll);
-  }
-
-  function getSelectedKits() {
-    const selected = [];
-    document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
-      const kitId = parseInt(cb.getAttribute('data-kit-id'));
-      const kit = kitFiltrati.find(k => k.id === kitId);
-      if (kit && kit.quantita > 0) selected.push(kit);
-    });
-    return selected;
-  }
-
-  async function rientraSelezionati() {
-    const selected = getSelectedKits().filter(k => k.assegnato_a);
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
-    const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
-    const oggetti = selected.map(kit => ({
-      tipoOggetto: 'KIT',
-      oggettoId: kit.id,
-      quantita: kit.assegnato_a.quantita,
-      daTipo: kit.assegnato_a.tipo,
-      daId: kit.assegnato_a.id
-    }));
-    const payload = { magazzinoId: parseInt(magazzinoId), note: `Rientro batch di ${selected.length} kit`, oggetti };
-    const btn = document.getElementById('btnRientraMagazzino');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-      } else { showMessage(result.message, 'error'); }
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
-    finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
-  }
-
-  function apriModalTrasferimento() {
-    const selected = getSelectedKits().filter(k => k.assegnato_a);
-    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
-    destinatarioTipoSelect.value = '';
-    destinatarioIdSelect.disabled = true;
-    destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
-    document.getElementById('transferNote').value = '';
-    if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
-    document.getElementById('modalTrasferimento').style.display = 'flex';
-  }
-
-  function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
-
-  async function eseguiTrasferimento() {
-    const selected = getSelectedKits().filter(k => k.assegnato_a);
-    if (selected.length === 0) { chiudiModalTrasferimento(); return; }
-    const magazzinoId = transferMagazzinoSelect.value;
-    const destTipo = destinatarioTipoSelect.value;
-    const destId = destinatarioIdSelect.value;
-    if (!magazzinoId || !destTipo || !destId) { showMessage('Compila tutti i campi', 'error'); return; }
-    const note = document.getElementById('transferNote').value.trim();
-    const oggetti = selected.map(kit => ({ tipoOggetto: 'KIT', oggettoId: kit.id, quantita: kit.assegnato_a.quantita }));
-    const daTipo = selected[0].assegnato_a.tipo;
-    const daId = selected[0].assegnato_a.id;
-    if (!selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId)) {
-      showMessage('I kit devono appartenere allo stesso soggetto', 'error'); return;
-    }
-    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti, note: note || `Trasferimento batch di ${selected.length} kit` };
-    const btn = document.querySelector('#modalTrasferimento .btn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage(result.message, 'success');
-        chiudiModalTrasferimento();
-        document.getElementById('selectAllCheckbox').checked = false;
-        await caricaKit();
-      } else { showMessage(result.message, 'error'); }
-    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
-    finally { btn.disabled = false; btn.innerHTML = 'Conferma trasferimento'; }
-  }
-
   // ========== FILTRI ==========
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
@@ -1226,29 +1250,12 @@
     await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
   }
 
-  function setupExternalMode() {
-    externalCheckbox.addEventListener('change', () => {
-      assegnazioneSection.style.display = externalCheckbox.checked ? 'block' : 'none';
-      if (externalCheckbox.checked) caricaDestinazioni();
-    });
-    destinazioneTipo.addEventListener('change', () => {
-      if (externalCheckbox.checked) caricaDestinazioni();
-    });
-    document.getElementById('assegnaDestTipo').addEventListener('change', () => caricaDestinazioniAssegnazione());
-  }
+  destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
+  document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
 
-  async function caricaDestinazioni() {
-    const tipo = destinazioneTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destinazioneId.appendChild(new Option(testo, item.id));
-      });
-    } catch (err) {
-      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
-    }
+  function toggleSelectAll() {
+    const checkAll = document.getElementById('selectAllCheckbox').checked;
+    document.querySelectorAll('.kit-checkbox:not(:disabled)').forEach(cb => cb.checked = checkAll);
   }
 
   let debTimer;
@@ -1279,7 +1286,6 @@
     document.querySelector('.container').prepend(loginInfo);
     await caricaAnagrafiche();
     attachFilterEvents();
-    setupExternalMode();
     resetForm();
   };
 </script>
