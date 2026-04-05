@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Composizione Kit - Gestione Sigle</title>
+  <title>📦 Composizione Kit - Sigle con Attacchi</title>
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; padding: 0; }
@@ -88,7 +88,7 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 800px;
+      max-width: 1200px;
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
@@ -102,6 +102,9 @@
     .checkbox-column { width: 30px; text-align: center; }
     .batch-toolbar { margin: 10px 0; display: flex; gap: 10px; justify-content: flex-end; }
     .kit-esaurito { opacity: 0.6; background-color: #f9f9f9; }
+    .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+    .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
+    .sigle-table th { background: #e9ecef; }
   </style>
 </head>
 <body>
@@ -142,36 +145,23 @@
   <form id="kitForm" onsubmit="return false;">
     <div class="form-row">
       <div class="form-group"><label>Magazzino *</label><select id="kitMagazzino" required></select></div>
-      <div class="form-group"><label>Note</label><textarea id="kitNote" rows="1"></textarea></div>
-    </div>
-    <div class="form-row">
       <div class="form-group"><label>Sci *</label>
         <input type="text" id="kitSci" list="sciList" required placeholder="Cerca sci...">
         <datalist id="sciList"></datalist>
-        <div class="sigla-group" id="sciSiglaGroup" style="margin-top:5px; display:none;">
-          <label>Sigla (opzionale)</label>
-          <select id="kitSciSigla"><option value="">Nessuna sigla</option></select>
-        </div>
       </div>
-      <div class="form-group"><label>Attacchi *</label>
-        <input type="text" id="kitAttacchi" list="attacchiList" required placeholder="Cerca attacchi...">
-        <datalist id="attacchiList"></datalist>
-        <div class="sigla-group" id="attacchiSiglaGroup" style="margin-top:5px; display:none;">
-          <label>Sigla (opzionale)</label>
-          <select id="kitAttacchiSigla"><option value="">Nessuna sigla</option></select>
-        </div>
-      </div>
-      <div class="form-group"><label>Skistopper</label>
-        <input type="text" id="kitSkistopper" list="skistopperList" placeholder="Cerca skistopper...">
-        <datalist id="skistopperList"></datalist>
-        <div class="sigla-group" id="skistopperSiglaGroup" style="margin-top:5px; display:none;">
-          <label>Sigla (opzionale)</label>
-          <select id="kitSkistopperSigla"><option value="">Nessuna sigla</option></select>
-        </div>
-      </div>
-      <div class="form-group"><label>Quantità *</label><input type="number" id="kitQuantita" value="1" min="1" step="1" class="quantity-input" required style="width:80px;"></div>
+      <div class="form-group"><label>Note</label><textarea id="kitNote" rows="1"></textarea></div>
     </div>
-    <div class="form-group">
+
+    <h4>Sigle e componenti</h4>
+    <table class="sigle-table" id="sigleTable">
+      <thead>
+        <th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th>
+      </thead>
+      <tbody id="sigleTbody"></tbody>
+    </table>
+    <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:5px;">➕ Aggiungi sigla</button>
+
+    <div class="form-group" style="margin-top:10px;">
       <button type="button" class="btn" id="saveKitBtn" onclick="salvaKit()">💾 Salva Kit</button>
       <button type="button" class="btn btn-secondary" onclick="resetForm()">🔄 Reset</button>
     </div>
@@ -199,7 +189,7 @@
          <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
          <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="descrizione">Descrizione</th>
          <th data-sort="magazzino_nome">Magazzino</th><th data-sort="quantita">Quantità</th>
-         <th data-sort="assegnato_nome">Assegnato a</th><th>Componenti</th><th>Azioni</th>
+         <th data-sort="assegnato_nome">Assegnato a</th><th>Sigle/Attacchi</th><th>Azioni</th>
       </thead>
       <tbody></tbody>
     </table>
@@ -218,7 +208,7 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT (SEMPLIFICATO: sci con sigla, attacco unico, skistopper unico) -->
+<!-- MODALE MODIFICA KIT -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
@@ -226,30 +216,17 @@
       <input type="hidden" id="editKitId">
       <div class="form-row">
         <div class="form-group"><label>Magazzino</label><select id="editKitMagazzino" required></select></div>
+        <div class="form-group"><label>Sci</label><input type="text" id="editKitSci" disabled style="background:#e9ecef;"></div>
         <div class="form-group"><label>Note</label><textarea id="editKitNote" rows="1"></textarea></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Sci *</label>
-          <input type="text" id="editKitSci" list="editSciList" required>
-          <datalist id="editSciList"></datalist>
-          <div id="editSciSiglaGroup" style="margin-top:5px; display:none;">
-            <label>Sigla</label>
-            <select id="editKitSciSigla"><option value="">Nessuna sigla</option></select>
-          </div>
-        </div>
-        <div class="form-group"><label>Attacchi *</label>
-          <input type="text" id="editKitAttacchi" list="editAttacchiList" required>
-          <datalist id="editAttacchiList"></datalist>
-        </div>
-        <div class="form-group"><label>Skistopper</label>
-          <input type="text" id="editKitSkistopper" list="editSkistopperList">
-          <datalist id="editSkistopperList"></datalist>
-        </div>
-        <div class="form-group"><label>Quantità *</label><input type="number" id="editKitQuantita" min="0" step="1" required></div>
-      </div>
-      <div id="assignedInfo" class="assigned-info" style="display:none; background:#e9ecef; padding:8px; margin-top:10px;">
-        <strong>ℹ️ Assegnato a:</strong> <span id="assignedToName"></span> (quantità: <span id="assignedQuantity"></span>)
-      </div>
+      <h4>Sigle e componenti</h4>
+      <table class="sigle-table" id="editSigleTable">
+        <thead>
+          <th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th>
+        </thead>
+        <tbody id="editSigleTbody"></tbody>
+      </table>
+      <button type="button" class="btn" onclick="aggiungiRigaSiglaEdit()">➕ Aggiungi sigla</button>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
         <button type="button" class="btn btn-danger" onclick="chiudiModaleKit()">Annulla</button>
@@ -293,6 +270,8 @@
   let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let sortColumn = 'id', sortAsc = true;
   let currentEditId = null;
+  let currentEditSciId = null;        // ID dell'articolo sci del kit in modifica
+  let currentEditSigleDisponibili = []; // tutte le sigle possibili per quello sci
 
   const filtroMag = document.getElementById('filtroMagazzino');
   const filtroSet = document.getElementById('filtroSettore');
@@ -346,7 +325,8 @@
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) kitMagazzinoSelect.value = defaultMag.id;
 
-      await caricaArticoliPerTipo();
+      // Carica articoli per datalist sci (solo categoria sci)
+      await caricaArticoliSci();
       await refreshFilterDatalists();
       await caricaKit();
     } catch(err) {
@@ -355,25 +335,40 @@
     }
   }
 
-  async function caricaArticoliPerTipo() {
+  async function caricaArticoliSci() {
     const params = new URLSearchParams();
     if (kitMagazzinoSelect.value) params.append('magazzino', kitMagazzinoSelect.value);
     params.append('min_giacenza', '1');
-    if (categoryIds.sci) {
-      params.set('categoria', categoryIds.sci);
-      const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      articoliSci = res.success ? res.data : [];
-    }
-    if (categoryIds.attacchi) {
-      params.set('categoria', categoryIds.attacchi);
-      const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      articoliAttacchi = res.success ? res.data : [];
-    }
-    if (categoryIds.skistopper) {
-      params.set('categoria', categoryIds.skistopper);
-      const res = await apiFetch(`/api/articoli?${params.toString()}`);
-      articoliSkistopper = res.success ? res.data : [];
-    }
+    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
+    const res = await apiFetch(`/api/articoli?${params.toString()}`);
+    articoliSci = res.success ? res.data : [];
+    // Popola datalist sci
+    const sciList = document.getElementById('sciList');
+    sciList.innerHTML = '';
+    articoliSci.forEach(art => {
+      const opt = document.createElement('option');
+      opt.value = formatArticleDisplay(art);
+      opt.setAttribute('data-id', art.id);
+      sciList.appendChild(opt);
+    });
+  }
+
+  async function caricaArticoliAttacchi(magazzinoId) {
+    const params = new URLSearchParams();
+    if (magazzinoId) params.append('magazzino', magazzinoId);
+    params.append('min_giacenza', '1');
+    if (categoryIds.attacchi) params.append('categoria', categoryIds.attacchi);
+    const res = await apiFetch(`/api/articoli?${params.toString()}`);
+    return res.success ? res.data : [];
+  }
+
+  async function caricaArticoliSkistopper(magazzinoId) {
+    const params = new URLSearchParams();
+    if (magazzinoId) params.append('magazzino', magazzinoId);
+    params.append('min_giacenza', '1');
+    if (categoryIds.skistopper) params.append('categoria', categoryIds.skistopper);
+    const res = await apiFetch(`/api/articoli?${params.toString()}`);
+    return res.success ? res.data : [];
   }
 
   function formatArticleDisplay(art) {
@@ -385,124 +380,133 @@
     return parts.join(' ');
   }
 
-  async function popolaDatalistArticoli(tipo, datalistId, magazzinoId = null) {
-    const magId = magazzinoId || kitMagazzinoSelect.value;
-    if (!magId) return;
-    const params = new URLSearchParams();
-    params.append('magazzino', magId);
-    params.append('min_giacenza', '1');
-    if (categoryIds[tipo]) params.append('categoria', categoryIds[tipo]);
-    const res = await apiFetch(`/api/articoli?${params.toString()}`);
-    const articoli = res.success ? res.data : [];
-    const validi = articoli.filter(a => (a.quantita_totale - a.quantita_in_kit) > 0);
-    const datalist = document.getElementById(datalistId);
-    if (datalist) {
-      datalist.innerHTML = '';
-      validi.forEach(art => {
-        const opt = document.createElement('option');
-        opt.value = formatArticleDisplay(art);
-        opt.setAttribute('data-id', art.id);
-        datalist.appendChild(opt);
-      });
+  // ========== GESTIONE RIGHE SIGLE (creazione nuovo kit) ==========
+  function aggiungiRigaSigla() {
+    const tbody = document.getElementById('sigleTbody');
+    const row = tbody.insertRow();
+    // Sigla (select con le sigle disponibili per lo sci selezionato)
+    const tdSigla = row.insertCell(0);
+    const siglaSelect = document.createElement('select');
+    siglaSelect.className = 'sigla-select';
+    tdSigla.appendChild(siglaSelect);
+    // Attacco
+    const tdAtt = row.insertCell(1);
+    const attSelect = document.createElement('select');
+    attSelect.className = 'attacco-select';
+    tdAtt.appendChild(attSelect);
+    // Skistopper
+    const tdSk = row.insertCell(2);
+    const skSelect = document.createElement('select');
+    skSelect.className = 'skistopper-select';
+    tdSk.appendChild(skSelect);
+    // Quantità
+    const tdQta = row.insertCell(3);
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.value = 1;
+    qtyInput.min = 1;
+    qtyInput.style.width = '70px';
+    tdQta.appendChild(qtyInput);
+    // Azioni
+    const tdAz = row.insertCell(4);
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.className = 'btn btn-danger';
+    delBtn.onclick = () => row.remove();
+    tdAz.appendChild(delBtn);
+  }
+
+  function aggiornaSelectSigle() {
+    // In fase di creazione, non implementiamo la logica dinamica delle sigle
+    // per semplicità, si assume che l'utente scelga prima lo sci e poi le sigle.
+    // In un'implementazione completa, si dovrebbero caricare le sigle dello sci selezionato.
+  }
+
+  // ========== CREAZIONE KIT ==========
+  async function salvaKit() {
+    const magazzino = kitMagazzinoSelect.value;
+    const sciInput = document.getElementById('kitSci').value;
+    const note = document.getElementById('kitNote').value.trim();
+    // Recupera ID sci
+    const sciList = document.getElementById('sciList');
+    let sciId = null;
+    for (let opt of sciList.options) {
+      if (opt.value === sciInput) {
+        sciId = parseInt(opt.getAttribute('data-id'));
+        break;
+      }
     }
-  }
-
-  async function refreshComponentDatalists() {
-    await popolaDatalistArticoli('sci', 'sciList');
-    await popolaDatalistArticoli('attacchi', 'attacchiList');
-    await popolaDatalistArticoli('skistopper', 'skistopperList');
-    filtraKit();
-  }
-
-  async function refreshEditDatalists() {
-    const magId = editKitMagazzino.value;
-    if (magId) {
-      await popolaDatalistArticoli('sci', 'editSciList', magId);
-      await popolaDatalistArticoli('attacchi', 'editAttacchiList', magId);
-      await popolaDatalistArticoli('skistopper', 'editSkistopperList', magId);
-    }
-  }
-
-  // ========== CARICAMENTO SIGLE ==========
-  async function caricaSigle(articoloId, selectId, groupId, prefillSiglaId = null) {
-    const group = document.getElementById(groupId);
-    const select = document.getElementById(selectId);
-    if (!articoloId) {
-      if (group) group.style.display = 'none';
-      if (select) select.innerHTML = '<option value="">Nessuna sigla</option>';
+    if (!magazzino || !sciId) {
+      showMessage('Seleziona magazzino e sci', 'error');
       return;
     }
+    // Raccogli righe sigle
+    const righe = [];
+    const rows = document.querySelectorAll('#sigleTbody tr');
+    for (let row of rows) {
+      const siglaSelect = row.cells[0].querySelector('select');
+      const attSelect = row.cells[1].querySelector('select');
+      const skSelect = row.cells[2].querySelector('select');
+      const qtyInput = row.cells[3].querySelector('input');
+      const siglaId = siglaSelect.value;
+      const attId = attSelect.value;
+      const skId = skSelect.value;
+      const quantita = parseInt(qtyInput.value);
+      if (!siglaId || !attId) {
+        showMessage('Ogni riga deve avere sigla e attacco', 'error');
+        return;
+      }
+      righe.push({
+        sigla_id: parseInt(siglaId),
+        attacco_id: parseInt(attId),
+        skistopper_id: skId ? parseInt(skId) : null,
+        quantita: quantita
+      });
+    }
+    if (righe.length === 0) {
+      showMessage('Aggiungi almeno una sigla', 'error');
+      return;
+    }
+    const payload = {
+      magazzino: parseInt(magazzino),
+      sci_id: sciId,
+      note: note,
+      righe: righe
+    };
+    if (externalCheckbox.checked) {
+      const destTipo = destinazioneTipo.value;
+      const destId = destinazioneId.value;
+      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
+      payload.destinazioneTipo = destTipo;
+      payload.destinazioneId = parseInt(destId);
+    }
+    const saveBtn = document.getElementById('saveKitBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
     try {
-      const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
-      if (sigle.length === 0) {
-        if (group) group.style.display = 'none';
-        select.innerHTML = '<option value="">Nessuna sigla</option>';
+      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
+      if (result.success) {
+        showMessage(result.message, 'success');
+        resetForm();
+        await caricaKit();
       } else {
-        if (group) group.style.display = 'block';
-        select.innerHTML = '<option value="">Nessuna sigla</option>';
-        sigle.forEach(s => {
-          let testo = s.sigla;
-          if (s.durezza) testo += ` - ${s.durezza}`;
-          select.appendChild(new Option(testo, s.id));
-        });
-        if (prefillSiglaId) select.value = prefillSiglaId;
+        showMessage(result.message, 'error');
       }
     } catch (err) {
-      if (group) group.style.display = 'none';
-      select.innerHTML = '<option value="">Nessuna sigla</option>';
+      showMessage('Errore: ' + err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '💾 Salva Kit';
     }
   }
 
-  function setupArticoloConSigle(inputId, siglaSelectId, siglaGroupId) {
-    const input = document.getElementById(inputId);
-    input.addEventListener('change', async () => {
-      const val = input.value;
-      const datalist = document.getElementById(input.getAttribute('list'));
-      let articoloId = null;
-      if (datalist) {
-        for (let opt of datalist.options) {
-          if (opt.value === val) {
-            articoloId = opt.getAttribute('data-id');
-            break;
-          }
-        }
-      }
-      await caricaSigle(articoloId, siglaSelectId, siglaGroupId);
-    });
-  }
-
-  // ========== FILTRI DATALIST ==========
-  async function getDistinctFilterValues(field, exceptField = null) {
-    const params = new URLSearchParams();
-    if (filtroMag.value) params.append('magazzino', filtroMag.value);
-    if (filtroSet.value) params.append('settore', filtroSet.value);
-    if (filtroMar.value) params.append('marca', filtroMar.value);
-    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
-    if (exceptField !== 'descrizione' && filtroDesc.value) params.append('descrizione', filtroDesc.value);
-    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
-    const endpoint = `/api/articoli/valori/${field}`;
-    const data = await apiFetch(`${endpoint}?${params.toString()}`);
-    const map = { descrizioni: 'descrizione', sigle: 'sigla' };
-    const col = map[field] || field;
-    return data.map(item => item[col]).filter(v => v && v !== '');
-  }
-  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
-    try {
-      const values = await getDistinctFilterValues(field, exceptField);
-      const dl = document.getElementById(datalistId);
-      if (dl) {
-        dl.innerHTML = '';
-        values.forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v;
-          dl.appendChild(opt);
-        });
-      }
-    } catch (err) {}
-  }
-  async function refreshFilterDatalists() {
-    await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
-    await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
+  function resetForm() {
+    document.getElementById('sigleTbody').innerHTML = '';
+    aggiungiRigaSigla(); // almeno una riga
+    document.getElementById('kitSci').value = '';
+    document.getElementById('kitNote').value = '';
+    externalCheckbox.checked = false;
+    assegnazioneSection.style.display = 'none';
   }
 
   // ========== CARICAMENTO KIT ==========
@@ -547,17 +551,26 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
+
+      // Mostra riepilogo sigle/attacchi
       const compCell = row.insertCell(7);
       if (k.dettagli && k.dettagli.length) {
-        compCell.innerHTML = k.dettagli.map(d => {
-          const tipo = d.tipo_articolo;
-          const nomeArt = d.descrizione || `Articolo ID ${d.articolo_id}`;
-          const siglaTesto = d.sigla ? ` (${d.sigla})` : '';
-          return `${tipo}: ${nomeArt}${siglaTesto} x${d.quantita}`;
-        }).join('<br>');
+        // Raggruppa per sigla (i dettagli sono piatti, ma possiamo estrarre le sigle)
+        const sigleMap = new Map();
+        for (let d of k.dettagli) {
+          if (d.tipo_articolo === 'SCI') {
+            sigleMap.set(d.sigla_id, { sigla: d.sigla, sci_id: d.articolo_id });
+          }
+        }
+        const attacchi = k.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI');
+        const skistoppers = k.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER');
+        // Non abbiamo un collegamento diretto tra sigla e attacco, quindi mostriamo solo le sigle
+        const sigleTesto = Array.from(sigleMap.values()).map(s => s.sigla).join(', ');
+        compCell.innerHTML = `Sigle: ${sigleTesto}<br>Attacchi: ${attacchi.length}<br>Skistopper: ${skistoppers.length}`;
       } else {
         compCell.innerText = '-';
       }
+
       const actions = row.insertCell(8);
       actions.className = 'action-buttons';
       actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
@@ -565,93 +578,209 @@
     });
   }
 
-  // ========== CREAZIONE KIT ==========
-  function getArticleIdFromInput(inputValue, datalistId) {
-    const datalist = document.getElementById(datalistId);
-    if (!datalist) return null;
-    for (let opt of datalist.options) {
-      if (opt.value === inputValue) {
-        return parseInt(opt.getAttribute('data-id'));
+  // ========== MODIFICA KIT ==========
+  async function modificaKit(id) {
+    try {
+      const kit = await apiFetch(`/api/kit/${id}`);
+      currentEditId = id;
+      document.getElementById('editKitId').value = kit.id;
+      editKitMagazzino.value = kit.magazzino;
+      document.getElementById('editKitNote').value = kit.note || '';
+      // Recupera lo sci (primo componente di tipo SCI)
+      const sciDetail = kit.dettagli.find(d => d.tipo_articolo === 'SCI');
+      if (!sciDetail) throw new Error('Kit senza sci');
+      currentEditSciId = sciDetail.articolo_id;
+      // Carica descrizione sci
+      const sciArt = await apiFetch(`/api/articoli/${currentEditSciId}`);
+      document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
+      // Carica tutte le sigle disponibili per questo sci
+      const sigleDisponibili = await apiFetch(`/api/articoli/${currentEditSciId}/sigle`);
+      currentEditSigleDisponibili = sigleDisponibili;
+      // Popola tabella righe
+      const tbody = document.getElementById('editSigleTbody');
+      tbody.innerHTML = '';
+      // Raggruppa i dettagli per sigla: ogni sigla ha una riga
+      const righeMap = new Map(); // key = sigla_id, value = { sigla, attacco_id, skistopper_id, quantita }
+      for (let d of kit.dettagli) {
+        if (d.tipo_articolo === 'SCI') {
+          righeMap.set(d.sigla_id, { sigla_id: d.sigla_id, sigla: d.sigla, attacco_id: null, skistopper_id: null, quantita: d.quantita });
+        } else if (d.tipo_articolo === 'ATTACCHI') {
+          // Trova a quale sigla appartiene? Non abbiamo legame. Per ora assumiamo che l'attacco sia unico per kit, quindi lo mettiamo in tutte le righe? No.
+          // Dobbiamo ridefinire: la struttura attuale non supporta attacco per sigla. Quindi in modifica mostriamo solo le sigle e l'utente potrà selezionare attacco e skistopper per ciascuna.
+          // Alla fine, quando salviamo, invieremo un array di righe con sigla, attacco, skistopper.
+          // Per ora, durante la modifica, non possiamo sapere quale attacco era associato a quale sigla perché non c'è relazione.
+          // Quindi ricostruiamo da zero: per ogni sigla, l'utente dovrà scegliere attacco e skistopper (se non li aveva, saranno vuoti).
+        }
       }
+      // Se non ci sono righe, aggiungine una vuota
+      if (righeMap.size === 0) {
+        aggiungiRigaSiglaEdit();
+      } else {
+        for (let [sigla_id, info] of righeMap.entries()) {
+          aggiungiRigaSiglaEdit({ sigla_id: info.sigla_id, sigla: info.sigla, attacco_id: null, skistopper_id: null, quantita: info.quantita });
+        }
+      }
+      // Carica gli articoli per attacchi e skistopper nel magazzino selezionato
+      await popolaSelectAttacchiSkistopper(editKitMagazzino.value);
+      document.getElementById('modalEditKit').style.display = 'flex';
+    } catch (err) {
+      showMessage('Errore caricamento kit: ' + err.message, 'error');
     }
-    return null;
   }
 
-  async function salvaKit() {
-    const magazzino = kitMagazzinoSelect.value;
-    const quantita = parseInt(document.getElementById('kitQuantita').value);
-    const sciInput = document.getElementById('kitSci').value;
-    const attacchiInput = document.getElementById('kitAttacchi').value;
-    const skistopperInput = document.getElementById('kitSkistopper').value;
-    const note = document.getElementById('kitNote').value.trim();
-    const sciSiglaId = document.getElementById('kitSciSigla').value;
-    const attacchiSiglaId = document.getElementById('kitAttacchiSigla').value;
-    const skistopperSiglaId = document.getElementById('kitSkistopperSigla').value;
+  async function popolaSelectAttacchiSkistopper(magazzinoId) {
+    const attacchi = await caricaArticoliAttacchi(magazzinoId);
+    const skistoppers = await caricaArticoliSkistopper(magazzinoId);
+    // Salva globalmente per usare nei dropdown dinamici
+    window.attacchiDisponibili = attacchi;
+    window.skistoppersDisponibili = skistoppers;
+    // Aggiorna tutti i select esistenti
+    document.querySelectorAll('#editSigleTbody .attacco-select').forEach(sel => {
+      sel.innerHTML = '<option value="">Seleziona attacco</option>';
+      attacchi.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.text = formatArticleDisplay(a);
+        sel.appendChild(opt);
+      });
+    });
+    document.querySelectorAll('#editSigleTbody .skistopper-select').forEach(sel => {
+      sel.innerHTML = '<option value="">Nessuno</option>';
+      skistoppers.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = formatArticleDisplay(s);
+        sel.appendChild(opt);
+      });
+    });
+  }
 
-    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
+  function aggiungiRigaSiglaEdit(prefill = null) {
+    const tbody = document.getElementById('editSigleTbody');
+    const row = tbody.insertRow();
+    // Sigla (select)
+    const tdSigla = row.insertCell(0);
+    const siglaSelect = document.createElement('select');
+    siglaSelect.className = 'sigla-select';
+    siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+    currentEditSigleDisponibili.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
+      if (prefill && prefill.sigla_id == s.id) opt.selected = true;
+      siglaSelect.appendChild(opt);
+    });
+    tdSigla.appendChild(siglaSelect);
+    // Attacco
+    const tdAtt = row.insertCell(1);
+    const attSelect = document.createElement('select');
+    attSelect.className = 'attacco-select';
+    attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
+    if (window.attacchiDisponibili) {
+      window.attacchiDisponibili.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.text = formatArticleDisplay(a);
+        if (prefill && prefill.attacco_id == a.id) opt.selected = true;
+        attSelect.appendChild(opt);
+      });
     }
-    const idSci = getArticleIdFromInput(sciInput, 'sciList');
-    const idAttacchi = getArticleIdFromInput(attacchiInput, 'attacchiList');
-    let idSkistopper = null;
-    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'skistopperList');
-    if (!idSci || !idAttacchi) {
-      showMessage('Seleziona uno sci e un attacchi validi', 'error');
+    tdAtt.appendChild(attSelect);
+    // Skistopper
+    const tdSk = row.insertCell(2);
+    const skSelect = document.createElement('select');
+    skSelect.className = 'skistopper-select';
+    skSelect.innerHTML = '<option value="">Nessuno</option>';
+    if (window.skistoppersDisponibili) {
+      window.skistoppersDisponibili.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = formatArticleDisplay(s);
+        if (prefill && prefill.skistopper_id == s.id) opt.selected = true;
+        skSelect.appendChild(opt);
+      });
+    }
+    tdSk.appendChild(skSelect);
+    // Quantità
+    const tdQta = row.insertCell(3);
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.value = prefill ? prefill.quantita : 1;
+    qtyInput.min = 1;
+    qtyInput.style.width = '70px';
+    tdQta.appendChild(qtyInput);
+    // Azioni
+    const tdAz = row.insertCell(4);
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.className = 'btn btn-danger';
+    delBtn.onclick = () => row.remove();
+    tdAz.appendChild(delBtn);
+  }
+
+  function raccogliRigheEdit() {
+    const righe = [];
+    const rows = document.querySelectorAll('#editSigleTbody tr');
+    for (let row of rows) {
+      const siglaSelect = row.cells[0].querySelector('select');
+      const attSelect = row.cells[1].querySelector('select');
+      const skSelect = row.cells[2].querySelector('select');
+      const qtyInput = row.cells[3].querySelector('input');
+      const siglaId = siglaSelect.value;
+      const attId = attSelect.value;
+      const skId = skSelect.value;
+      const quantita = parseInt(qtyInput.value);
+      if (!siglaId || !attId) {
+        showMessage('Ogni riga deve avere sigla e attacco', 'error');
+        return null;
+      }
+      righe.push({
+        sigla_id: parseInt(siglaId),
+        attacco_id: parseInt(attId),
+        skistopper_id: skId ? parseInt(skId) : null,
+        quantita: quantita
+      });
+    }
+    return righe;
+  }
+
+  async function salvaModificaKit() {
+    const id = currentEditId;
+    const magazzino = editKitMagazzino.value;
+    const note = document.getElementById('editKitNote').value.trim();
+    const righe = raccogliRigheEdit();
+    if (!righe) return;
+    if (righe.length === 0) {
+      showMessage('Aggiungi almeno una sigla', 'error');
       return;
     }
     const payload = {
       magazzino: parseInt(magazzino),
-      quantita,
-      id_sci: idSci,
-      sigla_sci_id: sciSiglaId ? parseInt(sciSiglaId) : null,
-      id_attacchi: idAttacchi,
-      sigla_attacchi_id: attacchiSiglaId ? parseInt(attacchiSiglaId) : null,
-      id_skistopper: idSkistopper || null,
-      sigla_skistopper_id: skistopperSiglaId ? parseInt(skistopperSiglaId) : null,
-      note: note || null
+      sci_id: currentEditSciId,
+      note: note,
+      righe: righe
     };
-    if (externalCheckbox.checked) {
-      const destTipo = destinazioneTipo.value;
-      const destId = destinazioneId.value;
-      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
-      payload.destinazioneTipo = destTipo;
-      payload.destinazioneId = parseInt(destId);
-    }
-    const saveBtn = document.getElementById('saveKitBtn');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
     try {
-      const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
+      const result = await apiFetch(`/api/kit/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
       if (result.success) {
-        showMessage(result.message, 'success');
-        resetForm();
+        showMessage('Kit aggiornato con successo', 'success');
+        chiudiModaleKit();
         await caricaKit();
       } else {
         showMessage(result.message, 'error');
       }
     } catch (err) {
       showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '💾 Salva Kit';
     }
   }
 
-  function resetForm() {
-    document.getElementById('kitSci').value = '';
-    document.getElementById('kitAttacchi').value = '';
-    document.getElementById('kitSkistopper').value = '';
-    document.getElementById('kitNote').value = '';
-    document.getElementById('kitQuantita').value = '1';
-    document.getElementById('kitSciSigla').innerHTML = '<option value="">Nessuna sigla</option>';
-    document.getElementById('kitAttacchiSigla').innerHTML = '<option value="">Nessuna sigla</option>';
-    document.getElementById('kitSkistopperSigla').innerHTML = '<option value="">Nessuna sigla</option>';
-    document.getElementById('sciSiglaGroup').style.display = 'none';
-    document.getElementById('attacchiSiglaGroup').style.display = 'none';
-    document.getElementById('skistopperSiglaGroup').style.display = 'none';
-    externalCheckbox.checked = false;
-    assegnazioneSection.style.display = 'none';
+  function chiudiModaleKit() {
+    document.getElementById('modalEditKit').style.display = 'none';
+    currentEditId = null;
+    currentEditSciId = null;
   }
 
   async function eliminaKit(id) {
@@ -669,106 +798,42 @@
     }
   }
 
-  // ========== MODIFICA KIT ==========
-  async function modificaKit(id) {
+  // ========== FILTRI DATALIST ==========
+  async function getDistinctFilterValues(field, exceptField = null) {
+    const params = new URLSearchParams();
+    if (filtroMag.value) params.append('magazzino', filtroMag.value);
+    if (filtroSet.value) params.append('settore', filtroSet.value);
+    if (filtroMar.value) params.append('marca', filtroMar.value);
+    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
+    if (exceptField !== 'descrizione' && filtroDesc.value) params.append('descrizione', filtroDesc.value);
+    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
+    const endpoint = `/api/articoli/valori/${field}`;
+    const data = await apiFetch(`${endpoint}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla' };
+    const col = map[field] || field;
+    return data.map(item => item[col]).filter(v => v && v !== '');
+  }
+
+  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
-      const kit = await apiFetch(`/api/kit/${id}`);
-      currentEditId = id;
-      document.getElementById('editKitId').value = kit.id;
-      editKitMagazzino.value = kit.magazzino;
-      document.getElementById('editKitQuantita').value = kit.quantita;
-      document.getElementById('editKitNote').value = kit.note || '';
-
-      // Trova i componenti sci, attacchi, skistopper nei dettagli
-      const sciComp = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
-      const attComp = kit.dettagli?.find(d => d.tipo_articolo === 'ATTACCHI');
-      const skComp = kit.dettagli?.find(d => d.tipo_articolo === 'SKISTOPPER');
-
-      if (sciComp) {
-        const sciArt = await apiFetch(`/api/articoli/${sciComp.articolo_id}`);
-        document.getElementById('editKitSci').value = formatArticleDisplay(sciArt);
-        await caricaSigle(sciComp.articolo_id, 'editKitSciSigla', 'editSciSiglaGroup', sciComp.sigla_id);
-      } else {
-        document.getElementById('editKitSci').value = '';
+      const values = await getDistinctFilterValues(field, exceptField);
+      const dl = document.getElementById(datalistId);
+      if (dl) {
+        dl.innerHTML = '';
+        values.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          dl.appendChild(opt);
+        });
       }
-      if (attComp) {
-        const attArt = await apiFetch(`/api/articoli/${attComp.articolo_id}`);
-        document.getElementById('editKitAttacchi').value = formatArticleDisplay(attArt);
-      } else {
-        document.getElementById('editKitAttacchi').value = '';
-      }
-      if (skComp) {
-        const skArt = await apiFetch(`/api/articoli/${skComp.articolo_id}`);
-        document.getElementById('editKitSkistopper').value = formatArticleDisplay(skArt);
-      } else {
-        document.getElementById('editKitSkistopper').value = '';
-      }
-
-      const assignedInfo = allKits.find(k => k.id == id)?.assegnato_a;
-      const infoDiv = document.getElementById('assignedInfo');
-      if (assignedInfo) {
-        document.getElementById('assignedToName').innerText = assignedInfo.nome;
-        document.getElementById('assignedQuantity').innerText = assignedInfo.quantita;
-        infoDiv.style.display = 'block';
-      } else {
-        infoDiv.style.display = 'none';
-      }
-
-      await refreshEditDatalists();
-      document.getElementById('modalEditKit').style.display = 'flex';
     } catch (err) {
-      showMessage('Errore caricamento kit: ' + err.message, 'error');
+      console.error(`Errore filtro ${field}:`, err);
     }
   }
 
-  async function salvaModificaKit() {
-    const id = currentEditId;
-    const magazzino = editKitMagazzino.value;
-    const quantita = parseInt(document.getElementById('editKitQuantita').value);
-    const sciInput = document.getElementById('editKitSci').value;
-    const attacchiInput = document.getElementById('editKitAttacchi').value;
-    const skistopperInput = document.getElementById('editKitSkistopper').value;
-    const note = document.getElementById('editKitNote').value.trim();
-    const sciSiglaId = document.getElementById('editKitSciSigla').value;
-
-    if (!magazzino || !quantita || !sciInput || !attacchiInput) {
-      showMessage('Compila tutti i campi obbligatori', 'error');
-      return;
-    }
-    const idSci = getArticleIdFromInput(sciInput, 'editSciList');
-    const idAttacchi = getArticleIdFromInput(attacchiInput, 'editAttacchiList');
-    let idSkistopper = null;
-    if (skistopperInput) idSkistopper = getArticleIdFromInput(skistopperInput, 'editSkistopperList');
-    if (!idSci || !idAttacchi) {
-      showMessage('Seleziona uno sci e un attacchi validi', 'error');
-      return;
-    }
-    const payload = {
-      magazzino: parseInt(magazzino),
-      quantita,
-      id_sci: idSci,
-      sigla_sci_id: sciSiglaId ? parseInt(sciSiglaId) : null,
-      id_attacchi: idAttacchi,
-      id_skistopper: idSkistopper || null,
-      note: note || null
-    };
-    try {
-      const result = await apiFetch(`/api/kit/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      if (result.success) {
-        showMessage('Kit aggiornato', 'success');
-        chiudiModaleKit();
-        await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    }
-  }
-
-  function chiudiModaleKit() {
-    document.getElementById('modalEditKit').style.display = 'none';
-    currentEditId = null;
+  async function refreshFilterDatalists() {
+    await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
+    await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
   }
 
   // ========== GESTIONE DESTINAZIONE ESTERNA ==========
@@ -781,6 +846,7 @@
       if (externalCheckbox.checked) caricaDestinazioni();
     });
   }
+
   async function caricaDestinazioni() {
     const tipo = destinazioneTipo.value;
     try {
@@ -791,15 +857,16 @@
         destinazioneId.appendChild(new Option(testo, item.id));
       });
     } catch (err) {
-      showMessage('Errore caricamento destinazioni', 'error');
+      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
     }
   }
 
-  // ========== FUNZIONI BATCH ==========
+  // ========== FUNZIONI BATCH (esistenti) ==========
   function toggleSelectAll() {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
     document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
   }
+
   function getSelectedKits() {
     const selected = [];
     document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
@@ -809,11 +876,12 @@
     });
     return selected;
   }
+
   async function rientraSelezionati() {
     const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona kit assegnati', 'error'); return; }
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
     const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona magazzino', 'error'); return; }
+    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
     const oggetti = selected.map(kit => ({
       tipoOggetto: 'KIT',
       oggettoId: kit.id,
@@ -834,9 +902,10 @@
     } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
   }
+
   function apriModalTrasferimento() {
     const selected = getSelectedKits();
-    if (selected.length === 0) { showMessage('Seleziona kit assegnati', 'error'); return; }
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
     destinatarioTipoSelect.value = '';
     destinatarioIdSelect.disabled = true;
     destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
@@ -844,7 +913,9 @@
     if (!transferMagazzinoSelect.value && magazzini.length) transferMagazzinoSelect.value = magazzini[0].id;
     document.getElementById('modalTrasferimento').style.display = 'flex';
   }
+
   function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
+
   async function eseguiTrasferimento() {
     const selected = getSelectedKits();
     if (selected.length === 0) { chiudiModalTrasferimento(); return; }
@@ -878,39 +949,23 @@
   let debTimer;
   function handleFilterChange() {
     clearTimeout(debTimer);
-    debTimer = setTimeout(async () => {
-      await refreshComponentDatalists();
-      await refreshFilterDatalists();
-      filtraKit();
-    }, 300);
+    debTimer = setTimeout(async () => { await refreshFilterDatalists(); }, 300);
   }
   function attachFilterEvents() {
     [filtroDesc, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
     [filtroMag, filtroSet, filtroMar].forEach(sel => sel?.addEventListener('change', handleFilterChange));
-    kitMagazzinoSelect.addEventListener('change', () => {
-      if (!externalCheckbox.checked) refreshComponentDatalists();
-    });
+    kitMagazzinoSelect.addEventListener('change', () => { caricaArticoliSci(); });
     editKitMagazzino.addEventListener('change', () => {
-      if (document.getElementById('modalEditKit').style.display === 'flex') refreshEditDatalists();
+      if (document.getElementById('modalEditKit').style.display === 'flex') {
+        popolaSelectAttacchiSkistopper(editKitMagazzino.value);
+      }
     });
-  }
-  function filtraKit() {
-    // Filtro base per la tabella (semplificato)
-    const mag = filtroMag.value ? parseInt(filtroMag.value) : null;
-    kitFiltrati = allKits.filter(k => {
-      if (mag && k.magazzino !== mag) return false;
-      return true;
-    });
-    popolaTabellaKit();
   }
 
   // ========== INIT ==========
   window.onload = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>';
-      return;
-    }
+    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
     try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { logout(); return; }
     const loginInfo = document.createElement('div');
     loginInfo.style.display = 'flex';
@@ -918,13 +973,9 @@
     loginInfo.style.marginBottom = '10px';
     loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
-
     await caricaAnagrafiche();
     attachFilterEvents();
     setupExternalMode();
-    setupArticoloConSigle('kitSci', 'kitSciSigla', 'sciSiglaGroup');
-    setupArticoloConSigle('kitAttacchi', 'kitAttacchiSigla', 'attacchiSiglaGroup');
-    setupArticoloConSigle('kitSkistopper', 'kitSkistopperSigla', 'skistopperSiglaGroup');
     resetForm();
   };
 </script>
