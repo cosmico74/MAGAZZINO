@@ -226,7 +226,6 @@
   </div>
 </div>
 
-
 <script>
   // ========== UTILITY ==========
   function getAuthHeader() {
@@ -358,18 +357,16 @@
   }
 
   // ========== GESTIONE RIGHE COMPONENTI (creazione) ==========
-  function aggiungiRigaComponente(tbodyId = 'componentiTbody', editMode = false, prefill = null) {
+  function aggiungiRigaComponente(tbodyId = 'componentiTbody', prefill = null) {
     const tbody = document.getElementById(tbodyId);
     const row = tbody.insertRow();
 
-    // Tipo
     const tdTipo = row.insertCell(0);
     const tipoSelect = document.createElement('select');
     tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
     if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
     tdTipo.appendChild(tipoSelect);
 
-    // Articolo
     const tdArt = row.insertCell(1);
     const artInput = document.createElement('input');
     artInput.type = 'text';
@@ -381,13 +378,11 @@
     tdArt.appendChild(artInput);
     tdArt.appendChild(datalist);
 
-    // Sigla
     const tdSigla = row.insertCell(2);
     const siglaSelect = document.createElement('select');
     siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
     tdSigla.appendChild(siglaSelect);
 
-    // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
@@ -396,7 +391,6 @@
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
 
-    // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
     delBtn.textContent = '🗑️';
@@ -419,11 +413,9 @@
       });
       if (prefill && prefill.articolo_id) {
         const found = articoli.find(a => a.id === prefill.articolo_id);
-        if (found) {
-          artInput.value = formatArticleDisplay(found);
-        } else {
-          artInput.value = `Articolo ID ${prefill.articolo_id}`;
-        }
+        if (found) artInput.value = formatArticleDisplay(found);
+        else if (prefill.descrizione) artInput.value = prefill.descrizione;
+        else artInput.value = `Articolo ID ${prefill.articolo_id}`;
       }
     };
     tipoSelect.addEventListener('change', aggiornaDatalist);
@@ -447,9 +439,7 @@
             if (s.durezza) testo += ` - ${s.durezza}`;
             siglaSelect.appendChild(new Option(testo, s.id));
           });
-          if (prefill && prefill.sigla_id) {
-            siglaSelect.value = prefill.sigla_id;
-          }
+          if (prefill && prefill.sigla_id) siglaSelect.value = prefill.sigla_id;
         } catch(e) {
           siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
         }
@@ -457,10 +447,7 @@
         siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
       }
     });
-
-    if (prefill && prefill.articolo_id) {
-      setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
-    }
+    if (prefill && prefill.articolo_id) setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
   }
 
   function raccogliDettagli(tbodyId) {
@@ -507,10 +494,7 @@
     if (externalCheckbox.checked) {
       const destTipo = destinazioneTipo.value;
       const destId = destinazioneId.value;
-      if (!destId) {
-        showMessage('Seleziona destinazione', 'error');
-        return;
-      }
+      if (!destId) { showMessage('Seleziona destinazione', 'error'); return; }
       payload.destinazioneTipo = destTipo;
       payload.destinazioneId = parseInt(destId);
     }
@@ -585,11 +569,10 @@
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
 
-      // Componenti (corretto: usa tipo_articolo)
       const compCell = row.insertCell(7);
       if (k.dettagli && k.dettagli.length) {
         compCell.innerHTML = k.dettagli.map(d => {
-          const tipo = d.tipo_articolo || d.tipo;
+          const tipo = d.tipo_articolo;
           const nomeArt = d.descrizione || `Articolo ID ${d.articolo_id}`;
           const siglaTesto = d.sigla ? ` (${d.sigla})` : '';
           return `${tipo}: ${nomeArt}${siglaTesto} x${d.quantita}`;
@@ -605,7 +588,7 @@
     });
   }
 
-  // ========== MODIFICA KIT ==========
+  // ========== MODIFICA KIT (VERSIONE CORRETTA) ==========
   async function modificaKit(id) {
     try {
       const kit = await apiFetch(`/api/kit/${id}`);
@@ -617,12 +600,14 @@
       tbody.innerHTML = '';
       if (kit.dettagli && kit.dettagli.length) {
         for (let d of kit.dettagli) {
-          aggiungiRigaComponenteEdit({
+          const prefillData = {
             tipo_articolo: d.tipo_articolo,
             articolo_id: d.articolo_id,
             sigla_id: d.sigla_id,
-            quantita: d.quantita
-          });
+            quantita: d.quantita,
+            descrizione: d.descrizione
+          };
+          aggiungiRigaComponenteEdit(prefillData);
         }
       } else {
         aggiungiRigaComponenteEdit();
@@ -637,14 +622,12 @@
     const tbody = document.getElementById('editComponentiTbody');
     const row = tbody.insertRow();
 
-    // Tipo
     const tdTipo = row.insertCell(0);
     const tipoSelect = document.createElement('select');
     tipoSelect.innerHTML = '<option value="SCI">SCI</option><option value="ATTACCHI">ATTACCHI</option><option value="SKISTOPPER">SKISTOPPER</option>';
     if (prefill && prefill.tipo_articolo) tipoSelect.value = prefill.tipo_articolo;
     tdTipo.appendChild(tipoSelect);
 
-    // Articolo
     const tdArt = row.insertCell(1);
     const artInput = document.createElement('input');
     artInput.type = 'text';
@@ -656,13 +639,11 @@
     tdArt.appendChild(artInput);
     tdArt.appendChild(datalist);
 
-    // Sigla
     const tdSigla = row.insertCell(2);
     const siglaSelect = document.createElement('select');
     siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
     tdSigla.appendChild(siglaSelect);
 
-    // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
@@ -671,7 +652,6 @@
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
 
-    // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
     delBtn.textContent = '🗑️';
@@ -695,6 +675,7 @@
       if (prefill && prefill.articolo_id) {
         const found = articoli.find(a => a.id === prefill.articolo_id);
         if (found) artInput.value = formatArticleDisplay(found);
+        else if (prefill.descrizione) artInput.value = prefill.descrizione;
         else artInput.value = `Articolo ID ${prefill.articolo_id}`;
       }
     };
@@ -727,9 +708,7 @@
         siglaSelect.innerHTML = '<option value="">Nessuna sigla</option>';
       }
     });
-    if (prefill && prefill.articolo_id) {
-      setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
-    }
+    if (prefill && prefill.articolo_id) setTimeout(() => artInput.dispatchEvent(new Event('change')), 100);
   }
 
   function raccogliDettagliEdit() {
@@ -750,7 +729,10 @@
           }
         }
       }
-      if (!articoloId) continue;
+      if (!articoloId) {
+        showMessage(`Articolo non riconosciuto: "${artValue}"`, 'error');
+        continue;
+      }
       const siglaId = row.cells[2].querySelector('select').value;
       const quantita = parseInt(row.cells[3].querySelector('input').value);
       dettagli.push({
@@ -769,7 +751,7 @@
     const note = document.getElementById('editKitNote').value.trim();
     const dettagli = raccogliDettagliEdit();
     if (!magazzino || dettagli.length === 0) {
-      showMessage('Dati incompleti', 'error');
+      showMessage('Dati incompleti (magazzino e almeno un componente)', 'error');
       return;
     }
     try {
@@ -778,7 +760,7 @@
         body: JSON.stringify({ magazzino: parseInt(magazzino), note, dettagli })
       });
       if (result.success) {
-        showMessage('Kit aggiornato', 'success');
+        showMessage('Kit aggiornato con successo', 'success');
         chiudiModaleKit();
         await caricaKit();
       } else {
@@ -872,7 +854,7 @@
     }
   }
 
-  // ========== FUNZIONI BATCH (esistenti) ==========
+  // ========== FUNZIONI BATCH ==========
   function toggleSelectAll() {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
     document.querySelectorAll('.kit-checkbox').forEach(cb => cb.checked = checkAll);
@@ -890,15 +872,9 @@
 
   async function rientraSelezionati() {
     const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Seleziona almeno un kit assegnato', 'error');
-      return;
-    }
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
     const magazzinoId = kitMagazzinoSelect.value;
-    if (!magazzinoId) {
-      showMessage('Seleziona un magazzino di destinazione', 'error');
-      return;
-    }
+    if (!magazzinoId) { showMessage('Seleziona un magazzino di destinazione', 'error'); return; }
     const oggetti = selected.map(kit => ({
       tipoOggetto: 'KIT',
       oggettoId: kit.id,
@@ -906,37 +882,23 @@
       daTipo: kit.assegnato_a.tipo,
       daId: kit.assegnato_a.id
     }));
-    const payload = {
-      magazzinoId: parseInt(magazzinoId),
-      note: `Rientro batch di ${selected.length} kit`,
-      oggetti: oggetti
-    };
+    const payload = { magazzinoId: parseInt(magazzinoId), note: `Rientro batch di ${selected.length} kit`, oggetti };
     const btn = document.getElementById('btnRientraMagazzino');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     try {
       const result = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
         showMessage(result.message, 'success');
         document.getElementById('selectAllCheckbox').checked = false;
         await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '📦 Rientra in magazzino';
-    }
+      } else { showMessage(result.message, 'error'); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
   }
 
   function apriModalTrasferimento() {
     const selected = getSelectedKits();
-    if (selected.length === 0) {
-      showMessage('Seleziona almeno un kit assegnato', 'error');
-      return;
-    }
+    if (selected.length === 0) { showMessage('Seleziona almeno un kit assegnato', 'error'); return; }
     destinatarioTipoSelect.value = '';
     destinatarioIdSelect.disabled = true;
     destinatarioIdSelect.innerHTML = '<option value="">Seleziona prima il tipo</option>';
@@ -945,48 +907,25 @@
     document.getElementById('modalTrasferimento').style.display = 'flex';
   }
 
-  function chiudiModalTrasferimento() {
-    document.getElementById('modalTrasferimento').style.display = 'none';
-  }
+  function chiudiModalTrasferimento() { document.getElementById('modalTrasferimento').style.display = 'none'; }
 
   async function eseguiTrasferimento() {
     const selected = getSelectedKits();
-    if (selected.length === 0) {
-      chiudiModalTrasferimento();
-      return;
-    }
+    if (selected.length === 0) { chiudiModalTrasferimento(); return; }
     const magazzinoId = transferMagazzinoSelect.value;
     const destTipo = destinatarioTipoSelect.value;
     const destId = destinatarioIdSelect.value;
-    if (!magazzinoId || !destTipo || !destId) {
-      showMessage('Compila tutti i campi', 'error');
-      return;
-    }
+    if (!magazzinoId || !destTipo || !destId) { showMessage('Compila tutti i campi', 'error'); return; }
     const note = document.getElementById('transferNote').value.trim();
-    const oggetti = selected.map(kit => ({
-      tipoOggetto: 'KIT',
-      oggettoId: kit.id,
-      quantita: kit.assegnato_a.quantita
-    }));
+    const oggetti = selected.map(kit => ({ tipoOggetto: 'KIT', oggettoId: kit.id, quantita: kit.assegnato_a.quantita }));
     const daTipo = selected[0].assegnato_a.tipo;
     const daId = selected[0].assegnato_a.id;
-    const sameSource = selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId);
-    if (!sameSource) {
-      showMessage('I kit selezionati devono appartenere allo stesso soggetto', 'error');
-      return;
+    if (!selected.every(k => k.assegnato_a.tipo === daTipo && k.assegnato_a.id === daId)) {
+      showMessage('I kit devono appartenere allo stesso soggetto', 'error'); return;
     }
-    const payload = {
-      daTipo: daTipo,
-      daId: daId,
-      aTipo: destTipo,
-      aId: parseInt(destId),
-      magazzinoId: parseInt(magazzinoId),
-      oggetti: oggetti,
-      note: note || `Trasferimento batch di ${selected.length} kit`
-    };
+    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti, note: note || `Trasferimento batch di ${selected.length} kit` };
     const btn = document.querySelector('#modalTrasferimento .btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     try {
       const result = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
@@ -994,54 +933,34 @@
         chiudiModalTrasferimento();
         document.getElementById('selectAllCheckbox').checked = false;
         await caricaKit();
-      } else {
-        showMessage(result.message, 'error');
-      }
-    } catch (err) {
-      showMessage('Errore: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = 'Conferma trasferimento';
-    }
+      } else { showMessage(result.message, 'error'); }
+    } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = 'Conferma trasferimento'; }
   }
 
   // ========== FILTRI EVENTI ==========
   let debTimer;
   function handleFilterChange() {
     clearTimeout(debTimer);
-    debTimer = setTimeout(async () => {
-      await refreshFilterDatalists();
-    }, 300);
+    debTimer = setTimeout(async () => { await refreshFilterDatalists(); }, 300);
   }
-
   function attachFilterEvents() {
     [filtroDesc, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
     [filtroMag, filtroSet, filtroMar].forEach(sel => sel?.addEventListener('change', handleFilterChange));
-    kitMagazzinoSelect.addEventListener('change', () => {
-      caricaArticoliPerTipo();
-    });
+    kitMagazzinoSelect.addEventListener('change', () => { caricaArticoliPerTipo(); });
   }
 
   // ========== INIT ==========
   window.onload = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>';
-      return;
-    }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-    } catch(e) {
-      logout();
-      return;
-    }
+    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
+    try { currentUser = JSON.parse(localStorage.getItem('user')); } catch(e) { logout(); return; }
     const loginInfo = document.createElement('div');
     loginInfo.style.display = 'flex';
     loginInfo.style.justifyContent = 'flex-end';
     loginInfo.style.marginBottom = '10px';
     loginInfo.innerHTML = `<span>👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})</span>`;
     document.querySelector('.container').prepend(loginInfo);
-
     await caricaAnagrafiche();
     attachFilterEvents();
     setupExternalMode();

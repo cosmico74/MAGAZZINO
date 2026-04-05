@@ -5,7 +5,8 @@ const { aggiornaSintesiCarico } = require('./assegnazioni');
 
 const router = express.Router();
 
-// Helper per consumare articoli (aumenta quantita_in_kit, aggiorna giacenza)
+// ========== HELPER PER CONSUMO/RILASCIO ARTICOLI ==========
+// Consuma un articolo per un kit (aumenta quantita_in_kit, aggiorna giacenza)
 async function consumaArticolo(connection, articoloId, quantita) {
   const [art] = await connection.query(
     'SELECT quantita_totale, quantita_in_kit FROM articoli WHERE articolo_id = ? FOR UPDATE',
@@ -25,6 +26,7 @@ async function consumaArticolo(connection, articoloId, quantita) {
   );
 }
 
+// Rilascia un articolo da un kit (diminuisce quantita_in_kit, aggiorna giacenza)
 async function rilasciaArticolo(connection, articoloId, quantita) {
   await connection.query(
     `UPDATE articoli 
@@ -35,7 +37,7 @@ async function rilasciaArticolo(connection, articoloId, quantita) {
   );
 }
 
-// GET all kits (senza JSON_ARRAYAGG per compatibilità)
+// ========== GET all kits (con dettagli) ==========
 router.get('/', verifyToken, async (req, res) => {
   try {
     // Prima prendi tutti i kit
@@ -80,7 +82,7 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// GET single kit
+// ========== GET single kit ==========
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const [kitRows] = await db.query('SELECT * FROM kit WHERE id = ?', [req.params.id]);
@@ -99,11 +101,11 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST create kit
+// ========== POST create kit ==========
 router.post('/', verifyToken, async (req, res) => {
   const { magazzino, note, destinazioneTipo, destinazioneId, dettagli } = req.body;
   if (!magazzino || !dettagli || !dettagli.length) {
-    return res.status(400).json({ success: false, message: 'Dati incompleti' });
+    return res.status(400).json({ success: false, message: 'Dati incompleti (magazzino e almeno un componente)' });
   }
 
   const connection = await db.getConnection();
@@ -118,7 +120,7 @@ router.post('/', verifyToken, async (req, res) => {
     const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
     const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
 
-    // Inserisci kit
+    // Inserisci kit (intestazione)
     const [kitResult] = await connection.query(
       `INSERT INTO kit (codice_kit, descrizione, quantita, magazzino, note, data_creazione, data_modifica)
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
@@ -162,19 +164,20 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT update kit
+// ========== PUT update kit ==========
 router.put('/:id', verifyToken, async (req, res) => {
   const { magazzino, note, dettagli } = req.body;
   const connection = await db.getConnection();
   await connection.beginTransaction();
 
   try {
-    // Recupera i dettagli attuali
+    // Recupera i dettagli attuali del kit
     const [oldDetails] = await connection.query(
       'SELECT * FROM kit_dettaglio WHERE kit_id = ? FOR UPDATE',
       [req.params.id]
     );
 
+    // Crea mappe per confronto (chiave: tipo|articolo_id|sigla_id)
     const oldMap = new Map();
     for (const d of oldDetails) {
       const key = `${d.tipo_articolo}|${d.articolo_id}|${d.sigla_id || ''}`;
@@ -190,6 +193,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     for (const [key, old] of oldMap.entries()) {
       const newItem = newMap.get(key);
       if (!newItem) {
+        // componente rimosso completamente
         await rilasciaArticolo(connection, old.articolo_id, old.quantita);
         await connection.query('DELETE FROM kit_dettaglio WHERE id = ?', [old.id]);
       } else if (old.quantita !== newItem.quantita) {
@@ -203,7 +207,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       }
     }
 
-    // Aggiungi i nuovi
+    // Aggiungi i nuovi componenti
     for (const [key, newItem] of newMap.entries()) {
       if (!oldMap.has(key)) {
         await consumaArticolo(connection, newItem.articolo_id, newItem.quantita);
@@ -223,7 +227,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     );
 
     await connection.commit();
-    res.json({ success: true, message: 'Kit aggiornato' });
+    res.json({ success: true, message: 'Kit aggiornato con successo' });
   } catch (err) {
     await connection.rollback();
     console.error('Errore PUT /kit:', err);
@@ -233,11 +237,12 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE kit
+// ========== DELETE kit ==========
 router.delete('/:id', verifyToken, async (req, res) => {
   const connection = await db.getConnection();
   await connection.beginTransaction();
   try {
+    // Rilascia tutti i componenti del kit
     const [dettagli] = await connection.query('SELECT * FROM kit_dettaglio WHERE kit_id = ?', [req.params.id]);
     for (const d of dettagli) {
       await rilasciaArticolo(connection, d.articolo_id, d.quantita);
