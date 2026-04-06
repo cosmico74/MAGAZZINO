@@ -659,11 +659,34 @@ async function getDettagliSciKit(kitId) {
 
 const dettagliSciCache = new Map();
 
+const dettagliSciCache = new Map();
+
 async function getDettagliSciKit(kitId) {
-  if (dettagliSciCache.has(kitId)) return dettagliSciCache.get(kitId);
-  // ... resto della funzione
-  dettagliSciCache.set(kitId, risultato);
-  return risultato;
+  if (dettagliSciCache.has(kitId)) {
+    return dettagliSciCache.get(kitId);
+  }
+  try {
+    const kit = await apiFetch(`/api/kit/${kitId}`);
+    let sigla = '';
+    let lunghezza = '';
+    if (kit.dettagli && kit.dettagli.length) {
+      const sciDetail = kit.dettagli.find(d => d.tipo_articolo === 'SCI');
+      if (sciDetail) {
+        sigla = sciDetail.sigla || '';
+        lunghezza = sciDetail.lunghezza || '';
+        if (!lunghezza && sciDetail.articolo_id) {
+          const art = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
+          lunghezza = art.lunghezza || '';
+        }
+      }
+    }
+    const risultato = { sigla, lunghezza };
+    dettagliSciCache.set(kitId, risultato);
+    return risultato;
+  } catch(e) {
+    console.warn(`Errore recupero dettagli sci per kit ${kitId}`, e);
+    return { sigla: '', lunghezza: '' };
+  }
 }
 
 function renderAssegnazioniGrouped(oggetti) {
