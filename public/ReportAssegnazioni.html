@@ -464,128 +464,122 @@
   }
 
   // ========== OGGETTI INVIATI (con passaggi successivi) ==========
-  async function getOggettiInviatiConPassaggi(tipoSogg, idSogg) {
-    // Usa l'endpoint generico /api/movimenti con filtri provenienza
-    const params = new URLSearchParams();
-    params.append('tipo', 'USCITA');
-    params.append('provenienza_tipo', tipoSogg);
-    params.append('provenienza_id', idSogg);
-    if (filtroTipo.value) params.append('tipo_oggetto', filtroTipo.value);
-    // Se l'endpoint /api/movimenti/uscita/soggetto non esiste, usiamo /api/movimenti
-    let movimenti = [];
-    try {
-      const res = await apiFetch(`/api/movimenti?${params.toString()}`);
-      movimenti = res.success ? res.data : [];
-    } catch(e) {
-      console.warn("Endpoint /api/movimenti con filtri fallito, provo /api/movimenti/uscita/soggetto");
-      try {
-        const res2 = await apiFetch(`/api/movimenti/uscita/soggetto?${params.toString()}`);
-        movimenti = res2.success ? res2.data : [];
-      } catch(e2) { console.error(e2); }
-    }
-    
-    const mappa = new Map(); // key = tipo|id oggetto
-    for (const mov of movimenti) {
-      const key = `${mov.tipo_oggetto}|${mov.id_articolo_kit}`;
-      if (!mappa.has(key)) {
-        // Recupera dettagli oggetto
-        let dettaglio = null;
-        if (mov.tipo_oggetto === 'ARTICOLO') {
-          const art = await apiFetch(`/api/articoli/${mov.id_articolo_kit}`);
-          dettaglio = {
-            id: mov.id_articolo_kit,
-            tipo: 'ARTICOLO',
-            codice: art.codice,
-            descrizione: art.descrizione_completa,
-            quantita: mov.quantita,
-            sigla: art.sigla,
-            passaggi: []
-          };
-        } else {
-          const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
-          const dettagliSci = await getDettagliSciKit(mov.id_articolo_kit);
-          dettaglio = {
-            id: mov.id_articolo_kit,
-            tipo: 'KIT',
-            codice: kit.codice_kit,
-            descrizione: kit.descrizione,
-            quantita: mov.quantita,
-            sigla: dettagliSci.sigla,
-            siglaSci: dettagliSci.sigla,
-            lunghezzaSci: dettagliSci.lunghezza,
-            passaggi: []
-          };
-        }
-        mappa.set(key, dettaglio);
-      }
-      const obj = mappa.get(key);
-      // Costruisci il nome del destinatario
-      let destinatarioNome = mov.a_magazzino;
-      if (mov.a_magazzino && mov.a_magazzino.includes('-')) {
-        const parts = mov.a_magazzino.split('-');
-        const destTipo = parts[0];
-        const destId = parseInt(parts[1]);
-        destinatarioNome = await getNomeSoggetto(destTipo, destId);
-      }
-      const passaggio = {
-        destinatario: destinatarioNome,
-        data: mov.data,
-        note: mov.note
-      };
-      obj.passaggi.push(passaggio);
-      
-      // Ora cerca se il destinatario ha ulteriormente trasferito lo stesso oggetto (secondo livello)
-      const destMatch = mov.a_magazzino ? mov.a_magazzino.match(/([A-Z]+)-(\d+)/) : null;
-      if (destMatch) {
-        const destTipo = destMatch[1];
-        const destId = parseInt(destMatch[2]);
-        const params2 = new URLSearchParams();
-        params2.append('tipo', 'USCITA');
-        params2.append('provenienza_tipo', destTipo);
-        params2.append('provenienza_id', destId);
-        params2.append('tipo_oggetto', mov.tipo_oggetto);
-        params2.append('id_articolo_kit', mov.id_articolo_kit);
-        let passaggiSuccessivi = [];
-        try {
-          const res2 = await apiFetch(`/api/movimenti?${params2.toString()}`);
-          passaggiSuccessivi = res2.success ? res2.data : [];
-        } catch(e) { /* ignora */ }
-        for (const ps of passaggiSuccessivi) {
-          let dest2Nome = ps.a_magazzino;
-          if (ps.a_magazzino && ps.a_magazzino.includes('-')) {
-            const parts2 = ps.a_magazzino.split('-');
-            const dest2Tipo = parts2[0];
-            const dest2Id = parseInt(parts2[1]);
-            dest2Nome = await getNomeSoggetto(dest2Tipo, dest2Id);
-          }
-          obj.passaggi.push({
-            destinatario: dest2Nome,
-            data: ps.data,
-            note: ps.note,
-            secondoLivello: true
-          });
-        }
-      }
-    }
-    
-    // Arricchisci con siglaSci e lunghezzaSci per i kit
-    const risultati = [];
-    for (const obj of mappa.values()) {
-      if (obj.tipo === 'KIT') {
-        if (!obj.siglaSci) {
-          const dettagli = await getDettagliSciKit(obj.id);
-          obj.siglaSci = dettagli.sigla;
-          obj.lunghezzaSci = dettagli.lunghezza;
-        }
-      } else {
-        obj.siglaSci = obj.sigla || '';
-        obj.lunghezzaSci = '';
-      }
-      risultati.push(obj);
-    }
-    return risultati;
+async function getOggettiInviatiConPassaggi(tipoSogg, idSogg) {
+  // Cerchiamo movimenti USCITA dove da_magazzino = "PROMOTER-1" (o il tipo soggetto)
+  const params = new URLSearchParams();
+  params.append('tipo', 'USCITA');
+  params.append('da_magazzino', `${tipoSogg}-${idSogg}`);
+  if (filtroTipo.value) params.append('tipo_oggetto', filtroTipo.value);
+  
+  let movimenti = [];
+  try {
+    const res = await apiFetch(`/api/movimenti?${params.toString()}`);
+    movimenti = res.success ? res.data : [];
+  } catch(e) {
+    console.error('Errore recupero movimenti uscita:', e);
+    return [];
   }
-
+  
+  const mappa = new Map(); // key = tipo|id oggetto
+  for (const mov of movimenti) {
+    const key = `${mov.tipo_oggetto}|${mov.id_articolo_kit}`;
+    if (!mappa.has(key)) {
+      // Recupera dettagli oggetto
+      let dettaglio = null;
+      if (mov.tipo_oggetto === 'ARTICOLO') {
+        const art = await apiFetch(`/api/articoli/${mov.id_articolo_kit}`);
+        dettaglio = {
+          id: mov.id_articolo_kit,
+          tipo: 'ARTICOLO',
+          codice: art.codice,
+          descrizione: art.descrizione_completa,
+          quantita: mov.quantita,
+          sigla: art.sigla,
+          passaggi: []
+        };
+      } else {
+        const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
+        const dettagliSci = await getDettagliSciKit(mov.id_articolo_kit);
+        dettaglio = {
+          id: mov.id_articolo_kit,
+          tipo: 'KIT',
+          codice: kit.codice_kit,
+          descrizione: kit.descrizione,
+          quantita: mov.quantita,
+          sigla: dettagliSci.sigla,
+          siglaSci: dettagliSci.sigla,
+          lunghezzaSci: dettagliSci.lunghezza,
+          passaggi: []
+        };
+      }
+      mappa.set(key, dettaglio);
+    }
+    const obj = mappa.get(key);
+    // Costruisci il nome del destinatario da a_magazzino
+    let destinatarioNome = mov.a_magazzino;
+    if (mov.a_magazzino && mov.a_magazzino.includes('-')) {
+      const parts = mov.a_magazzino.split('-');
+      const destTipo = parts[0];
+      const destId = parseInt(parts[1]);
+      destinatarioNome = await getNomeSoggetto(destTipo, destId);
+    }
+    const passaggio = {
+      destinatario: destinatarioNome,
+      data: mov.data,
+      note: mov.note
+    };
+    obj.passaggi.push(passaggio);
+    
+    // Ora cerca se il destinatario ha ulteriormente trasferito lo stesso oggetto (secondo livello)
+    const destMatch = mov.a_magazzino ? mov.a_magazzino.match(/([A-Z]+)-(\d+)/) : null;
+    if (destMatch) {
+      const destTipo = destMatch[1];
+      const destId = parseInt(destMatch[2]);
+      const params2 = new URLSearchParams();
+      params2.append('tipo', 'USCITA');
+      params2.append('da_magazzino', `${destTipo}-${destId}`);
+      params2.append('tipo_oggetto', mov.tipo_oggetto);
+      params2.append('id_articolo_kit', mov.id_articolo_kit);
+      let passaggiSuccessivi = [];
+      try {
+        const res2 = await apiFetch(`/api/movimenti?${params2.toString()}`);
+        passaggiSuccessivi = res2.success ? res2.data : [];
+      } catch(e) { /* ignora */ }
+      for (const ps of passaggiSuccessivi) {
+        let dest2Nome = ps.a_magazzino;
+        if (ps.a_magazzino && ps.a_magazzino.includes('-')) {
+          const parts2 = ps.a_magazzino.split('-');
+          const dest2Tipo = parts2[0];
+          const dest2Id = parseInt(parts2[1]);
+          dest2Nome = await getNomeSoggetto(dest2Tipo, dest2Id);
+        }
+        obj.passaggi.push({
+          destinatario: dest2Nome,
+          data: ps.data,
+          note: ps.note,
+          secondoLivello: true
+        });
+      }
+    }
+  }
+  
+  // Arricchisci con siglaSci e lunghezzaSci per i kit
+  const risultati = [];
+  for (const obj of mappa.values()) {
+    if (obj.tipo === 'KIT') {
+      if (!obj.siglaSci) {
+        const dettagli = await getDettagliSciKit(obj.id);
+        obj.siglaSci = dettagli.sigla;
+        obj.lunghezzaSci = dettagli.lunghezza;
+      }
+    } else {
+      obj.siglaSci = obj.sigla || '';
+      obj.lunghezzaSci = '';
+    }
+    risultati.push(obj);
+  }
+  return risultati;
+}
   // ========== RENDER ==========
   function renderOggettiRicevuti(oggetti, soggettoNome) {
     const container = document.getElementById('oggettiRicevutiTable');
