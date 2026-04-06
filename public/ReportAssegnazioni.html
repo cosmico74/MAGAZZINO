@@ -195,12 +195,12 @@
 
   <div id="reportContent" class="density-medium">
     <div class="report-section">
-      <h2>📦 Oggetti ricevuti / in carico a <span id="soggettoRicevutoNome"></span></h2>
-      <div id="oggettiRicevutiTable"></div>
+      <h2>📦 Oggetti attualmente in carico a <span id="soggettoNome"></span></h2>
+      <div id="oggettiInCaricoTable"></div>
     </div>
 
     <div class="report-section" id="oggettiInviatiSection" style="display: none;">
-      <h2>📤 Oggetti inviati da <span id="soggettoInviatiNome"></span> (con eventuali passaggi successivi)</h2>
+      <h2>📤 Oggetti trasferiti da <span id="soggettoInviatiNome"></span> (con passaggi successivi)</h2>
       <div id="oggettiInviatiTable"></div>
     </div>
   </div>
@@ -329,16 +329,16 @@
     }
   }
 
-  // ========== OGGETTI RICEVUTI / IN CARICO ==========
-  async function getOggettiRicevuti(tipoSogg, idSogg) {
-    const resCarico = await apiFetch('/api/assegnazioni/oggetti', { 
+  // ========== OGGETTI IN CARICO (DA carico_sintesi) ==========
+  async function getOggettiInCarico(tipoSogg, idSogg) {
+    const res = await apiFetch('/api/assegnazioni/oggetti', { 
       method: 'POST', 
       body: JSON.stringify({ targetTipo: tipoSogg, targetId: parseInt(idSogg) })
     });
-    const carico = resCarico.success ? resCarico.oggetti : [];
+    let oggetti = res.success ? res.oggetti : [];
     
-    // Arricchisci con dati dello sci per i kit e con provenienza
-    for (const obj of carico) {
+    // Arricchisci con sigla e lunghezza dello sci per i kit
+    for (const obj of oggetti) {
       if (obj.tipo === 'KIT') {
         const dettagli = await getDettagliSciKit(obj.ID);
         obj.siglaSci = dettagli.sigla;
@@ -347,78 +347,66 @@
         obj.siglaSci = obj.SIGLA || '';
         obj.lunghezzaSci = obj.LUNGHEZZA || '';
       }
-      // Recupera il movimento di arrivo (provenienza)
-      const params = new URLSearchParams();
-      params.append('tipo', 'USCITA');
-      params.append('tipo_oggetto', obj.tipo);
-      params.append('id_articolo_kit', obj.ID);
-      params.append('a_magazzino', `${tipoSogg}-${idSogg}`);
-      params.append('_order', 'DESC');
-      params.append('_limit', '1');
-      const resMov = await apiFetch(`/api/movimenti?${params.toString()}`);
-      const arrivo = resMov.success && resMov.data.length ? resMov.data[0] : null;
-      if (arrivo && arrivo.da_magazzino) {
-        const daMatch = arrivo.da_magazzino.match(/([A-Z]+)-(\d+)/);
-        if (daMatch) {
-          const daTipo = daMatch[1];
-          const daId = parseInt(daMatch[2]);
-          if (daTipo === 'MAGAZZINO') {
-            const mag = magazzini.find(m => m[magazzinoKey] == daId);
-            obj.provenienza = mag ? `Magazzino ${mag.nome}` : `Magazzino ${daId}`;
-          } else {
-            obj.provenienza = await getNomeSoggetto(daTipo, daId);
-          }
-          obj.dataArrivo = arrivo.data;
-        }
-      }
+      // Aggiungi il nome del soggetto (destinatario) per comodità
+      obj.destinatarioNome = await getNomeSoggetto(tipoSogg, idSogg);
     }
-    return carico;
+    return oggetti;
   }
 
-  // ========== OGGETTI INVIATI (con passaggi successivi) ==========
-  async function getOggettiInviatiConPassaggi(tipoSogg, idSogg) {
-    // Trova tutte le USCITE dove il soggetto è il mittente (provenienza)
+  // ========== OGGETTI INVIATI (movimenti USCITA dal soggetto) ==========
+  async function getOggettiInviati(tipoSogg, idSogg) {
     const params = new URLSearchParams();
-    params.append('tipo', 'USCITA');
     params.append('provenienza_tipo', tipoSogg);
     params.append('provenienza_id', idSogg);
     if (filtroTipo.value) params.append('tipo_oggetto', filtroTipo.value);
     const res = await apiFetch(`/api/movimenti/uscita/soggetto?${params.toString()}`);
-    const uscite = res.success ? res.data : [];
+    const movimenti = res.success ? res.data : [];
     
-    const mappa = new Map(); // key = tipo|id oggetto
-    for (const uscita of uscite) {
-      const key = `${uscita.tipo_oggetto}|${uscita.id_oggetto}`;
+    // Raggruppa per oggetto
+    const mappa = new Map();
+    for (const mov of movimenti) {
+      const key = `${mov.tipo_oggetto}|${mov.id_oggetto}`;
       if (!mappa.has(key)) {
+        // Recupera dettagli oggetto (descrizione, codice, sigla sci)
+        let descrizione = mov.descrizione;
+        let codice = mov.codice;
+        let siglaSci = mov.sigla || '';
+        let lunghezzaSci = '';
+        if (mov.tipo_oggetto === 'KIT') {
+          const dettagli = await getDettagliSciKit(mov.id_oggetto);
+          siglaSci = dettagli.sigla;
+          lunghezzaSci = dettagli.lunghezza;
+          descrizione = mov.descrizione; // già presente
+          codice = mov.codice;
+        }
         mappa.set(key, {
-          id: uscita.id_oggetto,
-          tipo: uscita.tipo_oggetto,
-          codice: uscita.codice,
-          descrizione: uscita.descrizione,
-          quantita: uscita.quantita,
-          sigla: uscita.sigla,
+          id: mov.id_oggetto,
+          tipo: mov.tipo_oggetto,
+          codice: codice,
+          descrizione: descrizione,
+          siglaSci: siglaSci,
+          lunghezzaSci: lunghezzaSci,
+          quantita: mov.quantita,
           passaggi: []
         });
       }
-      // Aggiungi questo passaggio
-      const passaggio = {
-        destinatario: uscita.destinazione,
-        data: uscita.data,
-        note: uscita.note
-      };
-      mappa.get(key).passaggi.push(passaggio);
+      // Aggiungi il passaggio corrente
+      mappa.get(key).passaggi.push({
+        destinatario: mov.destinazione,
+        data: mov.data,
+        note: mov.note
+      });
       
-      // Ora cerca se il destinatario ha ulteriormente trasferito lo stesso oggetto
-      const destMatch = uscita.destinazione ? uscita.destinazione.match(/([A-Z]+)-(\d+)/) : null;
+      // Cerca se il destinatario ha ulteriormente trasferito l'oggetto (secondo livello)
+      const destMatch = mov.destinazione ? mov.destinazione.match(/([A-Z]+)-(\d+)/) : null;
       if (destMatch) {
         const destTipo = destMatch[1];
         const destId = parseInt(destMatch[2]);
         const params2 = new URLSearchParams();
-        params2.append('tipo', 'USCITA');
         params2.append('provenienza_tipo', destTipo);
         params2.append('provenienza_id', destId);
-        params2.append('tipo_oggetto', uscita.tipo_oggetto);
-        params2.append('id_articolo_kit', uscita.id_oggetto);
+        params2.append('tipo_oggetto', mov.tipo_oggetto);
+        params2.append('id_articolo_kit', mov.id_oggetto);
         const res2 = await apiFetch(`/api/movimenti/uscita/soggetto?${params2.toString()}`);
         const passaggiSuccessivi = res2.success ? res2.data : [];
         for (const ps of passaggiSuccessivi) {
@@ -431,38 +419,23 @@
         }
       }
     }
-    
-    // Arricchisci con dettagli sci per i kit
-    const risultati = [];
-    for (const obj of mappa.values()) {
-      if (obj.tipo === 'KIT') {
-        const dettagli = await getDettagliSciKit(obj.id);
-        obj.siglaSci = dettagli.sigla;
-        obj.lunghezzaSci = dettagli.lunghezza;
-      } else {
-        obj.siglaSci = obj.sigla || '';
-        obj.lunghezzaSci = '';
-      }
-      risultati.push(obj);
-    }
-    return risultati;
+    return Array.from(mappa.values());
   }
 
   // ========== RENDER ==========
-  function renderOggettiRicevuti(oggetti, soggettoNome) {
-    const container = document.getElementById('oggettiRicevutiTable');
-    document.getElementById('soggettoRicevutoNome').innerText = soggettoNome;
+  function renderOggettiInCarico(oggetti, soggettoNome) {
+    const container = document.getElementById('oggettiInCaricoTable');
+    document.getElementById('soggettoNome').innerText = soggettoNome;
     if (!oggetti.length) {
-      container.innerHTML = '<p>Nessun oggetto ricevuto / in carico.</p>';
+      container.innerHTML = '<p>Nessun oggetto attualmente in carico a questo soggetto.</p>';
       return;
     }
-    let html = `<table><thead><tr>`;
-    html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th><th>Provenienza</th><th>Data arrivo</th>`;
+    let html = `<tr><thead><tr>`;
+    html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th>`;
     html += `</tr></thead><tbody>`;
     for (const item of oggetti) {
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : (item.LUNGHEZZA || '-');
-      const giacenza = item.quantita; // in carico
       html += `<tr>`;
       html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
       html += `<td>${codiceMostrato}</td>`;
@@ -471,9 +444,6 @@
       html += `<td>${item.DUREZZA || '-'}</td>`;
       html += `<td>${item.SIGLA || '-'}</td>`;
       html += `<td>${item.quantita}</td>`;
-      html += `<td>${giacenza}</td>`;
-      html += `<td>${item.provenienza || '-'}</td>`;
-      html += `<td>${item.dataArrivo ? new Date(item.dataArrivo).toLocaleString() : '-'}</td>`;
       html += `</tr>`;
     }
     html += `</tbody></table>`;
@@ -519,26 +489,25 @@
     const tipoSogg = soggettoTipo.value;
     const idSogg = soggettoId.value;
     if (!tipoSogg || !idSogg) {
-      document.getElementById('oggettiRicevutiTable').innerHTML = '<p>Seleziona un soggetto.</p>';
+      document.getElementById('oggettiInCaricoTable').innerHTML = '<p>Seleziona un soggetto.</p>';
       document.getElementById('oggettiInviatiSection').style.display = 'none';
       return;
     }
     const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
     
-    // Carica oggetti ricevuti
-    const ricevuti = await getOggettiRicevuti(tipoSogg, idSogg);
+    // Carica oggetti in carico
+    let inCarico = await getOggettiInCarico(tipoSogg, idSogg);
     // Applica filtri
-    let filtratiRicevuti = ricevuti;
-    if (filtroTipo.value) filtratiRicevuti = filtratiRicevuti.filter(o => o.tipo === filtroTipo.value);
-    if (filtroDesc.value) filtratiRicevuti = filtratiRicevuti.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
-    if (filtroLung.value) filtratiRicevuti = filtratiRicevuti.filter(o => (o.lunghezzaSci || o.LUNGHEZZA) == filtroLung.value);
-    if (filtroDur.value) filtratiRicevuti = filtratiRicevuti.filter(o => o.DUREZZA == filtroDur.value);
-    if (filtroSigla.value) filtratiRicevuti = filtratiRicevuti.filter(o => (o.siglaSci || o.SIGLA)?.toLowerCase() === filtroSigla.value.toLowerCase());
+    if (filtroTipo.value) inCarico = inCarico.filter(o => o.tipo === filtroTipo.value);
+    if (filtroDesc.value) inCarico = inCarico.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
+    if (filtroLung.value) inCarico = inCarico.filter(o => (o.lunghezzaSci || o.LUNGHEZZA) == filtroLung.value);
+    if (filtroDur.value) inCarico = inCarico.filter(o => o.DUREZZA == filtroDur.value);
+    if (filtroSigla.value) inCarico = inCarico.filter(o => (o.siglaSci || o.SIGLA)?.toLowerCase() === filtroSigla.value.toLowerCase());
     
-    renderOggettiRicevuti(filtratiRicevuti, soggettoNome);
+    renderOggettiInCarico(inCarico, soggettoNome);
     
     // Carica oggetti inviati
-    const inviati = await getOggettiInviatiConPassaggi(tipoSogg, idSogg);
+    const inviati = await getOggettiInviati(tipoSogg, idSogg);
     renderOggettiInviati(inviati, soggettoNome);
   }
 
