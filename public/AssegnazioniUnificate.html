@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - con Sigle e Modifica Singola</title>
+  <title>📦 Assegnazioni e Rientri - con Sigle</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -175,7 +175,7 @@
       background: white;
       border-radius: 12px;
       width: 90%;
-      max-width: 600px;
+      max-width: 700px;
       max-height: 80vh;
       overflow-y: auto;
       padding: 20px;
@@ -185,6 +185,12 @@
       justify-content: flex-end;
       gap: 10px;
       margin-top: 15px;
+    }
+    .sigla-select {
+      width: 180px;
+      padding: 4px;
+      font-size: 0.8rem;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -292,10 +298,10 @@
     <table id="tabellaOggetti">
       <thead>
          <th style="width:30px"><input type="checkbox" id="selectAll"></th>
-         <th>Codice / Sigle Sci</th>
-         <th>Descrizione</th>
+         <th>Codice / Descrizione</th>
          <th>Disponibile</th>
          <th>Quantità</th>
+         <th>Sigla</th>
          <th>Assegnato a</th>
          <th>Azioni</th>
       </thead>
@@ -391,9 +397,8 @@
   let magazzini = [], settori = [], marche = [];
   let oggetti = [];
   let magazzinoKey = 'id';
-  let currentEditObj = null; // oggetto in modifica
+  let currentEditObj = null;
 
-  // Elementi DOM
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
   const magazzinoGroup = document.getElementById('magazzinoGroup');
@@ -412,13 +417,12 @@
   const rientroBtn = document.getElementById('rientroBtn');
   const destinazioneRow = document.getElementById('destinazioneRow');
 
-  // Elementi admin per sorgente
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
 
-  // ---------- CARICAMENTO ANAGRAFICHE ----------
+  // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
@@ -460,45 +464,25 @@
     }
   }
 
-  // ---------- CARICA SORGENTI PER ADMIN ----------
-  async function caricaSorgentiAdmin() {
-    const tipo = sourceTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      sourceId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        sourceId.appendChild(new Option(testo, item.id));
-      });
-      if (sourceId.options.length > 1 && !sourceId.value) {
-        sourceId.selectedIndex = 1;
-      }
-      if (radioCarico.checked) {
-        await caricaOggettiInCarico();
-      }
-    } catch (err) {
-      console.error(err);
-      showMessage('Errore caricamento sorgenti: ' + err.message, 'error');
+  // ========== FUNZIONI PER OTTENERE SIGLE ==========
+  async function getSiglePerOggetto(obj) {
+    if (obj.tipo === 'ARTICOLO') {
+      try {
+        const sigle = await apiFetch(`/api/articoli/${obj.id}/sigle`);
+        return sigle;
+      } catch(e) { return []; }
+    } else if (obj.tipo === 'KIT') {
+      try {
+        const kitDetails = await apiFetch(`/api/kit/${obj.id}`);
+        const sciDetail = kitDetails.dettagli?.find(d => d.tipo_articolo === 'SCI');
+        if (sciDetail && sciDetail.sigla_id) {
+          const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
+          return sigle;
+        }
+        return [];
+      } catch(e) { return []; }
     }
-  }
-
-  // ---------- DESTINAZIONI (batch) ----------
-  async function caricaDestinazioni() {
-    const tipo = destinazioneTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destinazioneId.appendChild(new Option(testo, item.id));
-      });
-      if (destinazioneId.options.length > 1 && !destinazioneId.value) {
-        destinazioneId.selectedIndex = 1;
-      }
-    } catch (err) {
-      console.error(err);
-      showMessage('Errore caricamento destinazioni: ' + err.message, 'error');
-    }
+    return [];
   }
 
   // ---------- CARICAMENTO DAL MAGAZZINO ----------
@@ -527,10 +511,8 @@
         const resArticoli = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
         let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
         for (let a of articoli) {
-          try {
-            const sigle = await apiFetch(`/api/articoli/${a.id}/sigle`);
-            a.sigleDisponibili = sigle;
-          } catch(e) { a.sigleDisponibili = []; }
+          const sigle = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: a.id });
+          a.sigleDisponibili = sigle;
         }
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
@@ -540,15 +522,10 @@
         let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
         kits = kits.filter(k => k.magazzino == magId);
         for (let k of kits) {
-          try {
-            // Recupera sigle dello sci dal kit
-            const sigle = await getSigleKit(k.id);
-            k.sigleDisponibili = sigle;
-            // Recupera la descrizione delle sigle per visualizzazione
-            k.sigleTesto = sigle.map(s => s.sigla).join(', ');
-          } catch(e) { k.sigleDisponibili = []; k.sigleTesto = '-'; }
+          const sigle = await getSiglePerOggetto({ tipo: 'KIT', id: k.id });
+          k.sigleDisponibili = sigle;
         }
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino', sigleTesto: k.sigleTesto || '-' })));
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
 
       oggetti = lista.map(item => ({
@@ -557,35 +534,15 @@
         codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit,
         descrizione: item.descrizione,
         disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
-        sigleTesto: item.tipo === 'KIT' ? (item.sigleTesto || '-') : (item.sigle ? item.sigle : '-'),
+        sigleDisponibili: item.sigleDisponibili || [],
         destinatarioNome: 'Magazzino',
-        tipoAssegnazione: 'me',
-        referenteDa: null
+        tipoAssegnazione: 'me'
       }));
       popolaTabella();
       assegnaBtn.disabled = false;
     } catch (err) {
       console.error(err);
       showMessage('Errore caricamento oggetti: ' + err.message, 'error');
-    }
-  }
-
-  // Helper per ottenere le sigle di un kit
-  async function getSigleKit(kitId) {
-    try {
-      const [rows] = await pool.query?.(`SELECT d.sigla_id, s.sigla, s.durezza, s.lunghezza 
-        FROM kit_dettaglio d 
-        LEFT JOIN sigle_articoli s ON d.sigla_id = s.id 
-        WHERE d.kit_id = ? AND d.tipo_articolo = 'SCI'`, [kitId]);
-      return rows;
-    } catch(e) {
-      // Fallback: chiamata API
-      const kitDetails = await apiFetch(`/api/kit/${kitId}`);
-      const sciDetail = kitDetails.dettagli?.find(d => d.tipo_articolo === 'SCI');
-      if (sciDetail && sciDetail.sigla) {
-        return [{ sigla: sciDetail.sigla, id: sciDetail.sigla_id }];
-      }
-      return [];
     }
   }
 
@@ -630,13 +587,13 @@
         if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
         if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
         
-        // Per ogni oggetto, se è kit, recupera le sigle dello sci
         for (let obj of tutti) {
           if (obj.tipo === 'KIT') {
-            const sigle = await getSigleKit(obj.ID);
-            obj.sigleTesto = sigle.map(s => s.sigla).join(', ') || '-';
+            const sigle = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
+            obj.sigleDisponibili = sigle;
           } else {
-            obj.sigleTesto = obj.SIGLA_CORRENTE || '-';
+            const sigle = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
+            obj.sigleDisponibili = sigle;
           }
         }
         
@@ -646,7 +603,7 @@
           codice: obj.codice,
           descrizione: obj.descrizione,
           disponibile: obj.quantita,
-          sigleTesto: obj.sigleTesto || '-',
+          sigleDisponibili: obj.sigleDisponibili || [],
           destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome || ''} ${obj.destinatario_cognome || ''}`.trim() : (obj.destinatario_nome || 'Magazzino')),
           tipoAssegnazione: obj.tipoAssegnazione,
           referenteDa: obj.referenteDa,
@@ -664,7 +621,7 @@
     }
   }
 
-  // ---------- POPOLA TABELLA (con sigle testo e pulsante modifica) ----------
+  // ---------- POPOLA TABELLA (con select per sigla) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) {
@@ -685,12 +642,9 @@
       
       row.insertCell(0).appendChild(cb);
       
-      // Colonna "Codice / Sigle Sci"
-      const cellCodice = row.insertCell(1);
-      cellCodice.innerText = obj.codice ? `${obj.codice} - ${obj.sigleTesto}` : obj.sigleTesto;
-      
-      row.insertCell(2).innerText = obj.descrizione;
-      row.insertCell(3).innerText = obj.disponibile;
+      // Codice / Descrizione
+      row.insertCell(1).innerText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
+      row.insertCell(2).innerText = obj.disponibile;
       
       const qtaInput = document.createElement('input');
       qtaInput.type = 'number';
@@ -699,9 +653,36 @@
       qtaInput.value = 1;
       qtaInput.style.width = '80px';
       if (isDisabled) qtaInput.disabled = true;
-      row.insertCell(4).appendChild(qtaInput);
+      row.insertCell(3).appendChild(qtaInput);
       
-      // Colonna "Assegnato a"
+      // Sigla (select)
+      const cellSigla = row.insertCell(4);
+      if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
+        const select = document.createElement('select');
+        select.className = 'sigla-select';
+        select.innerHTML = '<option value="">Nessuna sigla</option>';
+        obj.sigleDisponibili.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          let testo = s.sigla;
+          if (s.durezza) testo += ` (${s.durezza})`;
+          if (s.lunghezza) testo += ` - ${s.lunghezza}cm`;
+          opt.textContent = testo;
+          select.appendChild(opt);
+        });
+        if (obj.siglaId && obj.sigleDisponibili.some(s => s.id == obj.siglaId)) {
+          select.value = obj.siglaId;
+        }
+        select.addEventListener('change', (e) => {
+          obj.selectedSiglaId = e.target.value ? parseInt(e.target.value) : null;
+        });
+        cellSigla.appendChild(select);
+      } else {
+        cellSigla.innerText = '-';
+        obj.selectedSiglaId = null;
+      }
+      
+      // Assegnato a
       let assegnatoANome = obj.destinatarioNome;
       if (isReferenced && obj.referenteDa) {
         assegnatoANome = `${obj.destinatarioNome} (in carico a referente)`;
@@ -710,7 +691,7 @@
       }
       row.insertCell(5).innerText = assegnatoANome;
       
-      // Colonna Azioni
+      // Azioni
       const cellAzioni = row.insertCell(6);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
@@ -749,13 +730,26 @@
     document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
   }
 
-  // ---------- MODIFICA SINGOLA ASSEGNAZIONE ----------
+  // ---------- MODIFICA SINGOLA (con sigla) ----------
   function apriModificaSingola(idx) {
     const obj = oggetti[idx];
-    currentEditObj = { ...obj, idx }; // copia
+    currentEditObj = { ...obj, idx, selectedSiglaId: obj.selectedSiglaId || obj.siglaId || null };
     const modal = document.getElementById('editAssignmentModal');
     const content = document.getElementById('editAssignmentContent');
-    // Costruisci form per modificare destinazione e quantità
+    
+    let siglaOptions = '';
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
+      siglaOptions = `<option value="">Nessuna sigla</option>`;
+      obj.sigleDisponibili.forEach(s => {
+        let testo = s.sigla;
+        if (s.durezza) testo += ` (${s.durezza})`;
+        if (s.lunghezza) testo += ` - ${s.lunghezza}cm`;
+        siglaOptions += `<option value="${s.id}" ${currentEditObj.selectedSiglaId == s.id ? 'selected' : ''}>${testo}</option>`;
+      });
+    } else {
+      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    
     content.innerHTML = `
       <div class="form-group">
         <label>Oggetto</label>
@@ -768,6 +762,10 @@
       <div class="form-group">
         <label>Quantità da trasferire/rientrare</label>
         <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Sigla (selezionare se il kit/articolo ha più sigle)</label>
+        <select id="editSiglaId" class="form-control">${siglaOptions}</select>
       </div>
       <div class="form-group">
         <label>Nuova destinazione (solo se trasferisci)</label>
@@ -787,7 +785,6 @@
         <input type="text" id="editNote" class="form-control">
       </div>
     `;
-    // Carica destinazioni per il tipo selezionato
     caricaEditDestinazioni();
     modal.style.display = 'flex';
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
@@ -812,6 +809,7 @@
     const obj = currentEditObj;
     if (!obj) return;
     const qta = parseInt(document.getElementById('editQta').value);
+    const siglaId = document.getElementById('editSiglaId').value;
     const destTipo = document.getElementById('editDestTipo').value;
     const destId = document.getElementById('editDestId').value;
     const note = document.getElementById('editNote').value;
@@ -819,8 +817,6 @@
       showErrorModal('Quantità non valida');
       return;
     }
-    // Determinare l'operazione: se l'oggetto è in carico a un soggetto (destinatarioNome != 'Magazzino'), possiamo trasferirlo o rientrarlo.
-    // Se è in magazzino, possiamo assegnarlo.
     const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
     const magazzinoId = magazzinoSelect.value;
     if (!magazzinoId) {
@@ -828,7 +824,6 @@
       return;
     }
     if (isInMagazzino) {
-      // Assegnazione diretta
       if (!destId) {
         showErrorModal('Seleziona una destinazione');
         return;
@@ -838,7 +833,7 @@
         destinazioneTipo: destTipo,
         destinazioneId: parseInt(destId),
         note: note,
-        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta }]
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }]
       };
       try {
         const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
@@ -851,8 +846,6 @@
         }
       } catch(err) { showErrorModal(err.message); }
     } else {
-      // L'oggetto è già assegnato. Possiamo fare rientro o trasferimento.
-      // Chiediamo all'utente se vuole rientrarlo o trasferirlo? Per semplicità, offriamo trasferimento.
       if (!destId) {
         showErrorModal('Seleziona una destinazione per il trasferimento');
         return;
@@ -864,7 +857,7 @@
         aTipo: destTipo,
         aId: parseInt(destId),
         magazzinoId: parseInt(magazzinoId),
-        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta }],
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
         note: note
       };
       try {
@@ -972,7 +965,7 @@
     await caricaOggetti();
   }
 
-  // ---------- BATCH OPERATIONS ----------
+  // ---------- BATCH OPERATIONS (con sigla) ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -1005,7 +998,9 @@
           if (isNaN(qta) || qta < 1) qta = 1;
           const obj = oggetti[idx];
           if (obj.tipoAssegnazione === 'referente') return;
-          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
+          const selectSigla = row.querySelector('.sigla-select');
+          const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
+          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
         }
       });
       if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -1047,7 +1042,9 @@
         const max = parseInt(qtaInput.max);
         if (qta > max) qta = max;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
+        const selectSigla = row.querySelector('.sigla-select');
+        const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
       }
     });
     if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
@@ -1104,7 +1101,9 @@
         let qta = parseInt(qtaInput.value);
         if (isNaN(qta) || qta < 1) qta = 1;
         const obj = oggetti[idx];
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: null, quantita: qta });
+        const selectSigla = row.querySelector('.sigla-select');
+        const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
       }
     });
     if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto da rientrare', 'error'); return; }
