@@ -654,39 +654,41 @@
     container.innerHTML = html;
   }
 
-  function renderOggettiInviati(oggetti, soggettoNome) {
-    const container = document.getElementById('oggettiInviatiTable');
-    document.getElementById('soggettoInviatiNome').innerText = soggettoNome;
-    if (!oggetti.length) {
-      container.innerHTML = '<p>Nessun oggetto inviato da questo soggetto.</p>';
-      return;
-    }
-    let html = `<td><thead><tr>`;
-    html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>`;
-    html += `</tr></thead><tbody>`;
-    for (const item of oggetti) {
-      const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
-      const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : '';
-      html += `<tr>`;
-      html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-      html += `<td>${codiceMostrato}</td>`;
-      html += `<td>${item.descrizione || '-'}</td>`;
-      html += `<td>${lunghezzaMostrata}</td>`;
-      html += `<td>${item.quantita}</td>`;
-      html += `<td>`;
-      for (let i = 0; i < item.passaggi.length; i++) {
-        const p = item.passaggi[i];
-        let testo = `➡️ ${p.destinatario} (${new Date(p.data).toLocaleDateString()})`;
-        if (p.secondoLivello) testo = `↳ ${testo}`;
-        html += `${testo}<br>`;
-      }
-      html += `</td>`;
-      html += `</tr>`;
-    }
-    html += `</tbody></table>`;
-    container.innerHTML = html;
+function renderOggettiInviati(oggetti, soggettoNome) {
+  const container = document.getElementById('oggettiInviatiTable');
+  document.getElementById('soggettoInviatiNome').innerText = soggettoNome;
+  if (!oggetti.length) {
+    container.innerHTML = '<p>Nessun oggetto inviato da questo soggetto.</p>';
+    return;
   }
-
+  let html = `<table border="1" style="border-collapse: collapse; width: 100%;">`;
+  html += `<thead>`;
+  html += `<tr>`;
+  html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>`;
+  html += `</tr>`;
+  html += `</thead><tbody>`;
+  for (const item of oggetti) {
+    const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
+    const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : '';
+    html += `<tr>`;
+    html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
+    html += `<td>${codiceMostrato}</td>`;
+    html += `<td>${item.descrizione || '-'}</td>`;
+    html += `<td>${lunghezzaMostrata}</td>`;
+    html += `<td>${item.quantita}</td>`;
+    html += `<td>`;
+    for (let i = 0; i < item.passaggi.length; i++) {
+      const p = item.passaggi[i];
+      let testo = `➡️ ${p.destinatario} (${new Date(p.data).toLocaleDateString()})`;
+      if (p.secondoLivello) testo = `↳ ${testo}`;
+      html += `${testo}<br>`;
+    }
+    html += `</td>`;
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
   async function caricaReport() {
     const tipoSogg = soggettoTipo.value;
     const idSogg = soggettoId.value;
