@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri - con Sigle</title>
+  <title>📦 Assegnazioni e Rientri</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -17,26 +17,39 @@
       max-width: 1400px;
       margin: 0 auto;
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
       padding: 25px;
     }
-    h2 { margin-top: 0; border-left: 5px solid #1a73e8; padding-left: 15px; color: #1e2a3a; }
+    h2 {
+      margin-top: 0;
+      border-left: 5px solid #1a73e8;
+      padding-left: 15px;
+      color: #1e2a3a;
+      font-weight: 600;
+    }
     .source-selector {
       background: #f8f9fa;
-      border-radius: 12px;
-      padding: 12px 15px;
+      border-radius: 16px;
+      padding: 12px 20px;
       margin-bottom: 20px;
       display: flex;
-      gap: 20px;
+      gap: 30px;
       align-items: center;
+      border: 1px solid #e2e8f0;
     }
-    .source-option { display: flex; align-items: center; gap: 8px; }
+    .source-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
     .filters {
       background: #f8f9fa;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 20px;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 25px;
+      border: 1px solid #e2e8f0;
     }
     .filter-row {
       display: grid;
@@ -47,72 +60,98 @@
     .filter-group label {
       display: block;
       font-weight: 600;
-      font-size: 0.75rem;
-      margin-bottom: 4px;
+      font-size: 0.7rem;
+      margin-bottom: 5px;
       color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .filter-group input, .filter-group select {
       width: 100%;
-      padding: 6px 10px;
+      padding: 8px 10px;
       border: 1px solid #cbd5e0;
-      border-radius: 8px;
-      font-size: 0.85rem;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      transition: 0.2s;
+    }
+    .filter-group input:focus, .filter-group select:focus {
+      border-color: #1a73e8;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
     }
     .btn {
       background: #1a73e8;
       color: white;
       border: none;
-      padding: 6px 14px;
-      border-radius: 6px;
+      padding: 8px 16px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 0.85rem;
-      transition: background 0.2s;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    .btn:hover { background: #0f5bb5; }
+    .btn:hover { background: #0f5bb5; transform: translateY(-1px); }
     .btn-success { background: #27ae60; }
     .btn-success:hover { background: #219653; }
     .btn-secondary { background: #6c757d; }
     .btn-secondary:hover { background: #5a6268; }
     .btn-warning { background: #f39c12; }
     .btn-warning:hover { background: #e67e22; }
-    .btn-sm { padding: 2px 6px; font-size: 0.7rem; }
+    .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
+    .table-wrapper {
+      overflow-x: auto;
+      margin-bottom: 25px;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      background: white;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 12px;
       text-align: left;
       vertical-align: middle;
     }
-    th { background: #f8f9fa; font-weight: 600; }
-    .table-wrapper { overflow-x: auto; margin-bottom: 20px; }
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    tr:hover td { background: #fefce8; }
     .selected-info {
       background: #e8f0fe;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      font-size: 0.9rem;
+      padding: 10px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      display: inline-block;
+      border-left: 4px solid #1a73e8;
     }
     .message {
       padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
     }
     .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
     .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
     .info { background: #e8f0fe; color: #1a73e8; border-left: 4px solid #1a73e8; }
     .spinner {
       display: inline-block;
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border: 2px solid #e2e8f0;
       border-top-color: #1a73e8;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
-      margin-right: 8px;
+      margin-right: 6px;
       vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -123,7 +162,7 @@
       border-radius: 20px;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .header-bar {
       margin-bottom: 20px;
@@ -139,22 +178,19 @@
     }
     .source-selection {
       background: #f8f9fa;
-      border-radius: 12px;
-      padding: 12px 15px;
+      border-radius: 16px;
+      padding: 12px 20px;
       margin-bottom: 20px;
       display: flex;
       gap: 20px;
       flex-wrap: wrap;
       align-items: flex-end;
-    }
-    .source-selection .form-group {
-      flex: 1;
-      min-width: 150px;
+      border: 1px solid #e2e8f0;
     }
     .action-buttons {
       display: flex;
-      gap: 15px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: 15px;
     }
     .inline-refresh {
       display: flex;
@@ -173,33 +209,33 @@
     }
     .modal-content {
       background: white;
-      border-radius: 12px;
+      border-radius: 20px;
       width: 90%;
-      max-width: 700px;
-      max-height: 80vh;
+      max-width: 650px;
+      max-height: 85vh;
       overflow-y: auto;
-      padding: 20px;
+      padding: 25px;
     }
     .modal-buttons {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 12px;
+      margin-top: 20px;
     }
     .sigla-select {
-      width: 180px;
-      padding: 4px;
-      font-size: 0.8rem;
-      border-radius: 4px;
+      width: 160px;
+      padding: 5px 8px;
+      font-size: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #cbd5e0;
+      background: white;
     }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="header-bar">
-    <div class="logo">
-      <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
-    </div>
+    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;"></div>
     <div style="display: flex; gap: 10px; align-items: center;">
       <span id="loginInfo" class="login-info"></span>
       <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
@@ -211,7 +247,6 @@
   <h2>📦 Assegnazioni e Rientri</h2>
   <div id="messageArea"></div>
 
-  <!-- Scelta sorgente -->
   <div class="source-selector">
     <div class="source-option">
       <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
@@ -223,10 +258,9 @@
     </div>
   </div>
 
-  <!-- Sezione per admin: scelta sorgente (in carico) -->
   <div id="adminSourceSection" style="display: none;" class="source-selection">
     <div class="form-group">
-      <label>Sorgente (da cui prelevare gli oggetti)</label>
+      <label>Sorgente</label>
       <select id="sourceTipo" disabled>
         <option value="PROMOTER">👤 Promoter</option>
         <option value="NEGOZIO">🏪 Negozio</option>
@@ -236,64 +270,35 @@
     </div>
     <div class="form-group">
       <label>Seleziona soggetto</label>
-      <select id="sourceId" disabled>
-        <option value="">Seleziona...</option>
-      </select>
+      <select id="sourceId" disabled><option value="">Seleziona...</option></select>
     </div>
     <div class="form-group">
       <label><input type="checkbox" id="includeReferenced"> Includi referenti</label>
     </div>
   </div>
 
-  <!-- Filtri -->
   <div class="filters">
     <div class="filter-row">
       <div class="filter-group" id="magazzinoGroup">
         <label id="magazzinoLabel">Magazzino *</label>
         <select id="magazzino"></select>
       </div>
-      <div class="filter-group">
-        <label>Tipo oggetto</label>
-        <select id="tipoOggetto"><option value="">Tutti</option><option value="ARTICOLO">📦 Articolo</option><option value="KIT">🔧 Kit</option></select>
-      </div>
-      <div class="filter-group">
-        <label>Settore</label>
-        <select id="settore"></select>
-      </div>
-      <div class="filter-group">
-        <label>Marca</label>
-        <select id="marca"></select>
-      </div>
+      <div class="filter-group"><label>Tipo oggetto</label><select id="tipoOggetto"><option value="">Tutti</option><option value="ARTICOLO">📦 Articolo</option><option value="KIT">🔧 Kit</option></select></div>
+      <div class="filter-group"><label>Settore</label><select id="settore"></select></div>
+      <div class="filter-group"><label>Marca</label><select id="marca"></select></div>
     </div>
     <div class="filter-row">
-      <div class="filter-group">
-        <label>Descrizione</label>
-        <input type="text" id="filtroDescrizione" list="descrizioneList" autocomplete="off" placeholder="Contiene...">
-        <datalist id="descrizioneList"></datalist>
-      </div>
-      <div class="filter-group">
-        <label>Lunghezza</label>
-        <input type="text" id="filtroLunghezza" list="lunghezzaList" autocomplete="off" placeholder="Esatta">
-        <datalist id="lunghezzaList"></datalist>
-      </div>
-      <div class="filter-group">
-        <label>Durezza</label>
-        <input type="text" id="filtroDurezza" list="durezzaList" autocomplete="off" placeholder="Esatta">
-        <datalist id="durezzaList"></datalist>
-      </div>
-      <div class="filter-group">
-        <label>Sigla</label>
-        <input type="text" id="filtroSigla" list="siglaList" autocomplete="off" placeholder="Esatta">
-        <datalist id="siglaList"></datalist>
-      </div>
+      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="descrizioneList" placeholder="Contiene..."><datalist id="descrizioneList"></datalist></div>
+      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta"><datalist id="lunghezzaList"></datalist></div>
+      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="durezzaList" placeholder="Esatta"><datalist id="durezzaList"></datalist></div>
+      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="siglaList" placeholder="Esatta"><datalist id="siglaList"></datalist></div>
     </div>
     <div class="filter-row">
       <button class="btn" onclick="applicaFiltri()">🔍 Filtra</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset filtri</button>
+      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset</button>
     </div>
   </div>
 
-  <!-- Tabella oggetti -->
   <div class="table-wrapper">
     <table id="tabellaOggetti">
       <thead>
@@ -303,17 +308,14 @@
          <th>Quantità</th>
          <th>Sigla</th>
          <th>Assegnato a</th>
-         <th>Azioni</th>
+         <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody">
-         <td colspan="7" class="text-center">Caricamento...<\/td>
-      </tbody>
+      <tbody id="tabellaBody"><td colspan="7" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 
   <div class="selected-info" id="selectedInfo">Nessun oggetto selezionato</div>
 
-  <!-- Destinazione e azione (batch) -->
   <div class="filter-row" id="destinazioneRow">
     <div class="filter-group">
       <label>Destinazione (batch)</label>
@@ -324,7 +326,7 @@
           <option value="CLIENTE">👥 Cliente</option>
           <option value="AGENTE">🤝 Agente</option>
         </select>
-        <button class="btn btn-secondary" style="padding: 4px 8px;" onclick="caricaDestinazioni()" title="Aggiorna destinazioni">🔄</button>
+        <button class="btn btn-secondary" style="padding: 4px 8px;" onclick="caricaDestinazioni()" title="Aggiorna">🔄</button>
       </div>
     </div>
     <div class="filter-group"><label>Seleziona destinazione</label><select id="destinazioneId"></select></div>
@@ -337,62 +339,37 @@
   </div>
 </div>
 
-<!-- Modale per modifica singola assegnazione -->
 <div id="editAssignmentModal" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Assegnazione</h3>
     <div id="editAssignmentContent"></div>
     <div class="modal-buttons">
-      <button class="btn btn-success" id="saveEditBtn">Salva modifiche</button>
+      <button class="btn btn-success" id="saveEditBtn">Salva</button>
       <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
     </div>
   </div>
 </div>
 
-<!-- Modale per messaggi di errore dettagliati -->
 <div id="errorModal" class="modal">
   <div class="modal-content">
     <h3>⚠️ Errore</h3>
     <p id="errorMsg"></p>
-    <div class="modal-buttons">
-      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
-    </div>
+    <div class="modal-buttons"><button class="btn" onclick="chiudiErrorModal()">Chiudi</button></div>
   </div>
 </div>
 
 <script>
-  // ========== UTILITY ==========
-  function getAuthHeader() {
-    const token = localStorage.getItem('token');
-    return token ? { 'Authorization': 'Bearer ' + token } : {};
-  }
-
+  function getAuthHeader() { const token = localStorage.getItem('token'); return token ? { 'Authorization': 'Bearer ' + token } : {}; }
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (!response.ok) {
-      let errorMsg = `Errore ${response.status}`;
-      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
-      throw new Error(errorMsg);
-    }
-    return response.json();
+    const res = await fetch(endpoint, { ...options, headers });
+    if (!res.ok) { let err = `Errore ${res.status}`; try { const data = await res.json(); err = data.message || err; } catch(e) {} throw new Error(err); }
+    return res.json();
   }
+  function showMessage(msg, type) { const div = document.getElementById('messageArea'); div.innerHTML = `<div class="message ${type}">${msg}</div>`; setTimeout(() => div.innerHTML = '', 5000); }
+  function showErrorModal(msg) { document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>'); document.getElementById('errorModal').style.display = 'flex'; }
+  function chiudiErrorModal() { document.getElementById('errorModal').style.display = 'none'; }
 
-  function showMessage(msg, type) {
-    const div = document.getElementById('messageArea');
-    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
-    setTimeout(() => div.innerHTML = '', 5000);
-  }
-
-  function showErrorModal(msg) {
-    document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>');
-    document.getElementById('errorModal').style.display = 'flex';
-  }
-  function chiudiErrorModal() {
-    document.getElementById('errorModal').style.display = 'none';
-  }
-
-  // ---------- GLOBALI ----------
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
   let oggetti = [];
@@ -401,7 +378,6 @@
 
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
-  const magazzinoGroup = document.getElementById('magazzinoGroup');
   const magazzinoSelect = document.getElementById('magazzino');
   const magazzinoLabel = document.getElementById('magazzinoLabel');
   const tipoOggettoSelect = document.getElementById('tipoOggetto');
@@ -416,84 +392,80 @@
   const assegnaBtn = document.getElementById('assegnaBtn');
   const rientroBtn = document.getElementById('rientroBtn');
   const destinazioneRow = document.getElementById('destinazioneRow');
-
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
 
-  // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
       settori = await apiFetch('/api/anagrafiche/settori');
       marche = await apiFetch('/api/anagrafiche/marche');
-
-      if (magazzini.length > 0) {
+      if (magazzini.length) {
         const first = magazzini[0];
         if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
         else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
-        else {
-          const keys = Object.keys(first).filter(k => !isNaN(parseInt(k)));
-          if (keys.length) magazzinoKey = keys[0];
-        }
+        else magazzinoKey = Object.keys(first).find(k => !isNaN(parseInt(k))) || 'id';
       }
-
       function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
         if (!select) return;
         select.innerHTML = '';
         if (conVuoto) select.appendChild(new Option('Tutti', ''));
-        items.forEach(item => {
-          let testo = item[textKey];
-          if (textKey === 'nome' && item.cognome) testo = `${item.nome} ${item.cognome}`.trim();
-          select.appendChild(new Option(testo, item[valueKey]));
-        });
+        items.forEach(i => select.appendChild(new Option(i[textKey], i[valueKey])));
       }
       popolaSelect(magazzinoSelect, magazzini, magazzinoKey, 'nome', false);
       popolaSelect(settoreSelect, settori, 'settore_id', 'nome', true);
       popolaSelect(marcaSelect, marche, 'marca_id', 'nome', true);
-
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) {
-        const defaultVal = defaultMag[magazzinoKey];
-        magazzinoSelect.value = defaultVal;
-      }
-    } catch (err) {
-      console.error(err);
-      showMessage('Errore caricamento dati: ' + err.message, 'error');
-    }
+      if (defaultMag) magazzinoSelect.value = defaultMag[magazzinoKey];
+    } catch(err) { console.error(err); showMessage('Errore caricamento dati', 'error'); }
   }
 
-  // ========== FUNZIONI PER OTTENERE SIGLE ==========
+  async function caricaSorgentiAdmin() {
+    const tipo = sourceTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      sourceId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        sourceId.appendChild(new Option(testo, item.id));
+      });
+      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      if (radioCarico.checked) await caricaOggettiInCarico();
+    } catch(err) { showMessage('Errore sorgenti', 'error'); }
+  }
+
+  async function caricaDestinazioni() {
+    const tipo = destinazioneTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destinazioneId.appendChild(new Option(testo, item.id));
+      });
+      if (destinazioneId.options.length > 1 && !destinazioneId.value) destinazioneId.selectedIndex = 1;
+    } catch(err) { showMessage('Errore destinazioni', 'error'); }
+  }
+
   async function getSiglePerOggetto(obj) {
     if (obj.tipo === 'ARTICOLO') {
-      try {
-        const sigle = await apiFetch(`/api/articoli/${obj.id}/sigle`);
-        return sigle;
-      } catch(e) { return []; }
+      try { return await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { return []; }
     } else if (obj.tipo === 'KIT') {
       try {
-        const kitDetails = await apiFetch(`/api/kit/${obj.id}`);
-        const sciDetail = kitDetails.dettagli?.find(d => d.tipo_articolo === 'SCI');
-        if (sciDetail && sciDetail.sigla_id) {
-          const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
-          return sigle;
-        }
+        const kit = await apiFetch(`/api/kit/${obj.id}`);
+        const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+        if (sciDetail && sciDetail.sigla_id) return await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
         return [];
       } catch(e) { return []; }
     }
     return [];
   }
 
-  // ---------- CARICAMENTO DAL MAGAZZINO ----------
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
-    if (!magId) {
-      oggetti = [];
-      popolaTabella();
-      showMessage('Seleziona un magazzino', 'info');
-      return;
-    }
+    if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
     const tipo = tipoOggettoSelect.value;
     let lista = [];
     try {
@@ -508,26 +480,18 @@
       paramsArticoli.append('min_giacenza', '1');
 
       if (tipo === '' || tipo === 'ARTICOLO') {
-        const resArticoli = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
-        let articoli = resArticoli.success ? resArticoli.data : (resArticoli.data || []);
-        for (let a of articoli) {
-          const sigle = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: a.id });
-          a.sigleDisponibili = sigle;
-        }
+        const res = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
+        let articoli = res.success ? res.data : (res.data || []);
+        for (let a of articoli) a.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: a.id });
         lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
-
       if (tipo === '' || tipo === 'KIT') {
-        const resKit = await apiFetch('/api/kit');
-        let kits = resKit.success ? resKit.data : (Array.isArray(resKit) ? resKit : []);
+        const res = await apiFetch('/api/kit');
+        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
         kits = kits.filter(k => k.magazzino == magId);
-        for (let k of kits) {
-          const sigle = await getSiglePerOggetto({ tipo: 'KIT', id: k.id });
-          k.sigleDisponibili = sigle;
-        }
+        for (let k of kits) k.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: k.id });
         lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
       }
-
       oggetti = lista.map(item => ({
         id: item.id,
         tipo: item.tipo,
@@ -535,18 +499,15 @@
         descrizione: item.descrizione,
         disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
         sigleDisponibili: item.sigleDisponibili || [],
+        siglaId: null,
         destinatarioNome: 'Magazzino',
         tipoAssegnazione: 'me'
       }));
       popolaTabella();
       assegnaBtn.disabled = false;
-    } catch (err) {
-      console.error(err);
-      showMessage('Errore caricamento oggetti: ' + err.message, 'error');
-    }
+    } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  // ---------- CARICAMENTO IN CARICO (DA SOGGETTO) ----------
   async function caricaOggettiInCarico() {
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
@@ -554,49 +515,28 @@
       body.targetId = parseInt(sourceId.value);
       body.includeReferenced = includeReferenced.checked;
     } else if (currentUser.ruolo !== 'admin') {
-      if (!currentUser.riferimento_id) {
-        oggetti = [];
-        popolaTabella();
-        return;
-      }
+      if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
       body.targetTipo = currentUser.ruolo.toUpperCase();
       body.targetId = currentUser.riferimento_id;
       body.includeReferenced = includeReferenced.checked;
-    } else {
-      oggetti = [];
-      popolaTabella();
-      return;
-    }
-
-    if (!body.targetTipo || !body.targetId) {
-      oggetti = [];
-      popolaTabella();
-      return;
-    }
-
+    } else { oggetti = []; popolaTabella(); return; }
+    if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
     try {
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
       if (res.success) {
         let tutti = res.oggetti || [];
         const tipoFiltro = tipoOggettoSelect.value;
-        if (tipoFiltro !== '') tutti = tutti.filter(item => item.tipo === tipoFiltro);
+        if (tipoFiltro) tutti = tutti.filter(item => item.tipo === tipoFiltro);
         if (settoreSelect.value) tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
         if (marcaSelect.value) tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
         if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
         if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
         if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
         if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
-        
         for (let obj of tutti) {
-          if (obj.tipo === 'KIT') {
-            const sigle = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
-            obj.sigleDisponibili = sigle;
-          } else {
-            const sigle = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
-            obj.sigleDisponibili = sigle;
-          }
+          if (obj.tipo === 'KIT') obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
+          else obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
         }
-        
         oggetti = tutti.map(obj => ({
           id: obj.ID,
           tipo: obj.tipo,
@@ -604,30 +544,21 @@
           descrizione: obj.descrizione,
           disponibile: obj.quantita,
           sigleDisponibili: obj.sigleDisponibili || [],
-          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome || ''} ${obj.destinatario_cognome || ''}`.trim() : (obj.destinatario_nome || 'Magazzino')),
+          siglaId: obj.siglaId || null,
+          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
           tipoAssegnazione: obj.tipoAssegnazione,
-          referenteDa: obj.referenteDa,
           destinazioneTipo: obj.destinazioneTipo,
           destinazioneId: obj.destinazioneId
         }));
         popolaTabella();
         assegnaBtn.disabled = false;
-      } else {
-        throw new Error(res.message);
-      }
-    } catch (err) {
-      console.error(err);
-      showMessage('Errore caricamento oggetti in carico: ' + err.message, 'error');
-    }
+      } else throw new Error(res.message);
+    } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  // ---------- POPOLA TABELLA (con select per sigla) ----------
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>';
-      return;
-    }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
@@ -635,27 +566,16 @@
       cb.type = 'checkbox';
       cb.className = 'select-item';
       cb.dataset.idx = idx;
-      
       const isReferenced = obj.tipoAssegnazione === 'referente';
       const isDisabled = obj.disponibile <= 0 || isReferenced;
       if (isDisabled) cb.disabled = true;
-      
       row.insertCell(0).appendChild(cb);
-      
-      // Codice / Descrizione
       row.insertCell(1).innerText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       row.insertCell(2).innerText = obj.disponibile;
-      
       const qtaInput = document.createElement('input');
-      qtaInput.type = 'number';
-      qtaInput.min = 1;
-      qtaInput.max = obj.disponibile;
-      qtaInput.value = 1;
-      qtaInput.style.width = '80px';
+      qtaInput.type = 'number'; qtaInput.min = 1; qtaInput.max = obj.disponibile; qtaInput.value = 1; qtaInput.style.width = '70px';
       if (isDisabled) qtaInput.disabled = true;
       row.insertCell(3).appendChild(qtaInput);
-      
-      // Sigla (select)
       const cellSigla = row.insertCell(4);
       if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
         const select = document.createElement('select');
@@ -664,39 +584,28 @@
         obj.sigleDisponibili.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
-          let testo = s.sigla;
-          if (s.durezza) testo += ` (${s.durezza})`;
-          if (s.lunghezza) testo += ` - ${s.lunghezza}cm`;
-          opt.textContent = testo;
+          opt.text = s.sigla + (s.durezza ? ` (${s.durezza})` : '') + (s.lunghezza ? ` - ${s.lunghezza}cm` : '');
+          if (obj.siglaId && obj.siglaId == s.id) opt.selected = true;
           select.appendChild(opt);
         });
-        if (obj.siglaId && obj.sigleDisponibili.some(s => s.id == obj.siglaId)) {
-          select.value = obj.siglaId;
+        if (obj.sigleDisponibili.length === 1) {
+          select.value = obj.sigleDisponibili[0].id;
+          select.disabled = true;
         }
-        select.addEventListener('change', (e) => {
-          obj.selectedSiglaId = e.target.value ? parseInt(e.target.value) : null;
-        });
+        select.addEventListener('change', (e) => { obj.selectedSiglaId = e.target.value ? parseInt(e.target.value) : null; });
         cellSigla.appendChild(select);
       } else {
         cellSigla.innerText = '-';
         obj.selectedSiglaId = null;
       }
-      
-      // Assegnato a
       let assegnatoANome = obj.destinatarioNome;
-      if (isReferenced && obj.referenteDa) {
-        assegnatoANome = `${obj.destinatarioNome} (in carico a referente)`;
-      } else if (!assegnatoANome) {
-        assegnatoANome = 'Magazzino';
-      }
+      if (isReferenced && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
+      else if (!assegnatoANome) assegnatoANome = 'Magazzino';
       row.insertCell(5).innerText = assegnatoANome;
-      
-      // Azioni
       const cellAzioni = row.insertCell(6);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
-      editBtn.title = 'Modifica assegnazione';
       editBtn.onclick = () => apriModificaSingola(idx);
       if (isDisabled || obj.tipoAssegnazione === 'referente') editBtn.disabled = true;
       cellAzioni.appendChild(editBtn);
@@ -706,105 +615,55 @@
   }
 
   function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('.select-item');
     const all = document.getElementById('selectAll');
-    checkboxes.forEach(cb => {
-      if (!cb.disabled) cb.checked = all.checked;
-    });
+    document.querySelectorAll('.select-item').forEach(cb => { if (!cb.disabled) cb.checked = all.checked; });
     aggiornaSelezione();
   }
-
   function aggiornaSelezione() {
-    const rows = document.querySelectorAll('#tabellaBody tr');
     let count = 0, total = 0;
-    rows.forEach(row => {
+    document.querySelectorAll('#tabellaBody tr').forEach(row => {
       const cb = row.querySelector('.select-item');
       if (cb && cb.checked && !cb.disabled) {
-        const qtaInput = row.querySelector('input[type="number"]');
-        let qta = parseInt(qtaInput.value);
-        if (isNaN(qta) || qta < 1) qta = 1;
-        count++;
-        total += qta;
+        const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
+        count++; total += qta;
       }
     });
     document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
   }
 
-  // ---------- MODIFICA SINGOLA (con sigla) ----------
   function apriModificaSingola(idx) {
     const obj = oggetti[idx];
     currentEditObj = { ...obj, idx, selectedSiglaId: obj.selectedSiglaId || obj.siglaId || null };
-    const modal = document.getElementById('editAssignmentModal');
     const content = document.getElementById('editAssignmentContent');
-    
-    let siglaOptions = '';
-    if (obj.sigleDisponibili && obj.sigleDisponibili.length > 0) {
-      siglaOptions = `<option value="">Nessuna sigla</option>`;
+    let siglaOptions = '<option value="">Nessuna sigla</option>';
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
       obj.sigleDisponibili.forEach(s => {
-        let testo = s.sigla;
-        if (s.durezza) testo += ` (${s.durezza})`;
-        if (s.lunghezza) testo += ` - ${s.lunghezza}cm`;
-        siglaOptions += `<option value="${s.id}" ${currentEditObj.selectedSiglaId == s.id ? 'selected' : ''}>${testo}</option>`;
+        siglaOptions += `<option value="${s.id}" ${currentEditObj.selectedSiglaId == s.id ? 'selected' : ''}>${s.sigla}${s.durezza ? ` (${s.durezza})` : ''}${s.lunghezza ? ` - ${s.lunghezza}cm` : ''}</option>`;
       });
     } else {
       siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
     }
-    
     content.innerHTML = `
-      <div class="form-group">
-        <label>Oggetto</label>
-        <input type="text" value="${obj.codice} - ${obj.descrizione}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>Quantità disponibile</label>
-        <input type="number" value="${obj.disponibile}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>Quantità da trasferire/rientrare</label>
-        <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
-      </div>
-      <div class="form-group">
-        <label>Sigla (selezionare se il kit/articolo ha più sigle)</label>
-        <select id="editSiglaId" class="form-control">${siglaOptions}</select>
-      </div>
-      <div class="form-group">
-        <label>Nuova destinazione (solo se trasferisci)</label>
-        <div class="inline-refresh">
-          <select id="editDestTipo" style="flex:1;">
-            <option value="PROMOTER">Promoter</option>
-            <option value="NEGOZIO">Negozio</option>
-            <option value="CLIENTE">Cliente</option>
-            <option value="AGENTE">Agente</option>
-          </select>
-          <button class="btn btn-secondary" style="padding: 2px 6px;" onclick="caricaEditDestinazioni()">🔄</button>
-        </div>
-        <select id="editDestId" style="margin-top:4px;"></select>
-      </div>
-      <div class="form-group">
-        <label>Note</label>
-        <input type="text" id="editNote" class="form-control">
-      </div>
+      <div class="form-group"><label>Oggetto</label><input type="text" value="${obj.codice} - ${obj.descrizione}" disabled class="form-control"></div>
+      <div class="form-group"><label>Quantità disponibile</label><input type="number" value="${obj.disponibile}" disabled class="form-control"></div>
+      <div class="form-group"><label>Quantità</label><input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control"></div>
+      <div class="form-group"><label>Sigla</label><select id="editSiglaId" class="form-control">${siglaOptions}</select></div>
+      <div class="form-group"><label>Nuova destinazione</label><div class="inline-refresh"><select id="editDestTipo" class="form-control"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select><button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button></div><select id="editDestId" class="form-control"></select></div>
+      <div class="form-group"><label>Note</label><input type="text" id="editNote" class="form-control"></div>
     `;
     caricaEditDestinazioni();
-    modal.style.display = 'flex';
+    document.getElementById('editAssignmentModal').style.display = 'flex';
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
-
   async function caricaEditDestinazioni() {
     const tipo = document.getElementById('editDestTipo').value;
     try {
       const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
       const destSelect = document.getElementById('editDestId');
       destSelect.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destSelect.appendChild(new Option(testo, item.id));
-      });
-    } catch(err) {
-      showMessage('Errore caricamento destinazioni', 'error');
-    }
+      data.forEach(item => destSelect.appendChild(new Option(item.nome, item.id)));
+    } catch(err) { showMessage('Errore destinazioni', 'error'); }
   }
-
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
@@ -813,106 +672,53 @@
     const destTipo = document.getElementById('editDestTipo').value;
     const destId = document.getElementById('editDestId').value;
     const note = document.getElementById('editNote').value;
-    if (isNaN(qta) || qta < 1 || qta > obj.disponibile) {
-      showErrorModal('Quantità non valida');
-      return;
-    }
+    if (isNaN(qta) || qta < 1 || qta > obj.disponibile) { showErrorModal('Quantità non valida'); return; }
     const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
     const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) {
-      showErrorModal('Seleziona un magazzino');
-      return;
-    }
+    if (!magazzinoId) { showErrorModal('Seleziona un magazzino'); return; }
     if (isInMagazzino) {
-      if (!destId) {
-        showErrorModal('Seleziona una destinazione');
-        return;
-      }
-      const payload = {
-        magazzinoId: parseInt(magazzinoId),
-        destinazioneTipo: destTipo,
-        destinazioneId: parseInt(destId),
-        note: note,
-        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }]
-      };
+      if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
+      const payload = { magazzinoId: parseInt(magazzinoId), destinazioneTipo: destTipo, destinazioneId: parseInt(destId), note, oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }] };
       try {
         const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) {
-          showMessage('Assegnazione effettuata', 'success');
-          chiudiEditModal();
-          await caricaOggetti();
-        } else {
-          showErrorModal(res.message);
-        }
+        if (res.success) { showMessage('Assegnazione effettuata', 'success'); chiudiEditModal(); await caricaOggetti(); }
+        else showErrorModal(res.message);
       } catch(err) { showErrorModal(err.message); }
     } else {
-      if (!destId) {
-        showErrorModal('Seleziona una destinazione per il trasferimento');
-        return;
-      }
+      if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
       const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
       const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
-      const payload = {
-        daTipo, daId,
-        aTipo: destTipo,
-        aId: parseInt(destId),
-        magazzinoId: parseInt(magazzinoId),
-        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
-        note: note
-      };
+      const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note };
       try {
         const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) {
-          showMessage('Trasferimento effettuato', 'success');
-          chiudiEditModal();
-          await caricaOggetti();
-        } else {
-          showErrorModal(res.message);
-        }
+        if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggetti(); }
+        else showErrorModal(res.message);
       } catch(err) { showErrorModal(err.message); }
     }
   }
+  function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
-  function chiudiEditModal() {
-    document.getElementById('editAssignmentModal').style.display = 'none';
-    currentEditObj = null;
-  }
-
-  // ---------- FILTRI ----------
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
-    const magId = magazzinoSelect.value;
-    if (magId) params.append('magazzino', magId);
+    if (magazzinoSelect.value) params.append('magazzino', magazzinoSelect.value);
     if (settoreSelect.value) params.append('settore', settoreSelect.value);
     if (marcaSelect.value) params.append('marca', marcaSelect.value);
     if (exceptField !== 'descrizione' && filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
     if (exceptField !== 'lunghezza' && filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
     if (exceptField !== 'durezza' && filtroDurezza.value) params.append('durezza', filtroDurezza.value);
     if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
-    const endpoint = `/api/articoli/valori/${field}`;
-    const data = await apiFetch(`${endpoint}?${params.toString()}`);
-    const map = { descrizioni: 'descrizione', sigle: 'sigla', modelli: 'codice_modello', lunghezze: 'lunghezza', durezze: 'durezza' };
+    const data = await apiFetch(`/api/articoli/valori/${field}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla', lunghezze: 'lunghezza', durezze: 'durezza' };
     const col = map[field] || field;
     return data.map(item => item[col]).filter(v => v && v !== '');
   }
-
   async function popolaFilterDatalist(field, datalistId, exceptField = null) {
     try {
       const values = await getDistinctFilterValues(field, exceptField);
       const dl = document.getElementById(datalistId);
-      if (dl) {
-        dl.innerHTML = '';
-        values.forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v;
-          dl.appendChild(opt);
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      if (dl) { dl.innerHTML = ''; values.forEach(v => { const opt = document.createElement('option'); opt.value = v; dl.appendChild(opt); }); }
+    } catch(err) { console.error(err); }
   }
-
   async function refreshFilterDatalists() {
     if (!magazzinoSelect.value) return;
     await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
@@ -924,253 +730,129 @@
   let debounceTimer;
   async function handleFilterChange() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(async () => {
-      await refreshFilterDatalists();
-      await caricaOggetti();
-    }, 300);
+    debounceTimer = setTimeout(async () => { await refreshFilterDatalists(); await caricaOggetti(); }, 300);
   }
-
   function attachFilterEvents() {
-    const filterInputs = [filtroDescrizione, filtroLunghezza, filtroDurezza, filtroSigla];
-    filterInputs.forEach(input => {
-      if (input) input.addEventListener('input', handleFilterChange);
-    });
-    const selectFilters = [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect];
-    selectFilters.forEach(select => {
-      if (select) select.addEventListener('change', handleFilterChange);
-    });
+    [filtroDescrizione, filtroLunghezza, filtroDurezza, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
+    [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect].forEach(sel => sel?.addEventListener('change', handleFilterChange));
   }
-
   async function caricaOggetti() {
-    if (radioMagazzino.checked) {
-      await caricaOggettiDaMagazzino();
-    } else {
-      await caricaOggettiInCarico();
-    }
+    if (radioMagazzino.checked) await caricaOggettiDaMagazzino();
+    else await caricaOggettiInCarico();
   }
-
-  async function applicaFiltri() {
-    await refreshFilterDatalists();
-    await caricaOggetti();
-  }
-
+  async function applicaFiltri() { await refreshFilterDatalists(); await caricaOggetti(); }
   async function resetFiltri() {
-    settoreSelect.value = '';
-    marcaSelect.value = '';
-    filtroDescrizione.value = '';
-    filtroLunghezza.value = '';
-    filtroDurezza.value = '';
-    filtroSigla.value = '';
-    await refreshFilterDatalists();
-    await caricaOggetti();
+    settoreSelect.value = ''; marcaSelect.value = ''; filtroDescrizione.value = ''; filtroLunghezza.value = ''; filtroDurezza.value = ''; filtroSigla.value = '';
+    await refreshFilterDatalists(); await caricaOggetti();
   }
 
-  // ---------- BATCH OPERATIONS (con sigla) ----------
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
-    const destinazioneTipoVal = destinazioneTipo.value;
-    const destinazioneIdVal = destinazioneId.value;
+    const destTipo = destinazioneTipo.value;
+    const destId = destinazioneId.value;
     const note = document.getElementById('noteUscita').value;
-
     if (isCarico) {
-      if (!destinazioneIdVal) { showMessage('Seleziona una destinazione', 'error'); return; }
+      if (!destId) { showMessage('Seleziona una destinazione', 'error'); return; }
       let daTipo, daId;
-      if (currentUser.ruolo === 'admin' && sourceId.value) {
-        daTipo = sourceTipo.value;
-        daId = parseInt(sourceId.value);
-      } else {
-        if (!currentUser.riferimento_id) {
-          showMessage('Utente non associato a un soggetto.', 'error');
-          return;
-        }
-        daTipo = currentUser.ruolo.toUpperCase();
-        daId = parseInt(currentUser.riferimento_id);
-      }
-
+      if (currentUser.ruolo === 'admin' && sourceId.value) { daTipo = sourceTipo.value; daId = parseInt(sourceId.value); }
+      else { if (!currentUser.riferimento_id) { showMessage('Utente non associato', 'error'); return; } daTipo = currentUser.ruolo.toUpperCase(); daId = parseInt(currentUser.riferimento_id); }
       const selezionati = [];
-      const rows = document.querySelectorAll('#tabellaBody tr');
-      rows.forEach((row, idx) => {
+      document.querySelectorAll('#tabellaBody tr').forEach((row, idx) => {
         const cb = row.querySelector('.select-item');
         if (cb && cb.checked && !cb.disabled) {
-          const qtaInput = row.querySelector('input[type="number"]');
-          let qta = parseInt(qtaInput.value);
-          if (isNaN(qta) || qta < 1) qta = 1;
+          const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
           const obj = oggetti[idx];
           if (obj.tipoAssegnazione === 'referente') return;
           const selectSigla = row.querySelector('.sigla-select');
           const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
-          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
+          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
         }
       });
-      if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
-
-      const payload = {
-        daTipo, daId,
-        aTipo: destinazioneTipoVal, aId: parseInt(destinazioneIdVal),
-        magazzinoId: parseInt(magazzinoId),
-        oggetti: selezionati,
-        note
-      };
-      const originalText = assegnaBtn.innerText;
-      assegnaBtn.disabled = true;
-      assegnaBtn.innerHTML = '<span class="spinner"></span> Trasferimento in corso...';
+      if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+      const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: selezionati, note };
+      assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';
       try {
         const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) {
-          showMessage(res.message, 'success');
-          await caricaOggetti();
-        } else {
-          showErrorModal(res.message);
-        }
-      } catch (err) { showErrorModal(err.message); }
-      finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
+        showMessage(res.message, res.success ? 'success' : 'error');
+        if (res.success) await caricaOggetti();
+      } catch(err) { showErrorModal(err.message); }
+      finally { assegnaBtn.disabled = false; assegnaBtn.innerHTML = '📤 Assegna selezionati'; }
       return;
     }
-
-    // Modalità dal magazzino
     if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
-    if (!destinazioneIdVal) { showMessage('Seleziona una destinazione', 'error'); return; }
+    if (!destId) { showMessage('Seleziona una destinazione', 'error'); return; }
     const selezionati = [];
-    const rows = document.querySelectorAll('#tabellaBody tr');
-    rows.forEach((row, idx) => {
+    document.querySelectorAll('#tabellaBody tr').forEach((row, idx) => {
       const cb = row.querySelector('.select-item');
       if (cb && cb.checked && !cb.disabled) {
-        const qtaInput = row.querySelector('input[type="number"]');
-        let qta = parseInt(qtaInput.value);
-        if (isNaN(qta) || qta < 1) qta = 1;
-        const max = parseInt(qtaInput.max);
+        let qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
+        const max = parseInt(row.querySelector('input[type="number"]').max);
         if (qta > max) qta = max;
         const obj = oggetti[idx];
         const selectSigla = row.querySelector('.sigla-select');
         const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
       }
     });
-    if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
-    const payload = {
-      magazzinoId: parseInt(magazzinoId),
-      destinazioneTipo: destinazioneTipoVal,
-      destinazioneId: parseInt(destinazioneIdVal),
-      note: note,
-      oggetti: selezionati
-    };
-    const originalText = assegnaBtn.innerText;
-    assegnaBtn.disabled = true;
-    assegnaBtn.innerHTML = '<span class="spinner"></span> Assegnazione in corso...';
+    if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+    const payload = { magazzinoId: parseInt(magazzinoId), destinazioneTipo: destTipo, destinazioneId: parseInt(destId), note, oggetti: selezionati };
+    assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';
     try {
       const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (res.success) {
-        showMessage(res.message, 'success');
-        await caricaOggetti();
-      } else {
-        showErrorModal(res.message);
-      }
-    } catch (err) { showErrorModal(err.message); }
-    finally { assegnaBtn.disabled = false; assegnaBtn.innerText = originalText; }
+      showMessage(res.message, res.success ? 'success' : 'error');
+      if (res.success) await caricaOggetti();
+    } catch(err) { showErrorModal(err.message); }
+    finally { assegnaBtn.disabled = false; assegnaBtn.innerHTML = '📤 Assegna selezionati'; }
   }
 
   async function rientraSelezionati() {
-    if (!radioCarico.checked) {
-      showMessage('La funzione "Rientra in magazzino" è disponibile solo in modalità "In carico".', 'error');
-      return;
-    }
+    if (!radioCarico.checked) { showMessage('Funzione solo in modalità "In carico"', 'error'); return; }
     const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona un magazzino di rientro', 'error'); return; }
+    if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
     const note = document.getElementById('noteUscita').value;
-
     let daTipo, daId;
-    if (currentUser.ruolo === 'admin' && sourceId.value) {
-      daTipo = sourceTipo.value;
-      daId = parseInt(sourceId.value);
-    } else {
-      if (!currentUser.riferimento_id) {
-        showMessage('Utente non associato a un soggetto.', 'error');
-        return;
-      }
-      daTipo = currentUser.ruolo.toUpperCase();
-      daId = parseInt(currentUser.riferimento_id);
-    }
-
+    if (currentUser.ruolo === 'admin' && sourceId.value) { daTipo = sourceTipo.value; daId = parseInt(sourceId.value); }
+    else { if (!currentUser.riferimento_id) { showMessage('Utente non associato', 'error'); return; } daTipo = currentUser.ruolo.toUpperCase(); daId = parseInt(currentUser.riferimento_id); }
     const selezionati = [];
-    const rows = document.querySelectorAll('#tabellaBody tr');
-    rows.forEach((row, idx) => {
+    document.querySelectorAll('#tabellaBody tr').forEach((row, idx) => {
       const cb = row.querySelector('.select-item');
       if (cb && cb.checked && !cb.disabled) {
-        const qtaInput = row.querySelector('input[type="number"]');
-        let qta = parseInt(qtaInput.value);
-        if (isNaN(qta) || qta < 1) qta = 1;
+        const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
         const obj = oggetti[idx];
         const selectSigla = row.querySelector('.sigla-select');
         const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId, quantita: qta });
+        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
       }
     });
-    if (selezionati.length === 0) { showMessage('Seleziona almeno un oggetto da rientrare', 'error'); return; }
-
-    const payload = {
-      magazzinoId: parseInt(magazzinoId),
-      note: note,
-      oggetti: selezionati.map(o => ({ ...o, daTipo, daId }))
-    };
-    const originalText = rientroBtn.innerText;
-    rientroBtn.disabled = true;
-    rientroBtn.innerHTML = '<span class="spinner"></span> Rientro in corso...';
+    if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+    const payload = { magazzinoId: parseInt(magazzinoId), note, oggetti: selezionati.map(o => ({ ...o, daTipo, daId })) };
+    rientroBtn.disabled = true; rientroBtn.innerHTML = '<span class="spinner"></span>';
     try {
       const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (res.success) {
-        showMessage(res.message, 'success');
-        await caricaOggetti();
-      } else {
-        showErrorModal(res.message);
-      }
-    } catch (err) { showErrorModal(err.message); }
-    finally { rientroBtn.disabled = false; rientroBtn.innerText = originalText; }
+      showMessage(res.message, res.success ? 'success' : 'error');
+      if (res.success) await caricaOggetti();
+    } catch(err) { showErrorModal(err.message); }
+    finally { rientroBtn.disabled = false; rientroBtn.innerHTML = '📦 Rientra in magazzino'; }
   }
 
-  // ---------- LOGIN / LOGOUT ----------
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'Login.html';
-  }
+  function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
 
-  // ---------- GESTIONE PERMESSI ----------
   function setupExternalMode() {
     const isAdmin = currentUser.ruolo === 'admin';
     const canUseWarehouse = isAdmin || (currentUser.ruolo === 'promoter' && currentUser.livello === 1) || currentUser.ruolo === 'agente';
-    if (canUseWarehouse) {
-      radioMagazzino.disabled = false;
-      magazzinoGroup.style.display = 'block';
-    } else {
-      radioMagazzino.disabled = true;
-      radioMagazzino.checked = false;
-      radioCarico.checked = true;
-      magazzinoGroup.style.display = 'block';
-      showMessage('Il tuo ruolo non permette di prelevare dal magazzino. Verranno mostrati gli oggetti in carico.', 'info');
-    }
+    if (canUseWarehouse) radioMagazzino.disabled = false;
+    else { radioMagazzino.disabled = true; radioMagazzino.checked = false; radioCarico.checked = true; showMessage('Ruolo non permette prelievo dal magazzino', 'info'); }
     if (isAdmin) {
       adminSourceSection.style.display = 'flex';
-      sourceTipo.disabled = false;
-      sourceId.disabled = false;
-      includeReferenced.disabled = false;
+      sourceTipo.disabled = false; sourceId.disabled = false; includeReferenced.disabled = false;
       caricaSorgentiAdmin();
-      sourceTipo.addEventListener('change', () => {
-        if (radioCarico.checked) caricaSorgentiAdmin();
-      });
-      sourceId.addEventListener('change', () => {
-        if (radioCarico.checked) caricaOggettiInCarico();
-      });
-      includeReferenced.addEventListener('change', () => {
-        if (radioCarico.checked) caricaOggettiInCarico();
-      });
-    } else {
-      adminSourceSection.style.display = 'none';
+      sourceTipo.addEventListener('change', () => { if (radioCarico.checked) caricaSorgentiAdmin(); });
+      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+      includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     }
-
     function updateUIBasedOnMode() {
-      const isMagazzino = radioMagazzino.checked;
-      if (isMagazzino) {
+      if (radioMagazzino.checked) {
         magazzinoLabel.innerText = 'Magazzino *';
         destinazioneRow.style.display = 'flex';
         assegnaBtn.style.display = 'inline-block';
@@ -1184,44 +866,24 @@
         assegnaBtn.innerText = '🔄 Trasferisci selezionati';
       }
     }
-
-    radioMagazzino.addEventListener('change', () => {
-      updateUIBasedOnMode();
-      caricaOggetti();
-    });
-    radioCarico.addEventListener('change', () => {
-      updateUIBasedOnMode();
-      caricaOggetti();
-    });
+    radioMagazzino.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
+    radioCarico.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
     updateUIBasedOnMode();
   }
 
-  // ---------- INIZIALIZZAZIONE ----------
   window.onload = async () => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
     if (!token || !userStr) { window.location.href = 'Login.html'; return; }
     try {
-      const user = JSON.parse(userStr);
-      if (!user.riferimento_id && user.RiferimentoID) {
-        user.riferimento_id = parseInt(user.RiferimentoID);
-        localStorage.setItem('user', JSON.stringify(user));
-      }
-      currentUser = user;
-    } catch(e) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'Login.html';
-      return;
-    }
-    const displayName = currentUser.nome_visualizzato || currentUser.username;
-    document.getElementById('loginInfo').innerHTML = `👤 ${displayName} (${currentUser.ruolo})`;
-
+      currentUser = JSON.parse(userStr);
+      if (!currentUser.riferimento_id && currentUser.RiferimentoID) { currentUser.riferimento_id = parseInt(currentUser.RiferimentoID); localStorage.setItem('user', JSON.stringify(currentUser)); }
+    } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
+    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
     await caricaAnagrafiche();
     await caricaDestinazioni();
     attachFilterEvents();
     setupExternalMode();
-
     await refreshFilterDatalists();
     await caricaOggetti();
   };
