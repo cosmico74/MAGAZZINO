@@ -264,13 +264,13 @@
     .warning-badge {
       background: #fef3c7;
       color: #92400e;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      display: inline-flex;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      display: flex;
       align-items: center;
-      gap: 4px;
-      margin-top: 6px;
+      gap: 8px;
+      margin-top: 8px;
     }
     .info-badge {
       background: #e0f2fe;
@@ -395,7 +395,7 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA SINGOLA (migliorato graficamente) -->
+<!-- MODALE MODIFICA SINGOLA -->
 <div id="editAssignmentModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -406,6 +406,23 @@
     <div class="modal-footer">
       <button class="btn btn-success" id="saveEditBtn">💾 Salva modifiche</button>
       <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CONFERMA RIASSEGNAZIONE -->
+<div id="confirmRiassegnaModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚠️ Conferma riassegnazione</h3>
+      <button class="btn btn-secondary btn-sm" onclick="chiudiConfirmModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-warning" id="confirmOkBtn">Sì, trasferisci</button>
+      <button class="btn btn-secondary" onclick="chiudiConfirmModal()">Annulla</button>
     </div>
   </div>
 </div>
@@ -443,6 +460,7 @@
   let oggetti = [];
   let magazzinoKey = 'id';
   let currentEditObj = null;
+  let pendingAction = null; // per gestire la conferma riassegnazione
 
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
@@ -464,14 +482,10 @@
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
 
-  // ========== VERIFICA SE UNA SIGLA È GIÀ ASSEGNATA (a qualsiasi soggetto escluso l'attuale) ==========
+  // ========== VERIFICA SIGLA (con dettaglio assegnatario) ==========
   async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
-    if (!siglaId) return null; // nessuna sigla, nessun problema
+    if (!siglaId) return null;
     try {
-      // Chiamata a un ipotetico endpoint /api/assegnazioni/verifica-sigla
-      // Se non esiste, puoi implementarlo lato backend.
-      // Simuliamo per ora: cerchiamo in carico_sintesi via API generica? Meglio implementare un endpoint specifico.
-      // Per ora assumiamo che il backend abbia una rotta GET /api/assegnazioni/verifica-sigla
       const params = new URLSearchParams();
       params.append('tipo_oggetto', tipoOggetto);
       params.append('oggetto_id', oggettoId);
@@ -481,7 +495,7 @@
         params.append('escludi_id', excludeSubjectId);
       }
       const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
-      return res.success ? res.assegnato_a : null; // restituisce { tipo, id, nome } o null
+      return res.success ? res.assegnato_a : null;
     } catch(e) {
       console.warn('Verifica sigla fallita:', e);
       return null;
@@ -648,11 +662,13 @@
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  function popolaTabella() {
+  // ========== POPOLA TABELLA CON DROPDOWN SIGLE ARRICCHITO ==========
+  async function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
-    oggetti.forEach((obj, idx) => {
+    for (let idx = 0; idx < oggetti.length; idx++) {
+      const obj = oggetti[idx];
       const row = tbody.insertRow();
       const cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -673,26 +689,35 @@
         const select = document.createElement('select');
         select.className = 'sigla-select';
         select.innerHTML = '<option value="">Nessuna sigla</option>';
-        obj.sigleDisponibili.forEach(s => {
+        // Per ogni sigla, verifica se è già assegnata (solo se l'oggetto non è in magazzino)
+        for (const s of obj.sigleDisponibili) {
+          let optionText = s.sigla;
+          if (s.durezza) optionText += ` (${s.durezza})`;
+          if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+          let assegnatoA = null;
+          if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
+            assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+          }
+          if (assegnatoA) {
+            optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+          }
           const opt = document.createElement('option');
           opt.value = s.id;
-          opt.text = s.sigla + (s.durezza ? ` (${s.durezza})` : '') + (s.lunghezza ? ` - ${s.lunghezza}cm` : '');
+          opt.text = optionText;
+          if (assegnatoA) opt.setAttribute('data-assigned-to', JSON.stringify(assegnatoA));
           if (obj.siglaId && obj.siglaId == s.id) opt.selected = true;
           select.appendChild(opt);
-        });
+        }
         if (obj.sigleDisponibili.length === 1) {
-          select.value = obj.sigleDisponibili[0].id;
           select.disabled = true;
         }
         select.addEventListener('change', async (e) => {
-          const newSiglaId = e.target.value ? parseInt(e.target.value) : null;
-          obj.selectedSiglaId = newSiglaId;
-          // Verifica se la sigla è già assegnata (solo se non siamo in modalità magazzino e l'oggetto è già assegnato a un soggetto)
-          if (!radioMagazzino.checked && obj.destinatarioNome !== 'Magazzino' && newSiglaId) {
-            const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, newSiglaId, obj.destinazioneTipo, obj.destinazioneId);
-            if (assegnatoA) {
-              showMessage(`⚠️ Attenzione: la sigla selezionata è già assegnata a ${assegnatoA.nome}. L'assegnazione potrebbe causare conflitti.`, 'error');
-            }
+          const selectedOpt = select.options[select.selectedIndex];
+          const assignedData = selectedOpt.getAttribute('data-assigned-to');
+          obj.selectedSiglaId = e.target.value ? parseInt(e.target.value) : null;
+          if (assignedData && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
+            const assigned = JSON.parse(assignedData);
+            showMessage(`⚠️ Attenzione: la sigla selezionata è già assegnata a ${assigned.nome}. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`, 'info');
           }
         });
         cellSigla.appendChild(select);
@@ -711,7 +736,7 @@
       editBtn.onclick = () => apriModificaSingola(idx);
       if (isDisabled || obj.tipoAssegnazione === 'referente') editBtn.disabled = true;
       cellAzioni.appendChild(editBtn);
-    });
+    }
     document.getElementById('selectAll').onclick = () => toggleSelectAll();
     aggiornaSelezione();
   }
@@ -733,16 +758,29 @@
     document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
   }
 
-  // ========== MODIFICA SINGOLA (migliorata con verifica sigla) ==========
+  // ========== MODIFICA SINGOLA (migliorata) ==========
   async function apriModificaSingola(idx) {
     const obj = oggetti[idx];
     currentEditObj = { ...obj, idx, selectedSiglaId: obj.selectedSiglaId || obj.siglaId || null };
     const modalBody = document.getElementById('editAssignmentContent');
     let siglaOptions = '<option value="">Nessuna sigla</option>';
+    let hasOnlyOne = false;
     if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
-      obj.sigleDisponibili.forEach(s => {
-        siglaOptions += `<option value="${s.id}" ${currentEditObj.selectedSiglaId == s.id ? 'selected' : ''}>${s.sigla}${s.durezza ? ` (${s.durezza})` : ''}${s.lunghezza ? ` - ${s.lunghezza}cm` : ''}</option>`;
-      });
+      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
+      for (const s of obj.sigleDisponibili) {
+        let optionText = s.sigla;
+        if (s.durezza) optionText += ` (${s.durezza})`;
+        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+        let assegnatoA = null;
+        if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
+          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+        }
+        if (assegnatoA) {
+          optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+        }
+        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
+        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
+      }
     } else {
       siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
     }
@@ -761,8 +799,8 @@
       </div>
       <div class="form-group">
         <label>🏷️ Sigla</label>
-        <select id="editSiglaId" class="form-control">${siglaOptions}</select>
-        <div id="siglaWarning" class="warning-badge" style="display: none;">⚠️</div>
+        <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
+        <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
       </div>
       <div class="form-group">
         <label>🎯 Nuova destinazione (solo se trasferisci)</label>
@@ -784,17 +822,14 @@
     `;
     await caricaEditDestinazioni();
     const siglaSelect = document.getElementById('editSiglaId');
+    const warningDiv = document.getElementById('siglaWarning');
     siglaSelect.addEventListener('change', async () => {
-      const newSiglaId = siglaSelect.value ? parseInt(siglaSelect.value) : null;
-      const warningDiv = document.getElementById('siglaWarning');
-      if (!radioMagazzino.checked && obj.destinatarioNome !== 'Magazzino' && newSiglaId) {
-        const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, newSiglaId, obj.destinazioneTipo, obj.destinazioneId);
-        if (assegnatoA) {
-          warningDiv.style.display = 'flex';
-          warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assegnatoA.nome}</strong>. La modifica potrebbe causare conflitti.`;
-        } else {
-          warningDiv.style.display = 'none';
-        }
+      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
+      const assignedData = selectedOpt.getAttribute('data-assigned-to');
+      if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
+        const assigned = JSON.parse(assignedData);
+        warningDiv.style.display = 'flex';
+        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
       } else {
         warningDiv.style.display = 'none';
       }
@@ -836,6 +871,18 @@
       if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
       const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
       const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
+      // Verifica se la sigla è già assegnata a qualcun altro (escludendo il mittente attuale)
+      if (siglaId) {
+        const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
+        if (assegnatoA) {
+          // Chiedi conferma prima di riassegnare
+          pendingAction = { payload: { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note }, from: assegnatoA.nome };
+          document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?<br><br>L'operazione sposterà l'oggetto da ${assegnatoA.nome} a ${destTipo === 'PROMOTER' ? 'Promoter' : destTipo}.`;
+          document.getElementById('confirmRiassegnaModal').style.display = 'flex';
+          document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
+          return;
+        }
+      }
       const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note };
       try {
         const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
@@ -844,6 +891,17 @@
       } catch(err) { showErrorModal(err.message); }
     }
   }
+  async function eseguiTrasferimentoConfermato() {
+    if (!pendingAction) return;
+    chiudiConfirmModal();
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(pendingAction.payload) });
+      if (res.success) { showMessage('Trasferimento effettuato con successo', 'success'); chiudiEditModal(); await caricaOggetti(); }
+      else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+    pendingAction = null;
+  }
+  function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
   // ========== FILTRI ==========
@@ -895,7 +953,7 @@
     await refreshFilterDatalists(); await caricaOggetti();
   }
 
-  // ========== BATCH OPERATIONS con verifica sigle ==========
+  // ========== BATCH OPERATIONS ==========
   async function assegnaSelezionati() {
     const isCarico = radioCarico.checked;
     const magazzinoId = magazzinoSelect.value;
@@ -908,7 +966,6 @@
       if (currentUser.ruolo === 'admin' && sourceId.value) { daTipo = sourceTipo.value; daId = parseInt(sourceId.value); }
       else { if (!currentUser.riferimento_id) { showMessage('Utente non associato', 'error'); return; } daTipo = currentUser.ruolo.toUpperCase(); daId = parseInt(currentUser.riferimento_id); }
       const selezionati = [];
-      const errors = [];
       for (let row of document.querySelectorAll('#tabellaBody tr')) {
         const cb = row.querySelector('.select-item');
         if (cb && cb.checked && !cb.disabled) {
@@ -918,16 +975,9 @@
           const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
           const selectSigla = row.querySelector('.sigla-select');
           const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
-          if (siglaId) {
-            const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
-            if (assegnatoA) {
-              errors.push(`La sigla "${selectSigla.options[selectSigla.selectedIndex]?.text}" dell'oggetto ${obj.codice} è già assegnata a ${assegnatoA.nome}`);
-            }
-          }
           selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
         }
       }
-      if (errors.length) { showErrorModal(errors.join('<br>')); return; }
       if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
       const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: selezionati, note };
       assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';
@@ -942,7 +992,6 @@
     if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
     if (!destId) { showMessage('Seleziona una destinazione', 'error'); return; }
     const selezionati = [];
-    const errors = [];
     for (let row of document.querySelectorAll('#tabellaBody tr')) {
       const cb = row.querySelector('.select-item');
       if (cb && cb.checked && !cb.disabled) {
@@ -953,16 +1002,9 @@
         if (qta > max) qta = max;
         const selectSigla = row.querySelector('.sigla-select');
         const siglaId = selectSigla ? (selectSigla.value ? parseInt(selectSigla.value) : null) : (obj.selectedSiglaId || null);
-        if (siglaId) {
-          const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, null, null);
-          if (assegnatoA) {
-            errors.push(`La sigla "${selectSigla.options[selectSigla.selectedIndex]?.text}" dell'oggetto ${obj.codice} è già assegnata a ${assegnatoA.nome}`);
-          }
-        }
         selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
       }
     }
-    if (errors.length) { showErrorModal(errors.join('<br>')); return; }
     if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
     const payload = { magazzinoId: parseInt(magazzinoId), destinazioneTipo: destTipo, destinazioneId: parseInt(destId), note, oggetti: selezionati };
     assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';

@@ -28,21 +28,12 @@ async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneI
   }
 }
 
-// ========== OPERAZIONI TRANSIZIONALI (senza toccare quantita_totale) ==========
+// ========== OPERAZIONI TRANSIZIONALI ==========
 async function registraUscitaTransazionale(connection, params) {
   const { magazzinoId, tipoOggetto, oggettoId, siglaId, quantita, destinazioneTipo, destinazioneId, note, operatore, userId } = params;
   if (tipoOggetto === 'ARTICOLO') {
     const [art] = await connection.query('SELECT (quantita_totale - quantita_in_kit) AS giacenza_reale FROM articoli WHERE articolo_id = ? FOR UPDATE', [oggettoId]);
     if (!art.length || art[0].giacenza_reale < quantita) throw new Error('Giacenza articolo insufficiente');
-    // Sottrae solo dalla giacenza (quantita_totale - quantita_in_kit) ma non tocca quantita_totale
-    // Poiché la giacenza è calcolata, non serve decrementare nulla? No, la giacenza è virtuale.
-    // In realtà, quando un articolo viene assegnato, deve diminuire la disponibilità.
-    // La disponibilità è data da quantita_totale - quantita_in_kit.
-    // Per diminuire la disponibilità, dobbiamo aumentare quantita_in_kit? No, quantita_in_kit è per i kit.
-    // La logica corretta: quando assegni un articolo a un soggetto, la sua quantità totale in magazzino diminuisce.
-    // Quindi dobbiamo decrementare quantita_totale.
-    // Ma attenzione: se l'articolo è già in kit, quantita_in_kit è già aumentata. L'assegnazione riguarda la merce fisica.
-    // Quindi: assegno dal magazzino → decremento quantita_totale.
     await connection.query('UPDATE articoli SET quantita_totale = quantita_totale - ?, data_modifica = NOW() WHERE articolo_id = ?', [quantita, oggettoId]);
   } else {
     const [kit] = await connection.query('SELECT quantita FROM kit WHERE id = ? FOR UPDATE', [oggettoId]);
