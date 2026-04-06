@@ -399,91 +399,104 @@
   }
 
   // ---------- RECUPERA OGGETTI ASSEGNATI (da carico_sintesi + movimenti storici) ----------
-  async function getAssegnazioniConStorico() {
-    const tipoSogg = soggettoTipo.value;
-    const idSogg = soggettoId.value;
-    if (!tipoSogg || !idSogg) return [];
+ async function getAssegnazioniConStorico() {
+  const tipoSogg = soggettoTipo.value;
+  const idSogg = soggettoId.value;
+  if (!tipoSogg || !idSogg) return [];
 
-    // 1. Oggetti attualmente in carico (da carico_sintesi)
-    const resCarico = await apiFetch('/api/assegnazioni/oggetti', { 
-      method: 'POST', 
-      body: JSON.stringify({ targetTipo: tipoSogg, targetId: parseInt(idSogg) })
+  // 1. Oggetti attualmente in carico (da carico_sintesi)
+  const resCarico = await apiFetch('/api/assegnazioni/oggetti', { 
+    method: 'POST', 
+    body: JSON.stringify({ targetTipo: tipoSogg, targetId: parseInt(idSogg) })
+  });
+  const carico = resCarico.success ? resCarico.oggetti : [];
+  const caricoMap = new Map();
+  for (const obj of carico) {
+    const key = `${obj.tipo}|${obj.ID}`;
+    let siglaSci = obj.SIGLA || '';
+    let lunghezzaSci = obj.LUNGHEZZA || '';
+    if (obj.tipo === 'KIT') {
+      const dettagliSci = await getDettagliSciKit(obj.ID);
+      siglaSci = dettagliSci.sigla || obj.SIGLA;
+      lunghezzaSci = dettagliSci.lunghezza || obj.LUNGHEZZA;
+    }
+    caricoMap.set(key, { 
+      ...obj, 
+      stato: 'in_carico',
+      siglaSci: siglaSci,
+      lunghezzaSci: lunghezzaSci
     });
-    const carico = resCarico.success ? resCarico.oggetti : [];
-    const caricoMap = new Map();
-    for (const obj of carico) {
-      const key = `${obj.tipo}|${obj.ID}`;
-      caricoMap.set(key, { ...obj, stato: 'in_carico' });
-    }
-
-    // 2. Oggetti che sono stati assegnati al soggetto in passato (movimenti USCITA dove a_magazzino = soggetto)
-    const params = new URLSearchParams();
-    params.append('tipo', 'USCITA');
-    params.append('a_magazzino', `${tipoSogg}-${idSogg}`);
-    const resMov = await apiFetch(`/api/movimenti?${params.toString()}`);
-    const movimenti = resMov.success ? resMov.data : [];
-    
-    // Per ogni movimento, recupera i dettagli dell'oggetto
-    const storicoMap = new Map();
-    for (const mov of movimenti) {
-      const key = `${mov.tipo_oggetto}|${mov.id_articolo_kit}`;
-      if (!storicoMap.has(key)) {
-        // Recupera dettaglio oggetto
-        let dettaglio = null;
-        if (mov.tipo_oggetto === 'ARTICOLO') {
-          const art = await apiFetch(`/api/articoli/${mov.id_articolo_kit}`);
-          dettaglio = {
-            ID: mov.id_articolo_kit,
-            tipo: 'ARTICOLO',
-            codice: art.codice,
-            descrizione: art.descrizione_completa,
-            LUNGHEZZA: art.lunghezza,
-            DUREZZA: art.durezza,
-            SIGLA: art.sigla,
-            quantita: mov.quantita
-          };
-        } else {
-          const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
-          dettaglio = {
-            ID: mov.id_articolo_kit,
-            tipo: 'KIT',
-            codice: kit.codice_kit,
-            descrizione: kit.descrizione,
-            LUNGHEZZA: '',
-            DUREZZA: '',
-            SIGLA: '',
-            quantita: mov.quantita
-          };
-        }
-        storicoMap.set(key, { ...dettaglio, stato: 'transitato', dataMovimento: mov.data });
-      }
-    }
-
-    // 3. Unisci: se un oggetto è in carico, prevale (mostra quello); altrimenti mostra lo storico
-    const tutti = [];
-    for (let [key, obj] of storicoMap.entries()) {
-      if (caricoMap.has(key)) {
-        tutti.push(caricoMap.get(key));
-      } else {
-        tutti.push(obj);
-      }
-    }
-    // Aggiungi eventuali oggetti in carico non presenti nello storico (raro)
-    for (let [key, obj] of caricoMap.entries()) {
-      if (!storicoMap.has(key)) tutti.push(obj);
-    }
-
-    // Arricchisci con destinatario (per la visualizzazione)
-    const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
-    for (const obj of tutti) {
-      obj.destinazioneTipo = tipoSogg;
-      obj.destinazioneId = idSogg;
-      obj.destinatarioNome = soggettoNome;
-    }
-
-    return tutti;
   }
 
+  // 2. Oggetti che sono stati assegnati al soggetto in passato (movimenti USCITA dove a_magazzino = soggetto)
+  const params = new URLSearchParams();
+  params.append('tipo', 'USCITA');
+  params.append('a_magazzino', `${tipoSogg}-${idSogg}`);
+  const resMov = await apiFetch(`/api/movimenti?${params.toString()}`);
+  const movimenti = resMov.success ? resMov.data : [];
+  
+  const storicoMap = new Map();
+  for (const mov of movimenti) {
+    const key = `${mov.tipo_oggetto}|${mov.id_articolo_kit}`;
+    if (!storicoMap.has(key)) {
+      let dettaglio = null;
+      if (mov.tipo_oggetto === 'ARTICOLO') {
+        const art = await apiFetch(`/api/articoli/${mov.id_articolo_kit}`);
+        dettaglio = {
+          ID: mov.id_articolo_kit,
+          tipo: 'ARTICOLO',
+          codice: art.codice,
+          descrizione: art.descrizione_completa,
+          LUNGHEZZA: art.lunghezza,
+          DUREZZA: art.durezza,
+          SIGLA: art.sigla,
+          quantita: mov.quantita,
+          siglaSci: art.sigla || '',
+          lunghezzaSci: art.lunghezza || ''
+        };
+      } else {
+        const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
+        const dettagliSci = await getDettagliSciKit(mov.id_articolo_kit);
+        dettaglio = {
+          ID: mov.id_articolo_kit,
+          tipo: 'KIT',
+          codice: kit.codice_kit,
+          descrizione: kit.descrizione,
+          LUNGHEZZA: dettagliSci.lunghezza || '',
+          DUREZZA: '',
+          SIGLA: dettagliSci.sigla || '',
+          quantita: mov.quantita,
+          siglaSci: dettagliSci.sigla || '',
+          lunghezzaSci: dettagliSci.lunghezza || ''
+        };
+      }
+      storicoMap.set(key, { ...dettaglio, stato: 'transitato', dataMovimento: mov.data });
+    }
+  }
+
+  // 3. Unisci: se un oggetto è in carico, prevale (mostra quello); altrimenti mostra lo storico
+  const tutti = [];
+  for (let [key, obj] of storicoMap.entries()) {
+    if (caricoMap.has(key)) {
+      tutti.push(caricoMap.get(key));
+    } else {
+      tutti.push(obj);
+    }
+  }
+  for (let [key, obj] of caricoMap.entries()) {
+    if (!storicoMap.has(key)) tutti.push(obj);
+  }
+
+  // Arricchisci con destinatario (per la visualizzazione)
+  const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
+  for (const obj of tutti) {
+    obj.destinazioneTipo = tipoSogg;
+    obj.destinazioneId = idSogg;
+    obj.destinatarioNome = soggettoNome;
+  }
+
+  return tutti;
+}
   async function getNomeSoggetto(tipo, id) {
     const key = `${tipo}|${id}`;
     if (cacheSoggetti.has(key)) return cacheSoggetti.get(key);
@@ -622,6 +635,36 @@
     }
     return catena;
   }
+async function getDettagliSciKit(kitId) {
+  try {
+    const kit = await apiFetch(`/api/kit/${kitId}`);
+    if (kit.dettagli && kit.dettagli.length) {
+      const sciDetail = kit.dettagli.find(d => d.tipo_articolo === 'SCI');
+      if (sciDetail) {
+        const sigla = sciDetail.sigla || '';
+        let lunghezza = sciDetail.lunghezza || '';
+        if (!lunghezza && sciDetail.articolo_id) {
+          const art = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
+          lunghezza = art.lunghezza || '';
+        }
+        return { sigla, lunghezza };
+      }
+    }
+    return { sigla: '', lunghezza: '' };
+  } catch(e) {
+    console.warn(`Errore recupero dettagli sci per kit ${kitId}`, e);
+    return { sigla: '', lunghezza: '' };
+  }
+}
+
+const dettagliSciCache = new Map();
+
+async function getDettagliSciKit(kitId) {
+  if (dettagliSciCache.has(kitId)) return dettagliSciCache.get(kitId);
+  // ... resto della funzione
+  dettagliSciCache.set(kitId, risultato);
+  return risultato;
+}
 
 function renderAssegnazioniGrouped(oggetti) {
   const container = document.getElementById('assegnazioniTable');
@@ -633,17 +676,19 @@ function renderAssegnazioniGrouped(oggetti) {
   let html = `<div class="assigned-group"><h3>${gruppo.tipo}: ${gruppo.nome}</h3>`;
   html += `<table border="1" style="border-collapse: collapse; width: 100%;">`;
   html += `<thead><tr>`;
-  html += `<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th>`;
+  html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th>`;
   if (mostraCatenaCheckbox.checked) html += `<th>Storico passaggi</th>`;
   html += `</tr></thead><tbody>`;
   for (const item of oggetti) {
-    const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
+    // Per i kit, mostra la sigla dello sci; per gli articoli, mostra il codice
+    const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
+    const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : (item.LUNGHEZZA || '-');
     const giacenza = item.stato === 'in_carico' ? item.quantita : 0;
     html += `<tr>`;
     html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-    html += `<td>${codice || '-'}</td>`;
+    html += `<td>${codiceMostrato}</td>`;
     html += `<td>${item.descrizione || '-'}</td>`;
-    html += `<td>${item.LUNGHEZZA || '-'}</td>`;
+    html += `<td>${lunghezzaMostrata}</td>`;
     html += `<td>${item.DUREZZA || '-'}</td>`;
     html += `<td>${item.SIGLA || '-'}</td>`;
     html += `<td>${item.quantita}</td>`;
