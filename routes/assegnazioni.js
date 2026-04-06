@@ -28,12 +28,21 @@ async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneI
   }
 }
 
-// ========== OPERAZIONI TRANSIZIONALI ==========
+// ========== OPERAZIONI TRANSIZIONALI (senza toccare quantita_totale) ==========
 async function registraUscitaTransazionale(connection, params) {
   const { magazzinoId, tipoOggetto, oggettoId, siglaId, quantita, destinazioneTipo, destinazioneId, note, operatore, userId } = params;
   if (tipoOggetto === 'ARTICOLO') {
     const [art] = await connection.query('SELECT (quantita_totale - quantita_in_kit) AS giacenza_reale FROM articoli WHERE articolo_id = ? FOR UPDATE', [oggettoId]);
     if (!art.length || art[0].giacenza_reale < quantita) throw new Error('Giacenza articolo insufficiente');
+    // Sottrae solo dalla giacenza (quantita_totale - quantita_in_kit) ma non tocca quantita_totale
+    // Poiché la giacenza è calcolata, non serve decrementare nulla? No, la giacenza è virtuale.
+    // In realtà, quando un articolo viene assegnato, deve diminuire la disponibilità.
+    // La disponibilità è data da quantita_totale - quantita_in_kit.
+    // Per diminuire la disponibilità, dobbiamo aumentare quantita_in_kit? No, quantita_in_kit è per i kit.
+    // La logica corretta: quando assegni un articolo a un soggetto, la sua quantità totale in magazzino diminuisce.
+    // Quindi dobbiamo decrementare quantita_totale.
+    // Ma attenzione: se l'articolo è già in kit, quantita_in_kit è già aumentata. L'assegnazione riguarda la merce fisica.
+    // Quindi: assegno dal magazzino → decremento quantita_totale.
     await connection.query('UPDATE articoli SET quantita_totale = quantita_totale - ?, data_modifica = NOW() WHERE articolo_id = ?', [quantita, oggettoId]);
   } else {
     const [kit] = await connection.query('SELECT quantita FROM kit WHERE id = ? FOR UPDATE', [oggettoId]);
@@ -63,6 +72,37 @@ async function registraRientroTransazionale(connection, params) {
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
+// ========== VERIFICA SE UNA SIGLA È GIÀ ASSEGNATA ==========
+router.get('/verifica-sigla', verifyToken, async (req, res) => {
+  try {
+    const { tipo_oggetto, oggetto_id, sigla_id, escludi_tipo, escludi_id } = req.query;
+    if (!tipo_oggetto || !oggetto_id || !sigla_id) {
+      return res.status(400).json({ success: false, message: 'Parametri mancanti' });
+    }
+    let query = `
+      SELECT cs.destinazione_tipo, cs.destinazione_id, s.nome, s.cognome
+      FROM carico_sintesi cs
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+      WHERE cs.tipo_oggetto = ? AND cs.oggetto_id = ? AND cs.sigla_id = ? AND cs.quantita > 0
+    `;
+    const params = [tipo_oggetto, oggetto_id, sigla_id];
+    if (escludi_tipo && escludi_id) {
+      query += ' AND NOT (cs.destinazione_tipo = ? AND cs.destinazione_id = ?)';
+      params.push(escludi_tipo, escludi_id);
+    }
+    const [rows] = await pool.query(query, params);
+    if (rows.length === 0) {
+      return res.json({ success: true, assegnato_a: null });
+    }
+    const row = rows[0];
+    const nome = row.destinazione_tipo === 'PROMOTER' ? `${row.nome} ${row.cognome || ''}`.trim() : (row.nome || '');
+    res.json({ success: true, assegnato_a: { tipo: row.destinazione_tipo, id: row.destinazione_id, nome } });
+  } catch (error) {
+    console.error('Errore in /verifica-sigla:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ========== RECUPERA SIGLE DISPONIBILI PER UN ARTICOLO ==========
 async function getSigleArticolo(articoloId) {
   try {
@@ -73,7 +113,7 @@ async function getSigleArticolo(articoloId) {
   }
 }
 
-// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT (dallo sci associato tramite kit_dettaglio) ==========
+// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT ==========
 async function getSigleKit(kitId) {
   try {
     const [sciRow] = await pool.query(
@@ -89,18 +129,7 @@ async function getSigleKit(kitId) {
   }
 }
 
-// ========== RECUPERA LA SIGLA CORRENTE DI UN KIT (quella presente in carico_sintesi) ==========
-async function getSiglaCorrenteKit(kitId, siglaId) {
-  if (!siglaId) return '';
-  try {
-    const [rows] = await pool.query('SELECT sigla FROM sigle_articoli WHERE id = ?', [siglaId]);
-    return rows.length ? rows[0].sigla : '';
-  } catch(e) {
-    return '';
-  }
-}
-
-// ========== OTTIENI OGGETTI IN CARICO (con sigle) – VERSIONE CORRETTA PER NUOVA STRUTTURA ==========
+// ========== OTTIENI OGGETTI IN CARICO ==========
 async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFiltro = null) {
   let query = `
     SELECT 
@@ -118,7 +147,6 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
         WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
       END AS codice,
-      -- Per i kit, lunghezza e durezza dalla prima riga SCI in kit_dettaglio
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
         WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
@@ -127,7 +155,6 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
         WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
       END AS DUREZZA,
-      -- Sigla corrente (quella associata in carico)
       (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
       a.settore AS SETTORE,
       a.marca AS MARCA,
@@ -148,7 +175,6 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
   }
   const [rows] = await pool.query(query, params);
   
-  // Arricchisci ogni riga con le sigle disponibili (per articoli e kit)
   const risultati = [];
   for (const row of rows) {
     let sigleDisponibili = [];
@@ -196,7 +222,6 @@ async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = nul
   let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
   oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta', referenteDa: null }));
   
-  // Trova i referenti (soggetti che hanno questo soggetto come referente)
   const [referiti] = await pool.query('SELECT soggetto_id FROM soggetti_referenti WHERE referente_id = ?', [id]);
   for (const ref of referiti) {
     const [sog] = await pool.query('SELECT tipo FROM soggetti WHERE id = ?', [ref.soggetto_id]);
@@ -236,7 +261,6 @@ router.post('/oggetti', verifyToken, async (req, res) => {
         }
         return res.json({ success: true, oggetti });
       } else {
-        // Admin senza target: restituisci tutti gli oggetti in carico
         let query = `
           SELECT cs.*,
             CASE 
