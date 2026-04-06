@@ -326,7 +326,7 @@
     }
   }
 
-  // ========== OGGETTI RICEVUTI (in carico + storici) ==========
+  // ========== OGGETTI RICEVUTI (in carico + storici) con provenienza reale (risalendo la catena) ==========
   async function getOggettiRicevuti(tipoSogg, idSogg) {
     // 1. Oggetti attualmente in carico (da carico_sintesi)
     const resCarico = await apiFetch('/api/assegnazioni/oggetti', { 
@@ -363,7 +363,8 @@
             DUREZZA: art.durezza,
             SIGLA: art.sigla,
             quantita: mov.quantita,
-            dataArrivo: mov.data
+            dataArrivo: mov.data,
+            movimentoArrivo: mov
           };
         } else {
           const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
@@ -377,72 +378,103 @@
             DUREZZA: '',
             SIGLA: dettagliSci.sigla,
             quantita: mov.quantita,
-            dataArrivo: mov.data
+            dataArrivo: mov.data,
+            movimentoArrivo: mov
           };
         }
         storicoMap.set(key, { ...dettaglio, stato: 'storico' });
       }
     }
 
-    // 3. Unisci: se un oggetto è in carico, prevale; altrimenti usa storico
+    // Funzione per risalire la catena fino a trovare un mittente non-magazzino
+    async function getProvenienzaReale(movimento) {
+      let currentMov = movimento;
+      let visited = new Set();
+      while (currentMov && currentMov.da_magazzino) {
+        if (visited.has(currentMov.id)) break;
+        visited.add(currentMov.id);
+        const daMatch = currentMov.da_magazzino.match(/([A-Z]+)-(\d+)/);
+        if (!daMatch) break;
+        const daTipo = daMatch[1];
+        const daId = parseInt(daMatch[2]);
+        
+        // Se il mittente non è un magazzino, restituiscilo
+        if (daTipo !== 'MAGAZZINO') {
+          const nome = await getNomeSoggetto(daTipo, daId);
+          return { nome, tipo: daTipo, id: daId };
+        }
+        
+        // Se è un magazzino, cerca il movimento che ha portato l'oggetto in quel magazzino
+        const paramsIngresso = new URLSearchParams();
+        paramsIngresso.append('tipo', 'USCITA');
+        paramsIngresso.append('a_magazzino', `MAGAZZINO-${daId}`);
+        paramsIngresso.append('tipo_oggetto', currentMov.tipo_oggetto);
+        paramsIngresso.append('id_articolo_kit', currentMov.id_articolo_kit);
+        paramsIngresso.append('_order', 'DESC');
+        paramsIngresso.append('_limit', '1');
+        const resIngresso = await apiFetch(`/api/movimenti?${paramsIngresso.toString()}`);
+        if (resIngresso.success && resIngresso.data.length) {
+          currentMov = resIngresso.data[0];
+          continue;
+        }
+        // Se non troviamo un'uscita, cerchiamo un rientro con nota "Trasferimento a"
+        const paramsRientro = new URLSearchParams();
+        paramsRientro.append('tipo', 'RIENTRO');
+        paramsRientro.append('a_magazzino', `MAGAZZINO-${daId}`);
+        paramsRientro.append('tipo_oggetto', currentMov.tipo_oggetto);
+        paramsRientro.append('id_articolo_kit', currentMov.id_articolo_kit);
+        paramsRientro.append('_order', 'DESC');
+        paramsRientro.append('_limit', '1');
+        const resRientro = await apiFetch(`/api/movimenti?${paramsRientro.toString()}`);
+        if (resRientro.success && resRientro.data.length) {
+          currentMov = resRientro.data[0];
+          continue;
+        }
+        break;
+      }
+      // Se arriviamo a un magazzino senza ulteriori informazioni, restituiamo il magazzino
+      if (currentMov && currentMov.da_magazzino) {
+        const daMatch = currentMov.da_magazzino.match(/([A-Z]+)-(\d+)/);
+        if (daMatch && daMatch[1] === 'MAGAZZINO') {
+          const magId = parseInt(daMatch[2]);
+          const mag = magazzini.find(m => m[magazzinoKey] == magId);
+          return { nome: mag ? `Magazzino ${mag.nome}` : `Magazzino ${magId}`, tipo: 'MAGAZZINO', id: magId };
+        }
+      }
+      return null;
+    }
+
+    // Unisci e arricchisci
     const tutti = [];
     for (let [key, obj] of storicoMap.entries()) {
       if (caricoMap.has(key)) {
         const carObj = caricoMap.get(key);
         carObj.stato = 'in_carico';
-        // Recupera provenienza dal movimento di arrivo (se non già presente)
-        if (!carObj.provenienza && obj.dataArrivo) {
-          const paramsArr = new URLSearchParams();
-          paramsArr.append('tipo', 'USCITA');
-          paramsArr.append('tipo_oggetto', carObj.tipo);
-          paramsArr.append('id_articolo_kit', carObj.ID);
-          paramsArr.append('a_magazzino', `${tipoSogg}-${idSogg}`);
-          paramsArr.append('_order', 'DESC');
-          paramsArr.append('_limit', '1');
-          const resArr = await apiFetch(`/api/movimenti?${paramsArr.toString()}`);
-          if (resArr.success && resArr.data.length) {
-            const arr = resArr.data[0];
-            if (arr.da_magazzino) {
-              const daMatch = arr.da_magazzino.match(/([A-Z]+)-(\d+)/);
-              if (daMatch) {
-                const daTipo = daMatch[1];
-                const daId = parseInt(daMatch[2]);
-                if (daTipo === 'MAGAZZINO') {
-                  const mag = magazzini.find(m => m[magazzinoKey] == daId);
-                  carObj.provenienza = mag ? `Magazzino ${mag.nome}` : `Magazzino ${daId}`;
-                } else {
-                  carObj.provenienza = await getNomeSoggetto(daTipo, daId);
-                }
-                carObj.dataArrivo = arr.data;
-              }
-            }
-          }
+        // Recupera provenienza reale (risalendo la catena)
+        if (carObj.movimentoArrivo) {
+          const provenienzaReale = await getProvenienzaReale(carObj.movimentoArrivo);
+          carObj.provenienza = provenienzaReale ? provenienzaReale.nome : (carObj.provenienza || '-');
         }
+        if (!carObj.dataArrivo && obj.dataArrivo) carObj.dataArrivo = obj.dataArrivo;
         tutti.push(carObj);
       } else {
-        // Oggetto storico (non più in carico). Aggiungi provenienza (mittente del movimento)
-        if (movimenti.length) {
-          const mov = movimenti.find(m => m.id_articolo_kit == obj.ID && m.tipo_oggetto == obj.tipo);
-          if (mov && mov.da_magazzino) {
-            const daMatch = mov.da_magazzino.match(/([A-Z]+)-(\d+)/);
-            if (daMatch) {
-              const daTipo = daMatch[1];
-              const daId = parseInt(daMatch[2]);
-              if (daTipo === 'MAGAZZINO') {
-                const mag = magazzini.find(m => m[magazzinoKey] == daId);
-                obj.provenienza = mag ? `Magazzino ${mag.nome}` : `Magazzino ${daId}`;
-              } else {
-                obj.provenienza = await getNomeSoggetto(daTipo, daId);
-              }
-            }
-          }
+        // Oggetto storico
+        if (obj.movimentoArrivo) {
+          const provenienzaReale = await getProvenienzaReale(obj.movimentoArrivo);
+          obj.provenienza = provenienzaReale ? provenienzaReale.nome : (obj.provenienza || '-');
         }
         tutti.push(obj);
       }
     }
     // Aggiungi solo gli oggetti in carico che non erano nello storico (raro)
     for (let [key, obj] of caricoMap.entries()) {
-      if (!storicoMap.has(key)) tutti.push(obj);
+      if (!storicoMap.has(key)) {
+        if (obj.movimentoArrivo) {
+          const provenienzaReale = await getProvenienzaReale(obj.movimentoArrivo);
+          obj.provenienza = provenienzaReale ? provenienzaReale.nome : (obj.provenienza || '-');
+        }
+        tutti.push(obj);
+      }
     }
 
     // Arricchisci con siglaSci e lunghezzaSci per i kit
@@ -455,6 +487,8 @@
         obj.siglaSci = obj.SIGLA || '';
         obj.lunghezzaSci = obj.LUNGHEZZA || '';
       }
+      // Elimina il campo movimentoArrivo (non serve più)
+      delete obj.movimentoArrivo;
     }
 
     return tutti;
@@ -629,9 +663,12 @@
       container.innerHTML = '<p>Nessun oggetto ricevuto / in carico (anche storico).</p>';
       return;
     }
-    let html = `<table><thead><tr>`;
+    let html = `<table border="1" style="border-collapse: collapse; width: 100%;">`;
+    html += `<thead>`;
+    html += `<tr>`;
     html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th><th>Provenienza</th><th>Data arrivo</th>`;
-    html += `</tr></thead><tbody>`;
+    html += `</tr>`;
+    html += `</thead><tbody>`;
     for (const item of oggetti) {
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : (item.LUNGHEZZA || '-');
@@ -649,7 +686,8 @@
       html += `<td>${item.dataArrivo ? new Date(item.dataArrivo).toLocaleString() : '-'}</td>`;
       html += `</tr>`;
     }
-    html += `</tbody></table>`;
+    html += `</tbody>`;
+    html += `</table>`;
     container.innerHTML = html;
   }
 
@@ -660,9 +698,12 @@
       container.innerHTML = '<p>Nessun oggetto inviato da questo soggetto.</p>';
       return;
     }
-    let html = `<table><thead><tr>`;
+    let html = `<table border="1" style="border-collapse: collapse; width: 100%;">`;
+    html += `<thead>`;
+    html += `<tr>`;
     html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>`;
-    html += `<tr></thead><tbody>`;
+    html += `</tr>`;
+    html += `</thead><tbody>`;
     for (const item of oggetti) {
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : '';
@@ -682,7 +723,8 @@
       html += `</td>`;
       html += `</tr>`;
     }
-    html += `</tbody></table>`;
+    html += `</tbody>`;
+    html += `</table>`;
     container.innerHTML = html;
   }
 
