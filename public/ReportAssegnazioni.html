@@ -326,7 +326,7 @@
     }
   }
 
-  // ========== OGGETTI RICEVUTI (in carico + storici) con provenienza reale (risalendo la catena) ==========
+  // ========== OGGETTI RICEVUTI (in carico + storici) con provenienza reale ==========
   async function getOggettiRicevuti(tipoSogg, idSogg) {
     // 1. Oggetti attualmente in carico (da carico_sintesi)
     const resCarico = await apiFetch('/api/assegnazioni/oggetti', { 
@@ -404,7 +404,7 @@
           return { nome, tipo: daTipo, id: daId };
         }
         
-        // Se è un magazzino, cerca il movimento che ha portato l'oggetto in quel magazzino
+        // Se è un magazzino, cerca il movimento che ha portato l'oggetto in quel magazzino (USCITA o RIENTRO)
         const paramsIngresso = new URLSearchParams();
         paramsIngresso.append('tipo', 'USCITA');
         paramsIngresso.append('a_magazzino', `MAGAZZINO-${daId}`);
@@ -417,7 +417,7 @@
           currentMov = resIngresso.data[0];
           continue;
         }
-        // Se non troviamo un'uscita, cerchiamo un rientro con nota "Trasferimento a"
+        // Se non troviamo un'uscita, cerchiamo un rientro
         const paramsRientro = new URLSearchParams();
         paramsRientro.append('tipo', 'RIENTRO');
         paramsRientro.append('a_magazzino', `MAGAZZINO-${daId}`);
@@ -450,15 +450,15 @@
       if (caricoMap.has(key)) {
         const carObj = caricoMap.get(key);
         carObj.stato = 'in_carico';
-        // Recupera provenienza reale (risalendo la catena)
-        if (carObj.movimentoArrivo) {
-          const provenienzaReale = await getProvenienzaReale(carObj.movimentoArrivo);
+        // Usa il movimentoArrivo dallo storico (obj) per calcolare la provenienza
+        if (obj.movimentoArrivo) {
+          const provenienzaReale = await getProvenienzaReale(obj.movimentoArrivo);
           carObj.provenienza = provenienzaReale ? provenienzaReale.nome : (carObj.provenienza || '-');
         }
         if (!carObj.dataArrivo && obj.dataArrivo) carObj.dataArrivo = obj.dataArrivo;
         tutti.push(carObj);
       } else {
-        // Oggetto storico
+        // Oggetto storico (non più in carico)
         if (obj.movimentoArrivo) {
           const provenienzaReale = await getProvenienzaReale(obj.movimentoArrivo);
           obj.provenienza = provenienzaReale ? provenienzaReale.nome : (obj.provenienza || '-');
@@ -469,10 +469,6 @@
     // Aggiungi solo gli oggetti in carico che non erano nello storico (raro)
     for (let [key, obj] of caricoMap.entries()) {
       if (!storicoMap.has(key)) {
-        if (obj.movimentoArrivo) {
-          const provenienzaReale = await getProvenienzaReale(obj.movimentoArrivo);
-          obj.provenienza = provenienzaReale ? provenienzaReale.nome : (obj.provenienza || '-');
-        }
         tutti.push(obj);
       }
     }
@@ -487,7 +483,6 @@
         obj.siglaSci = obj.SIGLA || '';
         obj.lunghezzaSci = obj.LUNGHEZZA || '';
       }
-      // Elimina il campo movimentoArrivo (non serve più)
       delete obj.movimentoArrivo;
     }
 
@@ -522,7 +517,7 @@
     
     if (!movimenti.length) return [];
     
-    const mappa = new Map(); // key = tipo|id oggetto
+    const mappa = new Map();
     for (const mov of movimenti) {
       const key = `${mov.tipo_oggetto}|${mov.id_articolo_kit}`;
       if (!mappa.has(key)) {
@@ -557,7 +552,6 @@
       }
       const obj = mappa.get(key);
       
-      // Determina il destinatario
       let destinatarioNome = '';
       if (mov.tipo === 'USCITA') {
         if (mov.a_magazzino && mov.a_magazzino.includes('-')) {
@@ -590,7 +584,6 @@
       };
       obj.passaggi.push(passaggio);
       
-      // Cerca se il destinatario ha ulteriormente trasferito lo stesso oggetto (secondo livello)
       let destIdOriginal = null;
       let destTipoOriginal = null;
       if (mov.tipo === 'USCITA' && mov.a_magazzino && mov.a_magazzino.includes('-')) {
@@ -637,7 +630,6 @@
       }
     }
     
-    // Arricchisci con siglaSci e lunghezzaSci per i kit
     const risultati = [];
     for (const obj of mappa.values()) {
       if (obj.tipo === 'KIT') {
@@ -664,11 +656,9 @@
       return;
     }
     let html = `<table border="1" style="border-collapse: collapse; width: 100%;">`;
-    html += `<thead>`;
-    html += `<tr>`;
+    html += `<thead><tr>`;
     html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th><th>Provenienza</th><th>Data arrivo</th>`;
-    html += `</tr>`;
-    html += `</thead><tbody>`;
+    html += `</tr></thead><tbody>`;
     for (const item of oggetti) {
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : (item.LUNGHEZZA || '-');
@@ -686,8 +676,7 @@
       html += `<td>${item.dataArrivo ? new Date(item.dataArrivo).toLocaleString() : '-'}</td>`;
       html += `</tr>`;
     }
-    html += `</tbody>`;
-    html += `</table>`;
+    html += `</tbody></table>`;
     container.innerHTML = html;
   }
 
@@ -699,11 +688,9 @@
       return;
     }
     let html = `<table border="1" style="border-collapse: collapse; width: 100%;">`;
-    html += `<thead>`;
-    html += `<tr>`;
+    html += `<thead><tr>`;
     html += `<th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>`;
-    html += `</tr>`;
-    html += `</thead><tbody>`;
+    html += `</tr></thead><tbody>`;
     for (const item of oggetti) {
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : '';
@@ -723,8 +710,7 @@
       html += `</td>`;
       html += `</tr>`;
     }
-    html += `</tbody>`;
-    html += `</table>`;
+    html += `</tbody></table>`;
     container.innerHTML = html;
   }
 
@@ -738,9 +724,7 @@
     }
     const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
     
-    // Carica oggetti ricevuti (storici + in carico)
     let ricevuti = await getOggettiRicevuti(tipoSogg, idSogg);
-    // Applica filtri
     if (filtroTipo.value) ricevuti = ricevuti.filter(o => o.tipo === filtroTipo.value);
     if (filtroDesc.value) ricevuti = ricevuti.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
     if (filtroLung.value) ricevuti = ricevuti.filter(o => (o.lunghezzaSci || o.LUNGHEZZA) == filtroLung.value);
@@ -749,9 +733,7 @@
     
     renderOggettiRicevuti(ricevuti, soggettoNome);
     
-    // Carica oggetti inviati
     const inviati = await getOggettiInviatiConPassaggi(tipoSogg, idSogg);
-    // Applica filtri anche agli inviati
     let inviatiFiltrati = inviati;
     if (filtroTipo.value) inviatiFiltrati = inviatiFiltrati.filter(o => o.tipo === filtroTipo.value);
     if (filtroDesc.value) inviatiFiltrati = inviatiFiltrati.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
