@@ -623,49 +623,48 @@
     return catena;
   }
 
-  function renderAssegnazioniGrouped(oggetti) {
-    const container = document.getElementById('assegnazioniTable');
-    if (!oggetti.length) {
-      container.innerHTML = '<p>Nessun oggetto trovato per questo soggetto.</p>';
-      return;
-    }
-    // Raggruppa per soggetto (ma sono tutti lo stesso soggetto, quindi un solo gruppo)
-    const gruppo = { tipo: soggettoTipo.value, id: soggettoId.value, nome: oggetti[0]?.destinatarioNome || 'Soggetto', items: oggetti };
-    let html = `<div class="assigned-group"><h3>${gruppo.tipo}: ${gruppo.nome}</h3>`;
-    html += `<tr><thead><tr>`;
-    html += `<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th>`;
-    if (mostraCatenaCheckbox.checked) html += `<th>Storico passaggi</th>`;
-    html += `</tr></thead><tbody>`;
-    for (const item of oggetti) {
-      const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
-      const giacenza = item.stato === 'in_carico' ? item.quantita : 0;
-      html += `<tr>`;
-      html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-      html += `<td>${codice || '-'}</td>`;
-      html += `<td>${item.descrizione || '-'}</td>`;
-      html += `<td>${item.LUNGHEZZA || '-'}</td>`;
-      html += `<td>${item.DUREZZA || '-'}</td>`;
-      html += `<td>${item.SIGLA || '-'}</td>`;
-      html += `<td>${item.quantita}</td>`;
-      html += `<td>${giacenza}</td>`;
-      if (mostraCatenaCheckbox.checked) {
-        const catena = item.catena || [];
-        if (catena.length) {
-          html += `<td>${catena.map(step => {
-            if (step.tipo === 'arrivo') return `📥 Ricevuto da ${step.da} il ${new Date(step.data).toLocaleDateString()}`;
-            if (step.tipo === 'partenza') return `📤 Trasferito a ${step.a} il ${new Date(step.data).toLocaleDateString()}`;
-            return '';
-          }).join('<br>')}</td>`;
-        } else {
-          html += `<td>-</td>`;
-        }
-      }
-      html += `</tr>`;
-    }
-    html += `</tbody></div>`;
-    container.innerHTML = html;
+function renderAssegnazioniGrouped(oggetti) {
+  const container = document.getElementById('assegnazioniTable');
+  if (!oggetti.length) {
+    container.innerHTML = '<p>Nessun oggetto trovato per questo soggetto.</p>';
+    return;
   }
-
+  const gruppo = { tipo: soggettoTipo.value, id: soggettoId.value, nome: oggetti[0]?.destinatarioNome || 'Soggetto', items: oggetti };
+  let html = `<div class="assigned-group"><h3>${gruppo.tipo}: ${gruppo.nome}</h3>`;
+  html += `<table border="1" style="border-collapse: collapse; width: 100%;">`;
+  html += `<thead><tr>`;
+  html += `<th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th>`;
+  if (mostraCatenaCheckbox.checked) html += `<th>Storico passaggi</th>`;
+  html += `</tr></thead><tbody>`;
+  for (const item of oggetti) {
+    const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
+    const giacenza = item.stato === 'in_carico' ? item.quantita : 0;
+    html += `<tr>`;
+    html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
+    html += `<td>${codice || '-'}</td>`;
+    html += `<td>${item.descrizione || '-'}</td>`;
+    html += `<td>${item.LUNGHEZZA || '-'}</td>`;
+    html += `<td>${item.DUREZZA || '-'}</td>`;
+    html += `<td>${item.SIGLA || '-'}</td>`;
+    html += `<td>${item.quantita}</td>`;
+    html += `<td>${giacenza}</td>`;
+    if (mostraCatenaCheckbox.checked) {
+      const catena = item.catena || [];
+      if (catena.length) {
+        html += `<td>${catena.map(step => {
+          if (step.tipo === 'arrivo') return `📥 Ricevuto da ${step.da} il ${new Date(step.data).toLocaleDateString()}`;
+          if (step.tipo === 'partenza') return `📤 Trasferito a ${step.a} il ${new Date(step.data).toLocaleDateString()}`;
+          return '';
+        }).join('<br>')}</td>`;
+      } else {
+        html += `<td>-</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
   function renderMovimentiTable(movimenti) {
     const container = document.getElementById('movimentiTable');
     if (!movimenti.length) {
