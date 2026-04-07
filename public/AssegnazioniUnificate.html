@@ -89,12 +89,8 @@
       gap: 6px;
     }
     .btn:hover { background: #0f5bb5; transform: translateY(-1px); }
-    .btn-success { background: #27ae60; }
-    .btn-success:hover { background: #219653; }
     .btn-secondary { background: #6c757d; }
     .btn-secondary:hover { background: #5a6268; }
-    .btn-warning { background: #f39c12; }
-    .btn-warning:hover { background: #e67e22; }
     .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
     .table-wrapper {
       overflow-x: auto;
@@ -120,15 +116,6 @@
       color: #1e293b;
     }
     tr:hover td { background: #fefce8; }
-    .selected-info {
-      background: #e8f0fe;
-      padding: 10px 16px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      font-size: 0.85rem;
-      display: inline-block;
-      border-left: 4px solid #1a73e8;
-    }
     .message {
       padding: 10px;
       border-radius: 10px;
@@ -181,16 +168,6 @@
       flex-wrap: wrap;
       align-items: flex-end;
       border: 1px solid #e2e8f0;
-    }
-    .action-buttons {
-      display: flex;
-      gap: 12px;
-      margin-top: 15px;
-    }
-    .inline-refresh {
-      display: flex;
-      align-items: flex-end;
-      gap: 5px;
     }
     .modal {
       display: none;
@@ -263,6 +240,10 @@
       align-items: center;
       gap: 8px;
       margin-top: 8px;
+    }
+    /* Cursore di attesa globale */
+    body.waiting * {
+      cursor: wait !important;
     }
   </style>
 </head>
@@ -346,30 +327,6 @@
       <tbody id="tabellaBody"><td colspan="6" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
-
-  <div class="selected-info" id="selectedInfo">Nessun oggetto selezionato</div>
-
-  <div class="filter-row" id="destinazioneRow">
-    <div class="filter-group">
-      <label>Destinazione (batch)</label>
-      <div class="inline-refresh">
-        <select id="destinazioneTipo" onchange="caricaDestinazioni()">
-          <option value="PROMOTER">👤 Promoter</option>
-          <option value="NEGOZIO">🏪 Negozio</option>
-          <option value="CLIENTE">👥 Cliente</option>
-          <option value="AGENTE">🤝 Agente</option>
-        </select>
-        <button class="btn btn-secondary" style="padding: 4px 8px;" onclick="caricaDestinazioni()" title="Aggiorna">🔄</button>
-      </div>
-    </div>
-    <div class="filter-group"><label>Seleziona destinazione</label><select id="destinazioneId"></select></div>
-    <div class="filter-group"><label>Note</label><input type="text" id="noteUscita" placeholder="Note (opzionale)"></div>
-  </div>
-
-  <div class="action-buttons">
-    <button class="btn btn-success" id="assegnaBtn" onclick="assegnaSelezionati()">📤 Assegna selezionati</button>
-    <button class="btn btn-warning" id="rientroBtn" onclick="rientraSelezionati()" style="display: none;">📦 Rientra in magazzino</button>
-  </div>
 </div>
 
 <!-- MODALE MODIFICA SINGOLA (con gestione sigle) -->
@@ -424,9 +381,14 @@
   function getAuthHeader() { const token = localStorage.getItem('token'); return token ? { 'Authorization': 'Bearer ' + token } : {}; }
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const res = await fetch(endpoint, { ...options, headers });
-    if (!res.ok) { let err = `Errore ${res.status}`; try { const data = await res.json(); err = data.message || err; } catch(e) {} throw new Error(err); }
-    return res.json();
+    const response = await fetch(endpoint, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token'); localStorage.removeItem('user');
+      window.location.href = 'Login.html';
+      throw new Error('Sessione scaduta');
+    }
+    if (!response.ok) { let err = `Errore ${response.status}`; try { const data = await response.json(); err = data.message || err; } catch(e) {} throw new Error(err); }
+    return response.json();
   }
   function showMessage(msg, type) { const div = document.getElementById('messageArea'); div.innerHTML = `<div class="message ${type}">${msg}</div>`; setTimeout(() => div.innerHTML = '', 5000); }
   function showErrorModal(msg) { document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>'); document.getElementById('errorModal').style.display = 'flex'; }
@@ -450,10 +412,6 @@
   const filtroLunghezza = document.getElementById('filtroLunghezza');
   const filtroDurezza = document.getElementById('filtroDurezza');
   const filtroSigla = document.getElementById('filtroSigla');
-  const destinazioneTipo = document.getElementById('destinazioneTipo');
-  const destinazioneId = document.getElementById('destinazioneId');
-  const assegnaBtn = document.getElementById('assegnaBtn');
-  const rientroBtn = document.getElementById('rientroBtn');
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
@@ -516,19 +474,6 @@
     } catch(err) { showMessage('Errore sorgenti', 'error'); }
   }
 
-  async function caricaDestinazioni() {
-    const tipo = destinazioneTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      destinazioneId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        destinazioneId.appendChild(new Option(testo, item.id));
-      });
-      if (destinazioneId.options.length > 1 && !destinazioneId.value) destinazioneId.selectedIndex = 1;
-    } catch(err) { showMessage('Errore destinazioni', 'error'); }
-  }
-
   async function getSiglePerOggetto(obj) {
     if (obj.tipo === 'ARTICOLO') {
       try { return await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { return []; }
@@ -584,7 +529,6 @@
         tipoAssegnazione: 'me'
       }));
       popolaTabella();
-      assegnaBtn.disabled = false;
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
@@ -631,12 +575,11 @@
           destinazioneId: obj.destinazioneId
         }));
         popolaTabella();
-        assegnaBtn.disabled = false;
       } else throw new Error(res.message);
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  // ========== TABELLA SEMPLIFICATA (nessuna sigla) ==========
+  // ========== TABELLA ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) { tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
@@ -651,7 +594,6 @@
       const isDisabled = obj.disponibile <= 0 || isReferenced;
       if (isDisabled) cb.disabled = true;
       row.insertCell(0).appendChild(cb);
-      // Mostra codice e descrizione (per i kit, mostra anche lunghezza se disponibile)
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       if (obj.tipo === 'KIT' && obj.LUNGHEZZA) displayText += ` (${obj.LUNGHEZZA}cm)`;
       row.insertCell(1).innerText = displayText;
@@ -669,114 +611,98 @@
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
       editBtn.onclick = () => apriModificaSingola(idx);
-      // Il pulsante è sempre attivo (anche per oggetti con disponibile 0 o referenti)
       cellAzioni.appendChild(editBtn);
     });
     document.getElementById('selectAll').onclick = () => toggleSelectAll();
-    aggiornaSelezione();
   }
 
   function toggleSelectAll() {
     const all = document.getElementById('selectAll');
     document.querySelectorAll('.select-item').forEach(cb => { if (!cb.disabled) cb.checked = all.checked; });
-    aggiornaSelezione();
   }
-  function aggiornaSelezione() {
-    let count = 0, total = 0;
-    document.querySelectorAll('#tabellaBody tr').forEach(row => {
-      const cb = row.querySelector('.select-item');
-      if (cb && cb.checked && !cb.disabled) {
-        const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
-        count++; total += qta;
+
+  // ========== MODIFICA SINGOLA ==========
+  async function apriModificaSingola(idx) {
+    const obj = oggetti[idx];
+    if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
+      obj.sigleDisponibili = await getSiglePerOggetto(obj);
+    }
+    currentEditObj = { ...obj, idx, selectedSiglaId: obj.siglaId || null };
+    const modalBody = document.getElementById('editAssignmentContent');
+    let siglaOptions = '<option value="">Nessuna sigla</option>';
+    let hasOnlyOne = false;
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
+      for (const s of obj.sigleDisponibili) {
+        let optionText = s.sigla;
+        if (s.durezza) optionText += ` (${s.durezza})`;
+        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+        let assegnatoA = null;
+        if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
+          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+        }
+        if (assegnatoA) {
+          optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+        }
+        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
+        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
+      }
+    } else {
+      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group">
+        <label>📦 Oggetto</label>
+        <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>📊 Quantità disponibile</label>
+        <input type="number" value="${obj.disponibile}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>🔢 Quantità da trasferire/rientrare</label>
+        <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>🏷️ Sigla</label>
+        <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
+        <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
+      </div>
+      <div class="form-group">
+        <label>🎯 Nuova destinazione (solo se trasferisci)</label>
+        <div class="inline-refresh">
+          <select id="editDestTipo" class="form-control" style="flex:1;">
+            <option value="PROMOTER">Promoter</option>
+            <option value="NEGOZIO">Negozio</option>
+            <option value="CLIENTE">Cliente</option>
+            <option value="AGENTE">Agente</option>
+          </select>
+          <button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button>
+        </div>
+        <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
+      </div>
+      <div class="form-group">
+        <label>📝 Note</label>
+        <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
+      </div>
+    `;
+    await caricaEditDestinazioni();
+    const siglaSelect = document.getElementById('editSiglaId');
+    const warningDiv = document.getElementById('siglaWarning');
+    siglaSelect.addEventListener('change', async () => {
+      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
+      const assignedData = selectedOpt.getAttribute('data-assigned-to');
+      if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
+        const assigned = JSON.parse(assignedData);
+        warningDiv.style.display = 'flex';
+        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
+      } else {
+        warningDiv.style.display = 'none';
       }
     });
-    document.getElementById('selectedInfo').innerText = count ? `Selezionati: ${count} oggetti, totale pezzi: ${total}` : 'Nessun oggetto selezionato';
+    document.getElementById('editAssignmentModal').style.display = 'flex';
+    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
-
-  // ========== MODIFICA SINGOLA (con gestione sigle) ==========
- async function apriModificaSingola(idx) {
-  const obj = oggetti[idx];
-  // Forza il caricamento delle sigle se non sono già presenti
-  if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
-    obj.sigleDisponibili = await getSiglePerOggetto(obj);
-  }
-  currentEditObj = { ...obj, idx, selectedSiglaId: obj.siglaId || null };
-  const modalBody = document.getElementById('editAssignmentContent');
-  let siglaOptions = '<option value="">Nessuna sigla</option>';
-  let hasOnlyOne = false;
-  if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
-    if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
-    for (const s of obj.sigleDisponibili) {
-      let optionText = s.sigla;
-      if (s.durezza) optionText += ` (${s.durezza})`;
-      if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
-      let assegnatoA = null;
-      if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
-        assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
-      }
-      if (assegnatoA) {
-        optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
-      }
-      const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
-      siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
-    }
-  } else {
-    siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
-  }
-  modalBody.innerHTML = `
-    <div class="form-group">
-      <label>📦 Oggetto</label>
-      <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
-    </div>
-    <div class="form-group">
-      <label>📊 Quantità disponibile</label>
-      <input type="number" value="${obj.disponibile}" disabled class="form-control">
-    </div>
-    <div class="form-group">
-      <label>🔢 Quantità da trasferire/rientrare</label>
-      <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
-    </div>
-    <div class="form-group">
-      <label>🏷️ Sigla</label>
-      <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
-      <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
-    </div>
-    <div class="form-group">
-      <label>🎯 Nuova destinazione (solo se trasferisci)</label>
-      <div class="inline-refresh">
-        <select id="editDestTipo" class="form-control" style="flex:1;">
-          <option value="PROMOTER">Promoter</option>
-          <option value="NEGOZIO">Negozio</option>
-          <option value="CLIENTE">Cliente</option>
-          <option value="AGENTE">Agente</option>
-        </select>
-        <button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button>
-      </div>
-      <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
-    </div>
-    <div class="form-group">
-      <label>📝 Note</label>
-      <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
-    </div>
-  `;
-  await caricaEditDestinazioni();
-  const siglaSelect = document.getElementById('editSiglaId');
-  const warningDiv = document.getElementById('siglaWarning');
-  siglaSelect.addEventListener('change', async () => {
-    const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
-    const assignedData = selectedOpt.getAttribute('data-assigned-to');
-    if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
-      const assigned = JSON.parse(assignedData);
-      warningDiv.style.display = 'flex';
-      warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
-    } else {
-      warningDiv.style.display = 'none';
-    }
-  });
-  document.getElementById('editAssignmentModal').style.display = 'flex';
-  document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
-}
-
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
   async function caricaEditDestinazioni() {
     const tipo = document.getElementById('editDestTipo').value;
@@ -787,7 +713,6 @@
       data.forEach(item => destSelect.appendChild(new Option(item.nome, item.id)));
     } catch(err) { showMessage('Errore destinazioni', 'error'); }
   }
-
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
@@ -816,7 +741,7 @@
         const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
         if (assegnatoA) {
           pendingAction = { payload: { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note }, from: assegnatoA.nome };
-          document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?<br><br>L'operazione sposterà l'oggetto da ${assegnatoA.nome} a ${destTipo === 'PROMOTER' ? 'Promoter' : destTipo}.`;
+          document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?`;
           document.getElementById('confirmRiassegnaModal').style.display = 'flex';
           document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
           return;
@@ -883,104 +808,19 @@
     [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect].forEach(sel => sel?.addEventListener('change', handleFilterChange));
   }
   async function caricaOggetti() {
-    if (radioMagazzino.checked) await caricaOggettiDaMagazzino();
-    else await caricaOggettiInCarico();
+    // Aggiungi cursore di attesa
+    document.body.classList.add('waiting');
+    try {
+      if (radioMagazzino.checked) await caricaOggettiDaMagazzino();
+      else await caricaOggettiInCarico();
+    } finally {
+      document.body.classList.remove('waiting');
+    }
   }
   async function applicaFiltri() { await refreshFilterDatalists(); await caricaOggetti(); }
   async function resetFiltri() {
     settoreSelect.value = ''; marcaSelect.value = ''; filtroDescrizione.value = ''; filtroLunghezza.value = ''; filtroDurezza.value = ''; filtroSigla.value = '';
     await refreshFilterDatalists(); await caricaOggetti();
-  }
-
-  // ========== BATCH OPERATIONS ==========
-  async function assegnaSelezionati() {
-    const isCarico = radioCarico.checked;
-    const magazzinoId = magazzinoSelect.value;
-    const destTipo = destinazioneTipo.value;
-    const destId = destinazioneId.value;
-    const note = document.getElementById('noteUscita').value;
-    if (isCarico) {
-      if (!destId) { showMessage('Seleziona una destinazione', 'error'); return; }
-      let daTipo, daId;
-      if (currentUser.ruolo === 'admin' && sourceId.value) { daTipo = sourceTipo.value; daId = parseInt(sourceId.value); }
-      else { if (!currentUser.riferimento_id) { showMessage('Utente non associato', 'error'); return; } daTipo = currentUser.ruolo.toUpperCase(); daId = parseInt(currentUser.riferimento_id); }
-      const selezionati = [];
-      for (let row of document.querySelectorAll('#tabellaBody tr')) {
-        const cb = row.querySelector('.select-item');
-        if (cb && cb.checked && !cb.disabled) {
-          const idx = parseInt(cb.dataset.idx);
-          const obj = oggetti[idx];
-          if (obj.tipoAssegnazione === 'referente') continue;
-          const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
-          const siglaId = obj.siglaId || null;
-          selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
-        }
-      }
-      if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
-      const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: selezionati, note };
-      assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';
-      try {
-        const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-        showMessage(res.message, res.success ? 'success' : 'error');
-        if (res.success) await caricaOggetti();
-      } catch(err) { showErrorModal(err.message); }
-      finally { assegnaBtn.disabled = false; assegnaBtn.innerHTML = '📤 Assegna selezionati'; }
-      return;
-    }
-    if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
-    if (!destId) { showMessage('Seleziona una destinazione', 'error'); return; }
-    const selezionati = [];
-    for (let row of document.querySelectorAll('#tabellaBody tr')) {
-      const cb = row.querySelector('.select-item');
-      if (cb && cb.checked && !cb.disabled) {
-        const idx = parseInt(cb.dataset.idx);
-        const obj = oggetti[idx];
-        let qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
-        const max = parseInt(row.querySelector('input[type="number"]').max);
-        if (qta > max) qta = max;
-        const siglaId = obj.siglaId || null;
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
-      }
-    }
-    if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
-    const payload = { magazzinoId: parseInt(magazzinoId), destinazioneTipo: destTipo, destinazioneId: parseInt(destId), note, oggetti: selezionati };
-    assegnaBtn.disabled = true; assegnaBtn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
-      showMessage(res.message, res.success ? 'success' : 'error');
-      if (res.success) await caricaOggetti();
-    } catch(err) { showErrorModal(err.message); }
-    finally { assegnaBtn.disabled = false; assegnaBtn.innerHTML = '📤 Assegna selezionati'; }
-  }
-
-  async function rientraSelezionati() {
-    if (!radioCarico.checked) { showMessage('Funzione solo in modalità "In carico"', 'error'); return; }
-    const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
-    const note = document.getElementById('noteUscita').value;
-    let daTipo, daId;
-    if (currentUser.ruolo === 'admin' && sourceId.value) { daTipo = sourceTipo.value; daId = parseInt(sourceId.value); }
-    else { if (!currentUser.riferimento_id) { showMessage('Utente non associato', 'error'); return; } daTipo = currentUser.ruolo.toUpperCase(); daId = parseInt(currentUser.riferimento_id); }
-    const selezionati = [];
-    for (let row of document.querySelectorAll('#tabellaBody tr')) {
-      const cb = row.querySelector('.select-item');
-      if (cb && cb.checked && !cb.disabled) {
-        const idx = parseInt(cb.dataset.idx);
-        const obj = oggetti[idx];
-        const qta = parseInt(row.querySelector('input[type="number"]').value) || 1;
-        const siglaId = obj.siglaId || null;
-        selezionati.push({ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId, quantita: qta });
-      }
-    }
-    if (!selezionati.length) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
-    const payload = { magazzinoId: parseInt(magazzinoId), note, oggetti: selezionati.map(o => ({ ...o, daTipo, daId })) };
-    rientroBtn.disabled = true; rientroBtn.innerHTML = '<span class="spinner"></span>';
-    try {
-      const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-      showMessage(res.message, res.success ? 'success' : 'error');
-      if (res.success) await caricaOggetti();
-    } catch(err) { showErrorModal(err.message); }
-    finally { rientroBtn.disabled = false; rientroBtn.innerHTML = '📦 Rientra in magazzino'; }
   }
 
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
@@ -999,19 +839,8 @@
       includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     }
     function updateUIBasedOnMode() {
-      if (radioMagazzino.checked) {
-        magazzinoLabel.innerText = 'Magazzino *';
-        destinazioneRow.style.display = 'flex';
-        assegnaBtn.style.display = 'inline-block';
-        rientroBtn.style.display = 'none';
-        assegnaBtn.innerText = '📤 Assegna selezionati';
-      } else {
-        magazzinoLabel.innerText = 'Magazzino di rientro *';
-        destinazioneRow.style.display = 'flex';
-        assegnaBtn.style.display = 'inline-block';
-        rientroBtn.style.display = 'inline-block';
-        assegnaBtn.innerText = '🔄 Trasferisci selezionati';
-      }
+      if (radioMagazzino.checked) magazzinoLabel.innerText = 'Magazzino *';
+      else magazzinoLabel.innerText = 'Magazzino di rientro *';
     }
     radioMagazzino.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
     radioCarico.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
@@ -1020,15 +849,13 @@
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    if (!token || !userStr) { window.location.href = 'Login.html'; return; }
+    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
     try {
-      currentUser = JSON.parse(userStr);
+      currentUser = JSON.parse(localStorage.getItem('user'));
       if (!currentUser.riferimento_id && currentUser.RiferimentoID) { currentUser.riferimento_id = parseInt(currentUser.RiferimentoID); localStorage.setItem('user', JSON.stringify(currentUser)); }
     } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
     document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
     await caricaAnagrafiche();
-    await caricaDestinazioni();
     attachFilterEvents();
     setupExternalMode();
     await refreshFilterDatalists();
