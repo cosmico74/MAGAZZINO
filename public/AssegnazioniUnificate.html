@@ -328,11 +328,12 @@
     <table id="tabellaOggetti">
       <thead>
          <th>Codice / Descrizione</th>
+         <th>Sigla</th>
          <th>Disponibile</th>
          <th>Assegnato a</th>
          <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="4" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="5" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 </div>
@@ -554,6 +555,7 @@
         disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
         sigleDisponibili: item.sigleDisponibili || [],
         siglaId: null,
+        siglaCorrente: null,
         destinatarioNome: 'Magazzino',
         tipoAssegnazione: 'me'
       }));
@@ -590,40 +592,51 @@
           if (obj.tipo === 'KIT') obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
           else obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
         }
-        oggetti = tutti.map(obj => ({
-          id: obj.ID,
-          tipo: obj.tipo,
-          codice: obj.codice,
-          descrizione: obj.descrizione,
-          disponibile: obj.quantita,
-          sigleDisponibili: obj.sigleDisponibili || [],
-          siglaId: obj.siglaId || null,
-          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
-          tipoAssegnazione: obj.tipoAssegnazione,
-          destinazioneTipo: obj.destinazioneTipo,
-          destinazioneId: obj.destinazioneId
-        }));
+        oggetti = tutti.map(obj => {
+          // Calcola la sigla corrente (stringa) a partire da siglaId e sigleDisponibili
+          let siglaCorrente = null;
+          if (obj.siglaId && obj.sigleDisponibili) {
+            const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
+            if (found) siglaCorrente = found.sigla;
+          }
+          return {
+            id: obj.ID,
+            tipo: obj.tipo,
+            codice: obj.codice,
+            descrizione: obj.descrizione,
+            disponibile: obj.quantita,
+            sigleDisponibili: obj.sigleDisponibili || [],
+            siglaId: obj.siglaId || null,
+            siglaCorrente: siglaCorrente,
+            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
+            tipoAssegnazione: obj.tipoAssegnazione,
+            destinazioneTipo: obj.destinazioneTipo,
+            destinazioneId: obj.destinazioneId
+          };
+        });
         popolaTabella();
       } else throw new Error(res.message);
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  // ========== TABELLA SEMPLIFICATA (senza checkbox) ==========
+  // ========== TABELLA CON COLONNA SIGLA ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="4" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       if (obj.tipo === 'KIT' && obj.LUNGHEZZA) displayText += ` (${obj.LUNGHEZZA}cm)`;
       row.insertCell(0).innerText = displayText;
-      row.insertCell(1).innerText = obj.disponibile;
+      // Colonna Sigla
+      row.insertCell(1).innerText = obj.siglaCorrente || '-';
+      row.insertCell(2).innerText = obj.disponibile;
       let assegnatoANome = obj.destinatarioNome;
       if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
       else if (!assegnatoANome) assegnatoANome = 'Magazzino';
-      row.insertCell(2).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(3);
+      row.insertCell(3).innerText = assegnatoANome;
+      const cellAzioni = row.insertCell(4);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
@@ -692,7 +705,6 @@
         <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
       </div>
     `;
-    // Caricamento automatico dei destinatari quando cambia il tipo
     const destTipoSelect = document.getElementById('editDestTipo');
     const destIdSelect = document.getElementById('editDestId');
     const caricaDestinazioni = async () => {
@@ -708,7 +720,7 @@
       } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
     };
     destTipoSelect.addEventListener('change', caricaDestinazioni);
-    await caricaDestinazioni(); // carica subito se il tipo è già selezionato (default Promoter)
+    await caricaDestinazioni();
     const siglaSelect = document.getElementById('editSiglaId');
     const warningDiv = document.getElementById('siglaWarning');
     siglaSelect.addEventListener('change', async () => {
@@ -726,7 +738,6 @@
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
-  // La funzione caricaEditDestinazioni non serve più (sostituita dall'evento change)
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
