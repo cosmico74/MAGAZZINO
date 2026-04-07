@@ -89,8 +89,12 @@
       gap: 6px;
     }
     .btn:hover { background: #0f5bb5; transform: translateY(-1px); }
+    .btn-success { background: #27ae60; }
+    .btn-success:hover { background: #219653; }
     .btn-secondary { background: #6c757d; }
     .btn-secondary:hover { background: #5a6268; }
+    .btn-warning { background: #f39c12; }
+    .btn-warning:hover { background: #e67e22; }
     .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
     .table-wrapper {
       overflow-x: auto;
@@ -169,6 +173,13 @@
       align-items: flex-end;
       border: 1px solid #e2e8f0;
     }
+    .source-selection .form-group {
+      flex: 1;
+      min-width: 150px;
+    }
+    .loading-overlay {
+      cursor: wait;
+    }
     .modal {
       display: none;
       position: fixed;
@@ -241,10 +252,6 @@
       gap: 8px;
       margin-top: 8px;
     }
-    /* Cursore di attesa globale */
-    body.waiting * {
-      cursor: wait !important;
-    }
   </style>
 </head>
 <body>
@@ -273,6 +280,7 @@
     </div>
   </div>
 
+  <!-- Sezione sorgente admin (visibile solo in modalità "In carico") -->
   <div id="adminSourceSection" style="display: none;" class="source-selection">
     <div class="form-group">
       <label>Sorgente</label>
@@ -292,6 +300,7 @@
     </div>
   </div>
 
+  <!-- Filtri -->
   <div class="filters">
     <div class="filter-row">
       <div class="filter-group" id="magazzinoGroup">
@@ -314,22 +323,21 @@
     </div>
   </div>
 
+  <!-- Tabella oggetti (senza checkbox) -->
   <div class="table-wrapper">
     <table id="tabellaOggetti">
       <thead>
-         <th style="width:30px"><input type="checkbox" id="selectAll"></th>
          <th>Codice / Descrizione</th>
          <th>Disponibile</th>
-         <th>Quantità</th>
          <th>Assegnato a</th>
          <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="6" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="4" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 </div>
 
-<!-- MODALE MODIFICA SINGOLA (con gestione sigle) -->
+<!-- MODALE MODIFICA SINGOLA -->
 <div id="editAssignmentModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -378,20 +386,41 @@
 
 <script>
   // ========== UTILITY ==========
-  function getAuthHeader() { const token = localStorage.getItem('token'); return token ? { 'Authorization': 'Bearer ' + token } : {}; }
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'Login.html';
+      return {};
+    }
+    return { 'Authorization': 'Bearer ' + token };
+  }
+
   async function apiFetch(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
     const response = await fetch(endpoint, { ...options, headers });
     if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('token'); localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = 'Login.html';
       throw new Error('Sessione scaduta');
     }
-    if (!response.ok) { let err = `Errore ${response.status}`; try { const data = await response.json(); err = data.message || err; } catch(e) {} throw new Error(err); }
+    if (!response.ok) {
+      let errorMsg = `Errore ${response.status}`;
+      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
+      throw new Error(errorMsg);
+    }
     return response.json();
   }
-  function showMessage(msg, type) { const div = document.getElementById('messageArea'); div.innerHTML = `<div class="message ${type}">${msg}</div>`; setTimeout(() => div.innerHTML = '', 5000); }
-  function showErrorModal(msg) { document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>'); document.getElementById('errorModal').style.display = 'flex'; }
+
+  function showMessage(msg, type) { 
+    const div = document.getElementById('messageArea'); 
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`; 
+    setTimeout(() => div.innerHTML = '', 5000); 
+  }
+  function showErrorModal(msg) { 
+    document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>'); 
+    document.getElementById('errorModal').style.display = 'flex'; 
+  }
   function chiudiErrorModal() { document.getElementById('errorModal').style.display = 'none'; }
 
   let currentUser = null;
@@ -579,46 +608,29 @@
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  // ========== TABELLA ==========
+  // ========== TABELLA SEMPLIFICATA (senza checkbox) ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="4" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'select-item';
-      cb.dataset.idx = idx;
-      const isReferenced = obj.tipoAssegnazione === 'referente';
-      const isDisabled = obj.disponibile <= 0 || isReferenced;
-      if (isDisabled) cb.disabled = true;
-      row.insertCell(0).appendChild(cb);
+      // Mostra codice e descrizione
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       if (obj.tipo === 'KIT' && obj.LUNGHEZZA) displayText += ` (${obj.LUNGHEZZA}cm)`;
-      row.insertCell(1).innerText = displayText;
-      row.insertCell(2).innerText = obj.disponibile;
-      const qtaInput = document.createElement('input');
-      qtaInput.type = 'number'; qtaInput.min = 1; qtaInput.max = obj.disponibile; qtaInput.value = 1; qtaInput.style.width = '70px';
-      if (isDisabled) qtaInput.disabled = true;
-      row.insertCell(3).appendChild(qtaInput);
+      row.insertCell(0).innerText = displayText;
+      row.insertCell(1).innerText = obj.disponibile;
       let assegnatoANome = obj.destinatarioNome;
-      if (isReferenced && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
+      if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
       else if (!assegnatoANome) assegnatoANome = 'Magazzino';
-      row.insertCell(4).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(5);
+      row.insertCell(2).innerText = assegnatoANome;
+      const cellAzioni = row.insertCell(3);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
       editBtn.onclick = () => apriModificaSingola(idx);
       cellAzioni.appendChild(editBtn);
     });
-    document.getElementById('selectAll').onclick = () => toggleSelectAll();
-  }
-
-  function toggleSelectAll() {
-    const all = document.getElementById('selectAll');
-    document.querySelectorAll('.select-item').forEach(cb => { if (!cb.disabled) cb.checked = all.checked; });
   }
 
   // ========== MODIFICA SINGOLA ==========
@@ -641,9 +653,7 @@
         if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
           assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
         }
-        if (assegnatoA) {
-          optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
-        }
+        if (assegnatoA) optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
         const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
         siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
       }
@@ -669,7 +679,7 @@
         <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
       </div>
       <div class="form-group">
-        <label>🎯 Nuova destinazione (solo se trasferisci)</label>
+        <label>🎯 Nuova destinazione</label>
         <div class="inline-refresh">
           <select id="editDestTipo" class="form-control" style="flex:1;">
             <option value="PROMOTER">Promoter</option>
@@ -808,13 +818,12 @@
     [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect].forEach(sel => sel?.addEventListener('change', handleFilterChange));
   }
   async function caricaOggetti() {
-    // Aggiungi cursore di attesa
-    document.body.classList.add('waiting');
+    document.body.style.cursor = 'wait';
     try {
       if (radioMagazzino.checked) await caricaOggettiDaMagazzino();
       else await caricaOggettiInCarico();
     } finally {
-      document.body.classList.remove('waiting');
+      document.body.style.cursor = 'default';
     }
   }
   async function applicaFiltri() { await refreshFilterDatalists(); await caricaOggetti(); }
@@ -831,7 +840,7 @@
     if (canUseWarehouse) radioMagazzino.disabled = false;
     else { radioMagazzino.disabled = true; radioMagazzino.checked = false; radioCarico.checked = true; showMessage('Ruolo non permette prelievo dal magazzino', 'info'); }
     if (isAdmin) {
-      adminSourceSection.style.display = 'flex';
+      adminSourceSection.style.display = radioCarico.checked ? 'flex' : 'none';
       sourceTipo.disabled = false; sourceId.disabled = false; includeReferenced.disabled = false;
       caricaSorgentiAdmin();
       sourceTipo.addEventListener('change', () => { if (radioCarico.checked) caricaSorgentiAdmin(); });
@@ -839,8 +848,13 @@
       includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     }
     function updateUIBasedOnMode() {
-      if (radioMagazzino.checked) magazzinoLabel.innerText = 'Magazzino *';
-      else magazzinoLabel.innerText = 'Magazzino di rientro *';
+      if (radioMagazzino.checked) {
+        magazzinoLabel.innerText = 'Magazzino *';
+        if (adminSourceSection) adminSourceSection.style.display = 'none';
+      } else {
+        magazzinoLabel.innerText = 'Magazzino di rientro *';
+        if (isAdmin && adminSourceSection) adminSourceSection.style.display = 'flex';
+      }
     }
     radioMagazzino.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
     radioCarico.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
