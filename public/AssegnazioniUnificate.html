@@ -37,12 +37,42 @@
       gap: 30px;
       align-items: center;
       border: 1px solid #e2e8f0;
+      flex-wrap: wrap;
     }
     .source-option {
       display: flex;
       align-items: center;
       gap: 10px;
       font-weight: 500;
+    }
+    .filters {
+      background: #f8f9fa;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 25px;
+      border: 1px solid #e2e8f0;
+    }
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .filter-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.7rem;
+      margin-bottom: 5px;
+      color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-group input, .filter-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 10px;
+      font-size: 0.8rem;
     }
     .btn {
       background: #1a73e8;
@@ -99,19 +129,6 @@
     .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
     .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
     .info { background: #e8f0fe; color: #1a73e8; border-left: 4px solid #1a73e8; }
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #e2e8f0;
-      border-top-color: #1a73e8;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .text-center { text-align: center; }
     .login-info {
       background: #e8f0fe;
       padding: 5px 12px;
@@ -236,10 +253,22 @@
   <h2>📦 Assegnazioni e Rientri</h2>
   <div id="messageArea"></div>
 
-  <!-- Sezione sorgente admin -->
-  <div id="adminSourceSection" class="source-selection">
+  <!-- Scelta sorgente -->
+  <div class="source-selector">
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceCarico" value="carico" checked>
+      <label for="sourceCarico">📦 In carico (da soggetto)</label>
+    </div>
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
+      <label for="sourceMagazzino">🏭 Dal magazzino</label>
+    </div>
+  </div>
+
+  <!-- Sezione per "In carico" (soggetto) -->
+  <div id="caricoSection" class="source-selection">
     <div class="form-group">
-      <label>Sorgente</label>
+      <label>Sorgente (soggetto)</label>
       <select id="sourceTipo">
         <option value="PROMOTER">👤 Promoter</option>
         <option value="NEGOZIO">🏪 Negozio</option>
@@ -256,22 +285,55 @@
     </div>
   </div>
 
+  <!-- Sezione per "Dal magazzino" -->
+  <div id="magazzinoSection" style="display: none;" class="source-selection">
+    <div class="form-group">
+      <label>Magazzino</label>
+      <select id="magazzinoSelect"></select>
+    </div>
+    <div class="form-group">
+      <label>Tipo oggetto</label>
+      <select id="tipoOggettoMagazzino">
+        <option value="TUTTI">Tutti</option>
+        <option value="ARTICOLO">Articoli</option>
+        <option value="KIT">Kit</option>
+      </select>
+    </div>
+  </div>
+
   <!-- Tabella oggetti -->
   <div class="table-wrapper">
     <table id="tabellaOggetti">
-      <thead>
+      <thead id="tabellaHeader">
          <th>Codice / Descrizione</th>
          <th>Sigla</th>
-         <th>Disponibile</th>
+         <th>Quantità totale</th>
+         <th>Quantità impegnata</th>
+         <th>Giacenza</th>
          <th>Assegnato a</th>
          <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="5" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="7" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 </div>
 
-<!-- MODALE MODIFICA SINGOLA -->
+<!-- MODALE ASSEGNAZIONE (dal magazzino) -->
+<div id="assignModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Assegna a soggetto</h3>
+      <button class="btn btn-secondary btn-sm" onclick="chiudiAssignModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
+    </div>
+    <div class="modal-body" id="assignModalContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="assignConfirmBtn">Assegna</button>
+      <button class="btn btn-secondary" onclick="chiudiAssignModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA SINGOLA (per oggetti in carico) -->
 <div id="editAssignmentModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -359,18 +421,30 @@
 
   let currentUser = null;
   let magazzini = [];
-  let oggetti = [];
-  let currentEditObj = null;
+  let oggetti = [];            // oggetti visualizzati (sia da magazzino che da carico)
+  let currentEditObj = null;   // per modifica oggetto in carico
   let pendingAction = null;
+  let currentAssignObj = null;  // per assegnazione da magazzino
 
+  // DOM elements
+  const radioCarico = document.getElementById('sourceCarico');
+  const radioMagazzino = document.getElementById('sourceMagazzino');
+  const caricoSection = document.getElementById('caricoSection');
+  const magazzinoSection = document.getElementById('magazzinoSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
+  const magazzinoSelect = document.getElementById('magazzinoSelect');
+  const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
 
-  // ========== CARICAMENTO ==========
+  // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaMagazzini() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) magazzinoSelect.value = defaultMag.id;
     } catch(err) { console.error(err); showMessage('Errore caricamento magazzini', 'error'); }
   }
 
@@ -384,24 +458,90 @@
         sourceId.appendChild(new Option(testo, item.id));
       });
       if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      await caricaOggettiInCarico();
+      if (radioCarico.checked) await caricaOggettiInCarico();
     } catch(err) { showMessage('Errore sorgenti', 'error'); }
   }
 
-  async function getSiglePerOggetto(obj) {
-    if (obj.tipo === 'ARTICOLO') {
-      try { return await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { return []; }
-    } else if (obj.tipo === 'KIT') {
-      try {
-        const kit = await apiFetch(`/api/kit/${obj.id}`);
-        const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
-        if (sciDetail && sciDetail.sigla_id) return await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
-        return [];
-      } catch(e) { return []; }
-    }
-    return [];
+  // ========== OGGETTI DAL MAGAZZINO ==========
+  async function caricaOggettiDaMagazzino() {
+    const magId = magazzinoSelect.value;
+    if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
+    const tipo = tipoOggettoMagazzino.value;
+    let lista = [];
+    try {
+      // Carica articoli
+      if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
+        const params = new URLSearchParams();
+        params.append('magazzino', magId);
+        params.append('min_giacenza', '1');
+        const res = await apiFetch(`/api/articoli?${params.toString()}`);
+        let articoli = res.success ? res.data : (res.data || []);
+        for (let a of articoli) {
+          // Recupera sigle disponibili
+          let sigle = [];
+          try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
+          // La sigla "principale" potrebbe essere la prima o una specifica; per semplicità prendiamo la prima se presente
+          let siglaCorrente = sigle.length ? sigle[0].sigla : null;
+          lista.push({
+            id: a.id,
+            tipo: 'ARTICOLO',
+            codice: a.codice,
+            descrizione: a.descrizione,
+            totale: a.quantita_totale,
+            impegnato: a.quantita_in_kit,
+            giacenza: a.quantita_totale - a.quantita_in_kit,
+            sigla: siglaCorrente,
+            sigleDisponibili: sigle,
+            destinatarioNome: 'Magazzino'
+          });
+        }
+      }
+      // Carica kit
+      if (tipo === 'TUTTI' || tipo === 'KIT') {
+        const res = await apiFetch('/api/kit');
+        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
+        kits = kits.filter(k => k.magazzino == magId);
+        for (let k of kits) {
+          // Recupera la sigla dello sci dal dettaglio
+          let siglaSci = null;
+          let sigleDisponibili = [];
+          if (k.dettagli) {
+            const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
+            if (sciDetail && sciDetail.sigla_id) {
+              try {
+                const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
+                sigleDisponibili = sigle;
+                const found = sigle.find(s => s.id == sciDetail.sigla_id);
+                if (found) siglaSci = found.sigla;
+              } catch(e) {}
+            }
+          }
+          // Calcola quantità assegnata (da carico_sintesi)
+          let quantitaAssegnata = 0;
+          try {
+            const assegnato = await apiFetch(`/api/assegnazioni/quantita-assegnata?tipo=KIT&id=${k.id}`);
+            quantitaAssegnata = assegnato.quantita || 0;
+          } catch(e) {}
+          lista.push({
+            id: k.id,
+            tipo: 'KIT',
+            codice: k.codice_kit,
+            descrizione: k.descrizione,
+            totale: k.quantita,
+            impegnato: quantitaAssegnata,
+            giacenza: k.quantita - quantitaAssegnata,
+            sigla: siglaSci,
+            sigleDisponibili: sigleDisponibili,
+            destinatarioNome: 'Magazzino'
+          });
+        }
+      }
+      oggetti = lista;
+      popolaTabella();
+    } catch(err) { showMessage('Errore caricamento magazzino: ' + err.message, 'error'); }
   }
 
+  // ========== OGGETTI IN CARICO (DA SOGGETTO) ==========
   async function caricaOggettiInCarico() {
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
@@ -448,10 +588,12 @@
             tipo: obj.tipo,
             codice: obj.codice,
             descrizione: obj.descrizione,
-            disponibile: obj.quantita,
+            totale: obj.quantita,  // per consistenza, ma in carico è la quantità assegnata
+            impegnato: 0,          // non applicabile
+            giacenza: obj.quantita,
+            sigla: siglaCorrente,
             sigleDisponibili: obj.sigleDisponibili || [],
             siglaId: obj.siglaId || null,
-            siglaCorrente: siglaCorrente,
             destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
             tipoAssegnazione: obj.tipoAssegnazione,
             destinazioneTipo: obj.destinazioneTipo,
@@ -460,53 +602,163 @@
         });
         popolaTabella();
       } else throw new Error(res.message);
-    } catch(err) { showMessage('Errore caricamento: ' + err.message, 'error'); }
+    } catch(err) { showMessage('Errore caricamento in carico: ' + err.message, 'error'); }
   }
 
+  async function getSiglePerOggetto(obj) {
+    if (obj.tipo === 'ARTICOLO') {
+      try { return await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { return []; }
+    } else if (obj.tipo === 'KIT') {
+      try {
+        const kit = await apiFetch(`/api/kit/${obj.id}`);
+        const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+        if (sciDetail && sciDetail.sigla_id) return await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
+        return [];
+      } catch(e) { return []; }
+    }
+    return [];
+  }
+
+  // ========== POPOLA TABELLA ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       row.insertCell(0).innerText = displayText;
-      row.insertCell(1).innerText = obj.siglaCorrente || '-';
-      row.insertCell(2).innerText = obj.disponibile;
-      let assegnatoANome = obj.destinatarioNome;
-      if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
-      else if (!assegnatoANome) assegnatoANome = 'Magazzino';
-      row.insertCell(3).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(4);
+      row.insertCell(1).innerText = obj.sigla || '-';
+      row.insertCell(2).innerText = obj.totale ?? '-';
+      row.insertCell(3).innerText = obj.impegnato ?? '-';
+      row.insertCell(4).innerText = obj.giacenza ?? '-';
+      let assegnatoANome = obj.destinatarioNome || 'Magazzino';
+      row.insertCell(5).innerText = assegnatoANome;
+      const cellAzioni = row.insertCell(6);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
-      editBtn.onclick = () => apriModificaSingola(obj);
+      if (radioMagazzino.checked) {
+        editBtn.onclick = () => apriModalAssegnazione(obj);
+      } else {
+        editBtn.onclick = () => apriModificaSingola(obj);
+      }
       cellAzioni.appendChild(editBtn);
     });
   }
 
-  // ========== VERIFICA SIGLA ==========
-  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
-    if (!siglaId) return null;
-    try {
-      const params = new URLSearchParams();
-      params.append('tipo_oggetto', tipoOggetto);
-      params.append('oggetto_id', oggettoId);
-      params.append('sigla_id', siglaId);
-      if (excludeSubjectTipo && excludeSubjectId) {
-        params.append('escludi_tipo', excludeSubjectTipo);
-        params.append('escludi_id', excludeSubjectId);
+  // ========== MODALE ASSEGNAZIONE (DA MAGAZZINO) ==========
+  async function apriModalAssegnazione(obj) {
+    currentAssignObj = obj;
+    const modalBody = document.getElementById('assignModalContent');
+    // Popola select sigle (se disponibili)
+    let siglaHtml = '<option value="">Nessuna sigla</option>';
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      for (const s of obj.sigleDisponibili) {
+        let text = s.sigla;
+        if (s.durezza) text += ` (${s.durezza})`;
+        if (s.lunghezza) text += ` - ${s.lunghezza}cm`;
+        siglaHtml += `<option value="${s.id}">${text}</option>`;
       }
-      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
-      return res.success ? res.assegnato_a : null;
-    } catch(e) { console.warn(e); return null; }
+    } else {
+      siglaHtml = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group">
+        <label>📦 Oggetto</label>
+        <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>📊 Giacenza disponibile</label>
+        <input type="number" value="${obj.giacenza}" disabled class="form-control">
+      </div>
+      <div class="form-group">
+        <label>🔢 Quantità da assegnare</label>
+        <input type="number" id="assignQta" min="1" max="${obj.giacenza}" value="1" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>🏷️ Sigla</label>
+        <select id="assignSiglaId" class="form-control">${siglaHtml}</select>
+      </div>
+      <div class="form-group">
+        <label>🎯 Destinazione</label>
+        <select id="assignDestTipo" class="form-control">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+        </select>
+        <select id="assignDestId" class="form-control" style="margin-top:8px;"></select>
+      </div>
+      <div class="form-group">
+        <label>📝 Note</label>
+        <input type="text" id="assignNote" class="form-control" placeholder="Note opzionali">
+      </div>
+    `;
+    // Carica destinatari in base al tipo selezionato
+    const destTipoSelect = document.getElementById('assignDestTipo');
+    const destIdSelect = document.getElementById('assignDestId');
+    const caricaDestinazioni = async () => {
+      const tipo = destTipoSelect.value;
+      if (!tipo) return;
+      try {
+        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+        data.forEach(item => {
+          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+          destIdSelect.appendChild(new Option(testo, item.id));
+        });
+      } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+    };
+    destTipoSelect.addEventListener('change', caricaDestinazioni);
+    await caricaDestinazioni();
+    document.getElementById('assignModal').style.display = 'flex';
+    document.getElementById('assignConfirmBtn').onclick = () => confermaAssegnazione();
   }
 
-  // ========== MODIFICA SINGOLA ==========
+  async function confermaAssegnazione() {
+    const obj = currentAssignObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('assignQta').value);
+    const siglaId = document.getElementById('assignSiglaId').value;
+    const destTipo = document.getElementById('assignDestTipo').value;
+    const destId = document.getElementById('assignDestId').value;
+    const note = document.getElementById('assignNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
+    if (!destTipo || !destId) { showErrorModal('Seleziona una destinazione'); return; }
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) { showErrorModal('Seleziona un magazzino di partenza'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destTipo,
+      destinazioneId: parseInt(destId),
+      note: note,
+      oggetti: [{
+        tipoOggetto: obj.tipo,
+        oggettoId: obj.id,
+        siglaId: siglaId ? parseInt(siglaId) : null,
+        quantita: qta
+      }]
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Assegnazione effettuata', 'success');
+        chiudiAssignModal();
+        await caricaOggettiDaMagazzino();  // ricarica la tabella del magazzino
+      } else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
+
+  function chiudiAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    currentAssignObj = null;
+  }
+
+  // ========== MODIFICA SINGOLA (OGGETTI IN CARICO) ==========
   async function apriModificaSingola(obj) {
     if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
-      obj.sigleDisponibili = await getSiglePerOggetto(obj);
+      obj.sigleDisponibili = await getSiglePerOggetto({ tipo: obj.tipo, id: obj.id });
     }
     currentEditObj = { ...obj, selectedSiglaId: obj.siglaId || null };
     const modalBody = document.getElementById('editAssignmentContent');
@@ -536,11 +788,11 @@
       </div>
       <div class="form-group">
         <label>📊 Quantità disponibile</label>
-        <input type="number" value="${obj.disponibile}" disabled class="form-control">
+        <input type="number" value="${obj.giacenza}" disabled class="form-control">
       </div>
       <div class="form-group">
         <label>🔢 Quantità da trasferire/rientrare</label>
-        <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
+        <input type="number" id="editQta" min="1" max="${obj.giacenza}" value="1" class="form-control">
       </div>
       <div class="form-group">
         <label>🏷️ Sigla</label>
@@ -609,6 +861,21 @@
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
+    if (!siglaId) return null;
+    try {
+      const params = new URLSearchParams();
+      params.append('tipo_oggetto', tipoOggetto);
+      params.append('oggetto_id', oggettoId);
+      params.append('sigla_id', siglaId);
+      if (excludeSubjectTipo && excludeSubjectId) {
+        params.append('escludi_tipo', excludeSubjectTipo);
+        params.append('escludi_id', excludeSubjectId);
+      }
+      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
+      return res.success ? res.assegnato_a : null;
+    } catch(e) { console.warn(e); return null; }
+  }
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
@@ -618,10 +885,9 @@
     const destIdElement = document.getElementById('editDestId');
     const destId = destIdElement ? destIdElement.value : null;
     const note = document.getElementById('editNote').value;
-    if (isNaN(qta) || qta < 1 || qta > obj.disponibile) { showErrorModal('Quantità non valida'); return; }
+    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
     const magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
     if (!magazzinoId && destTipo !== 'MAGAZZINO') { showErrorModal('Nessun magazzino disponibile per il transito'); return; }
-    // Rientro in magazzino
     if (destTipo === 'MAGAZZINO') {
       if (!destId) { showErrorModal('Seleziona un magazzino di destinazione'); return; }
       const payload = {
@@ -646,7 +912,6 @@
       } catch(err) { showErrorModal(err.message); }
       return;
     }
-    // Trasferimento tra soggetti
     if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
     const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
     const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
@@ -703,10 +968,30 @@
   function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
+  // ========== GESTIONE UI ==========
+  function toggleSource() {
+    const isMagazzino = radioMagazzino.checked;
+    caricoSection.style.display = isMagazzino ? 'none' : 'flex';
+    magazzinoSection.style.display = isMagazzino ? 'flex' : 'none';
+    // Cambia intestazione tabella
+    const header = document.querySelector('#tabellaHeader');
+    if (isMagazzino) {
+      // Mostra colonne: Codice, Sigla, Totale, Impegnato, Giacenza, Assegnato a, Azioni
+      // già così
+    } else {
+      // Per carico: la colonna "Assegnato a" ha senso, "Totale" è la quantità in carico, "Impegnato" non usato
+    }
+    caricaOggetti();
+  }
+
   async function caricaOggetti() {
     document.body.style.cursor = 'wait';
     try {
-      await caricaOggettiInCarico();
+      if (radioMagazzino.checked) {
+        await caricaOggettiDaMagazzino();
+      } else {
+        await caricaOggettiInCarico();
+      }
     } finally {
       document.body.style.cursor = 'default';
     }
@@ -722,15 +1007,20 @@
       includeReferenced.disabled = false;
       caricaSorgentiAdmin();
       sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
-      sourceId.addEventListener('change', () => caricaOggetti());
-      includeReferenced.addEventListener('change', () => caricaOggetti());
+      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
+      includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
     } else {
-      // Non admin: mostra solo i propri oggetti
       sourceTipo.disabled = true;
       sourceId.disabled = true;
       includeReferenced.disabled = true;
-      caricaOggetti();
+      if (radioCarico.checked) caricaOggetti();
     }
+    // Eventi per cambio sorgente
+    radioCarico.addEventListener('change', toggleSource);
+    radioMagazzino.addEventListener('change', toggleSource);
+    magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
+    tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
+    toggleSource(); // iniziale
   }
 
   window.onload = async () => {
