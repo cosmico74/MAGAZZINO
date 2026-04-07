@@ -1,1090 +1,323 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Assegnazioni e Rientri</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-      padding: 25px;
-    }
-    h2 {
-      margin-top: 0;
-      border-left: 5px solid #1a73e8;
-      padding-left: 15px;
-      color: #1e2a3a;
-      font-weight: 600;
-    }
-    .source-selector {
-      background: #f8f9fa;
-      border-radius: 16px;
-      padding: 12px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 30px;
-      align-items: center;
-      border: 1px solid #e2e8f0;
-      flex-wrap: wrap;
-    }
-    .source-option {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 500;
-    }
-    .filters {
-      background: #f8f9fa;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 25px;
-      border: 1px solid #e2e8f0;
-    }
-    .filter-group label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.7rem;
-      margin-bottom: 5px;
-      color: #2c3e50;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #cbd5e0;
-      border-radius: 10px;
-      font-size: 0.8rem;
-    }
-    .btn {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 500;
-      transition: 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn:hover { background: #0f5bb5; transform: translateY(-1px); }
-    .btn-success { background: #27ae60; }
-    .btn-success:hover { background: #219653; }
-    .btn-secondary { background: #6c757d; }
-    .btn-secondary:hover { background: #5a6268; }
-    .btn-warning { background: #f39c12; }
-    .btn-warning:hover { background: #e67e22; }
-    .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
-    .table-wrapper {
-      overflow-x: auto;
-      margin-bottom: 25px;
-      border-radius: 16px;
-      border: 1px solid #e2e8f0;
-      background: white;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-    }
-    th, td {
-      border-bottom: 1px solid #e2e8f0;
-      padding: 10px 12px;
-      text-align: left;
-      vertical-align: middle;
-    }
-    th {
-      background: #f8fafc;
-      font-weight: 600;
-      color: #1e293b;
-    }
-    tr:hover td { background: #fefce8; }
-    .message {
-      padding: 10px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      font-size: 0.85rem;
-    }
-    .success { background: #d4edda; color: #155724; border-left: 4px solid #38a169; }
-    .error { background: #f8d7da; color: #721c24; border-left: 4px solid #e53e3e; }
-    .info { background: #e8f0fe; color: #1a73e8; border-left: 4px solid #1a73e8; }
-    .login-info {
-      background: #e8f0fe;
-      padding: 5px 12px;
-      border-radius: 20px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .header-bar {
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    input:disabled, select:disabled, button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .source-selection {
-      background: #f8f9fa;
-      border-radius: 16px;
-      padding: 12px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      border: 1px solid #e2e8f0;
-    }
-    .source-selection .form-group {
-      flex: 1;
-      min-width: 150px;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      top:0; left:0;
-      width:100%; height:100%;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: white;
-      border-radius: 24px;
-      width: 90%;
-      max-width: 650px;
-      max-height: 85vh;
-      overflow-y: auto;
-      padding: 0;
-      box-shadow: 0 20px 35px rgba(0,0,0,0.2);
-    }
-    .modal-header {
-      padding: 20px 25px 10px 25px;
-      border-bottom: 1px solid #e2e8f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .modal-header h3 {
-      margin: 0;
-      font-weight: 600;
-      color: #1e293b;
-    }
-    .modal-body {
-      padding: 20px 25px;
-    }
-    .modal-footer {
-      padding: 15px 25px 20px 25px;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      background: #f8fafc;
-      border-radius: 0 0 24px 24px;
-    }
-    .form-group {
-      margin-bottom: 18px;
-    }
-    .form-group label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 0.8rem;
-      color: #334155;
-    }
-    .form-control {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #cbd5e0;
-      border-radius: 12px;
-      font-size: 0.85rem;
-    }
-    .warning-badge {
-      background: #fef3c7;
-      color: #92400e;
-      padding: 8px 12px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-<div class="container">
-  <div class="header-bar">
-    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;"></div>
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <span id="loginInfo" class="login-info"></span>
-      <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-      <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-      <button class="btn btn-secondary" onclick="caricaOggetti()">🔄 Ricarica</button>
-    </div>
-  </div>
+const express = require('express');
+const { verifyToken } = require('../auth');
+const db = require('../db');
+const { aggiornaSintesiCarico } = require('./assegnazioni');
 
-  <h2>📦 Assegnazioni e Rientri</h2>
-  <div id="messageArea"></div>
+const router = express.Router();
 
-  <!-- Scelta sorgente -->
-  <div class="source-selector">
-    <div class="source-option">
-      <input type="radio" name="source" id="sourceCarico" value="carico" checked>
-      <label for="sourceCarico">📦 In carico (da soggetto)</label>
-    </div>
-    <div class="source-option">
-      <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
-      <label for="sourceMagazzino">🏭 Dal magazzino</label>
-    </div>
-  </div>
-
-  <!-- Sezione per "In carico" (soggetto) -->
-  <div id="caricoSection" class="source-selection">
-    <div class="form-group">
-      <label>Sorgente (soggetto)</label>
-      <select id="sourceTipo">
-        <option value="PROMOTER">👤 Promoter</option>
-        <option value="NEGOZIO">🏪 Negozio</option>
-        <option value="CLIENTE">👥 Cliente</option>
-        <option value="AGENTE">🤝 Agente</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Seleziona soggetto</label>
-      <select id="sourceId"><option value="">Seleziona...</option></select>
-    </div>
-    <div class="form-group">
-      <label><input type="checkbox" id="includeReferenced"> Includi referenti</label>
-    </div>
-  </div>
-
-  <!-- Sezione per "Dal magazzino" (con filtri) -->
-  <div id="magazzinoSection" style="display: none;">
-    <div class="source-selection">
-      <div class="form-group">
-        <label>Magazzino</label>
-        <select id="magazzinoSelect"></select>
-      </div>
-      <div class="form-group">
-        <label>Tipo oggetto</label>
-        <select id="tipoOggettoMagazzino">
-          <option value="TUTTI">Tutti</option>
-          <option value="ARTICOLO">Articoli</option>
-          <option value="KIT">Kit</option>
-        </select>
-      </div>
-    </div>
-    <div class="filters">
-      <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-        <div class="filter-group" style="flex: 1; min-width: 150px;">
-          <label>Lunghezza</label>
-          <input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta">
-          <datalist id="lunghezzaList"></datalist>
-        </div>
-        <div class="filter-group" style="flex: 1; min-width: 150px;">
-          <label>Categoria</label>
-          <select id="filtroCategoria">
-            <option value="">Tutte</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
-          <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tabella oggetti -->
-  <div class="table-wrapper">
-    <table id="tabellaOggetti">
-      <thead id="tabellaHeader">
-         <th>Codice / Descrizione</th>
-         <th>Sigla</th>
-         <th>Quantità totale</th>
-         <th>Quantità impegnata</th>
-         <th>Giacenza</th>
-         <th>Assegnato a</th>
-         <th style="width:80px">Azioni</th>
-      </thead>
-      <tbody id="tabellaBody"><td colspan="7" class="text-center">Caricamento...<\/td></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- MODALE ASSEGNAZIONE (dal magazzino) -->
-<div id="assignModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>📤 Assegna a soggetto</h3>
-      <button class="btn btn-secondary btn-sm" onclick="chiudiAssignModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
-    </div>
-    <div class="modal-body" id="assignModalContent"></div>
-    <div class="modal-footer">
-      <button class="btn btn-success" id="assignConfirmBtn">Assegna</button>
-      <button class="btn btn-secondary" onclick="chiudiAssignModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE MODIFICA SINGOLA (per oggetti in carico) -->
-<div id="editAssignmentModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>✏️ Modifica Assegnazione</h3>
-      <button class="btn btn-secondary btn-sm" onclick="chiudiEditModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
-    </div>
-    <div class="modal-body" id="editAssignmentContent"></div>
-    <div class="modal-footer">
-      <button class="btn btn-success" id="saveEditBtn">💾 Salva modifiche</button>
-      <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE CONFERMA RIASSEGNAZIONE -->
-<div id="confirmRiassegnaModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>⚠️ Conferma riassegnazione</h3>
-      <button class="btn btn-secondary btn-sm" onclick="chiudiConfirmModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p id="confirmMsg"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-warning" id="confirmOkBtn">Sì, trasferisci</button>
-      <button class="btn btn-secondary" onclick="chiudiConfirmModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<div id="errorModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>⚠️ Errore</h3>
-      <button class="btn btn-secondary btn-sm" onclick="chiudiErrorModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p id="errorMsg"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  // ========== UTILITY ==========
-  function getAuthHeader() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      window.location.href = 'Login.html';
-      return {};
-    }
-    return { 'Authorization': 'Bearer ' + token };
+// ========== HELPER PER CONSUMO/RILASCIO ARTICOLI ==========
+async function consumaArticolo(connection, articoloId, quantita) {
+  const [art] = await connection.query(
+    'SELECT quantita_totale, quantita_in_kit FROM articoli WHERE articolo_id = ? FOR UPDATE',
+    [articoloId]
+  );
+  if (!art.length) throw new Error(`Articolo ${articoloId} non trovato`);
+  const disponibile = art[0].quantita_totale - art[0].quantita_in_kit;
+  if (disponibile < quantita) {
+    throw new Error(`Giacenza insufficiente per articolo ${articoloId} (disponibile ${disponibile})`);
   }
+  await connection.query(
+    `UPDATE articoli 
+     SET quantita_in_kit = quantita_in_kit + ?, 
+         giacenza_reale = quantita_totale - (quantita_in_kit + ?)
+     WHERE articolo_id = ?`,
+    [quantita, quantita, articoloId]
+  );
+}
 
-  async function apiFetch(endpoint, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
-    const response = await fetch(endpoint, { ...options, headers });
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'Login.html';
-      throw new Error('Sessione scaduta');
-    }
-    if (!response.ok) {
-      let errorMsg = `Errore ${response.status}`;
-      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
-      throw new Error(errorMsg);
-    }
-    return response.json();
+async function rilasciaArticolo(connection, articoloId, quantita) {
+  await connection.query(
+    `UPDATE articoli 
+     SET quantita_in_kit = quantita_in_kit - ?, 
+         giacenza_reale = quantita_totale - (quantita_in_kit - ?)
+     WHERE articolo_id = ?`,
+    [quantita, quantita, articoloId]
+  );
+}
+
+// ========== HELPER PER GENERARE DESCRIZIONE KIT ==========
+async function generaDescrizioneKit(connection, sciId, righe) {
+  const [sci] = await connection.query('SELECT descrizione, lunghezza, durezza FROM articoli WHERE articolo_id = ?', [sciId]);
+  if (!sci.length) throw new Error('Sci non trovato');
+  const sciDisplay = `${sci[0].descrizione} ${sci[0].lunghezza || ''} ${sci[0].durezza || ''}`.trim();
+  
+  const attacchiIds = [...new Set(righe.map(r => r.attacco_id))];
+  const attacchiDesc = [];
+  for (let id of attacchiIds) {
+    const [att] = await connection.query('SELECT descrizione FROM articoli WHERE articolo_id = ?', [id]);
+    if (att.length) attacchiDesc.push(att[0].descrizione);
   }
-
-  function showMessage(msg, type) { 
-    const div = document.getElementById('messageArea'); 
-    div.innerHTML = `<div class="message ${type}">${msg}</div>`; 
-    setTimeout(() => div.innerHTML = '', 5000); 
+  const attacchiDisplay = attacchiDesc.join(' + ');
+  
+  const skIds = [...new Set(righe.filter(r => r.skistopper_id).map(r => r.skistopper_id))];
+  const skDesc = [];
+  for (let id of skIds) {
+    const [sk] = await connection.query('SELECT descrizione FROM articoli WHERE articolo_id = ?', [id]);
+    if (sk.length) skDesc.push(sk[0].descrizione);
   }
-  function showErrorModal(msg) { 
-    document.getElementById('errorMsg').innerHTML = msg.replace(/\n/g, '<br>'); 
-    document.getElementById('errorModal').style.display = 'flex'; 
-  }
-  function chiudiErrorModal() { document.getElementById('errorModal').style.display = 'none'; }
+  const skDisplay = skDesc.length ? ` + ${skDesc.join(' + ')}` : '';
+  
+  return `Kit: ${sciDisplay} + ${attacchiDisplay}${skDisplay}`;
+}
 
-  let currentUser = null;
-  let magazzini = [];
-  let categorie = [];
-  let oggetti = [];
-  let currentEditObj = null;
-  let pendingAction = null;
-  let currentAssignObj = null;
-
-  const radioCarico = document.getElementById('sourceCarico');
-  const radioMagazzino = document.getElementById('sourceMagazzino');
-  const caricoSection = document.getElementById('caricoSection');
-  const magazzinoSection = document.getElementById('magazzinoSection');
-  const sourceTipo = document.getElementById('sourceTipo');
-  const sourceId = document.getElementById('sourceId');
-  const includeReferenced = document.getElementById('includeReferenced');
-  const magazzinoSelect = document.getElementById('magazzinoSelect');
-  const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
-  const filtroLunghezza = document.getElementById('filtroLunghezza');
-  const filtroCategoria = document.getElementById('filtroCategoria');
-  const lunghezzaList = document.getElementById('lunghezzaList');
-
-  // ========== CARICAMENTO ANAGRAFICHE ==========
-  async function caricaMagazzini() {
-    try {
-      magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
-      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
-      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) magazzinoSelect.value = defaultMag.id;
-    } catch(err) { console.error(err); showMessage('Errore caricamento magazzini', 'error'); }
-  }
-
-  async function caricaCategorie() {
-    try {
-      const res = await apiFetch('/api/anagrafiche/categorie');
-      categorie = res || [];
-      filtroCategoria.innerHTML = '<option value="">Tutte</option>';
-      categorie.forEach(c => filtroCategoria.appendChild(new Option(c.nome, c.id)));
-    } catch(err) { console.error(err); }
-  }
-
-  async function caricaSorgentiAdmin() {
-    const tipo = sourceTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      sourceId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        sourceId.appendChild(new Option(testo, item.id));
+// ========== GET all kits ==========
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const [kits] = await db.query(`
+      SELECT k.*, 
+             cs.destinazione_tipo AS assegnato_tipo,
+             cs.destinazione_id AS assegnato_id,
+             cs.quantita AS assegnato_quantita,
+             s.nome AS assegnato_nome,
+             s.cognome AS assegnato_cognome
+      FROM kit k
+      LEFT JOIN carico_sintesi cs ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id AND cs.quantita > 0
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+    `);
+    
+    const result = [];
+    for (const kit of kits) {
+      const [dettagli] = await db.query(`
+        SELECT d.*, 
+               a.descrizione AS articolo_descrizione,
+               sg.sigla,
+               sg.durezza AS sigla_durezza,
+               sg.lunghezza AS sigla_lunghezza
+        FROM kit_dettaglio d
+        LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
+        LEFT JOIN sigle_articoli sg ON d.sigla_id = sg.id
+        WHERE d.kit_id = ?
+      `, [kit.id]);
+      
+      result.push({
+        ...kit,
+        dettagli: dettagli,
+        assegnato_a: kit.assegnato_tipo ? {
+          tipo: kit.assegnato_tipo,
+          id: kit.assegnato_id,
+          nome: kit.assegnato_tipo === 'PROMOTER' ? `${kit.assegnato_nome} ${kit.assegnato_cognome || ''}`.trim() : kit.assegnato_nome,
+          quantita: kit.assegnato_quantita
+        } : null
       });
-      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      if (radioCarico.checked) await caricaOggettiInCarico();
-    } catch(err) { showMessage('Errore sorgenti', 'error'); }
-  }
-
-  // ========== OGGETTI DAL MAGAZZINO (LOGICA CORRETTA) ==========
-  async function caricaOggettiDaMagazzino() {
-    const magId = magazzinoSelect.value;
-    if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
-    const tipo = tipoOggettoMagazzino.value;
-    const filtroLung = filtroLunghezza.value.trim();
-    const filtroCat = filtroCategoria.value;
-    let lista = [];
-
-    try {
-      // ---- ARTICOLI ----
-      if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
-        const params = new URLSearchParams();
-        params.append('magazzino', magId);
-        params.append('min_giacenza', '1');
-        if (filtroLung) params.append('lunghezza', filtroLung);
-        if (filtroCat) params.append('categoria', filtroCat);
-        const res = await apiFetch(`/api/articoli?${params.toString()}`);
-        let articoli = res.success ? res.data : (res.data || []);
-        for (let a of articoli) {
-          let sigle = [];
-          try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
-          let siglaCorrente = sigle.length ? sigle[0].sigla : null;
-          const totale = a.quantita_totale;
-          const impegnato = a.quantita_in_kit;
-          const giacenza = totale - impegnato;
-          lista.push({
-            id: a.id,
-            tipo: 'ARTICOLO',
-            codice: a.codice,
-            descrizione: a.descrizione,
-            totale: totale,
-            impegnato: impegnato,
-            giacenza: giacenza,
-            sigla: siglaCorrente,
-            sigleDisponibili: sigle,
-            destinatarioNome: 'Magazzino',
-            lunghezza: a.lunghezza,
-            categoria: a.categoria_id
-          });
-        }
-      }
-      // ---- KIT ----
-      if (tipo === 'TUTTI' || tipo === 'KIT') {
-        const res = await apiFetch('/api/kit');
-        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
-        kits = kits.filter(k => k.magazzino == magId);
-        for (let k of kits) {
-          let siglaSci = null;
-          let lunghezzaSci = null;
-          let categoriaSci = null;
-          let sigleDisponibili = [];
-          if (k.dettagli) {
-            const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
-            if (sciDetail && sciDetail.articolo_id) {
-              try {
-                const sciArt = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
-                lunghezzaSci = sciArt.lunghezza;
-                categoriaSci = sciArt.categoria;
-                const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
-                sigleDisponibili = sigle;
-                if (sciDetail.sigla_id) {
-                  const found = sigle.find(s => s.id == sciDetail.sigla_id);
-                  if (found) siglaSci = found.sigla;
-                }
-              } catch(e) { console.warn(e); }
-            }
-          }
-          // Applica filtri lunghezza e categoria (sullo sci associato)
-          if (filtroLung && lunghezzaSci != filtroLung) continue;
-          if (filtroCat && categoriaSci != filtroCat) continue;
-          
-          // LOGICA CORRETTA PER I KIT IN MAGAZZINO
-          const totale = k.quantita;          // quantità fisica in magazzino
-          const impegnato = 0;                // i kit in magazzino non hanno "impegnato" (è una quantità già uscita)
-          const giacenza = totale;             // giacenza = totale
-          // Nota: se totale è negativo (dati inconsistenti), lo portiamo a 0
-          const safeTotale = Math.max(0, totale);
-          
-          lista.push({
-            id: k.id,
-            tipo: 'KIT',
-            codice: k.codice_kit,
-            descrizione: k.descrizione,
-            totale: safeTotale,
-            impegnato: 0,
-            giacenza: safeTotale,
-            sigla: siglaSci,
-            sigleDisponibili: sigleDisponibili,
-            destinatarioNome: 'Magazzino',
-            lunghezza: lunghezzaSci,
-            categoria: categoriaSci
-          });
-        }
-      }
-      oggetti = lista;
-      popolaTabella();
-      // Popola datalist lunghezze
-      const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
-      lunghezzaList.innerHTML = '';
-      lunghezze.forEach(l => { const opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
-    } catch(err) { showMessage('Errore caricamento magazzino: ' + err.message, 'error'); }
-  }
-
-  // ========== OGGETTI IN CARICO (DA SOGGETTO) ==========
-  async function caricaOggettiInCarico() {
-    const body = {};
-    if (currentUser.ruolo === 'admin' && sourceId.value) {
-      body.targetTipo = sourceTipo.value;
-      body.targetId = parseInt(sourceId.value);
-      body.includeReferenced = includeReferenced.checked;
-    } else if (currentUser.ruolo !== 'admin') {
-      if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
-      body.targetTipo = currentUser.ruolo.toUpperCase();
-      body.targetId = currentUser.riferimento_id;
-      body.includeReferenced = includeReferenced.checked;
-    } else { oggetti = []; popolaTabella(); return; }
-    if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
-    try {
-      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-      if (res.success) {
-        let tutti = res.oggetti || [];
-        for (let obj of tutti) {
-          if (obj.tipo === 'KIT') {
-            obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
-            if (!obj.siglaId) {
-              try {
-                const kitDetail = await apiFetch(`/api/kit/${obj.ID}`);
-                const sciRow = kitDetail.dettagli?.find(d => d.tipo_articolo === 'SCI');
-                if (sciRow && sciRow.sigla_id) obj.siglaId = sciRow.sigla_id;
-              } catch(e) { console.warn(e); }
-            }
-          } else {
-            obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
-            if (!obj.siglaId && obj.SIGLA_CORRENTE) {
-              const found = obj.sigleDisponibili.find(s => s.sigla === obj.SIGLA_CORRENTE);
-              if (found) obj.siglaId = found.id;
-            }
-          }
-        }
-        oggetti = tutti.map(obj => {
-          let siglaCorrente = null;
-          if (obj.siglaId && obj.sigleDisponibili) {
-            const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
-            if (found) siglaCorrente = found.sigla;
-          } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
-          return {
-            id: obj.ID,
-            tipo: obj.tipo,
-            codice: obj.codice,
-            descrizione: obj.descrizione,
-            totale: obj.quantita,
-            impegnato: 0,
-            giacenza: obj.quantita,
-            sigla: siglaCorrente,
-            sigleDisponibili: obj.sigleDisponibili || [],
-            siglaId: obj.siglaId || null,
-            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
-            tipoAssegnazione: obj.tipoAssegnazione,
-            destinazioneTipo: obj.destinazioneTipo,
-            destinazioneId: obj.destinazioneId
-          };
-        });
-        popolaTabella();
-      } else throw new Error(res.message);
-    } catch(err) { showMessage('Errore caricamento in carico: ' + err.message, 'error'); }
-  }
-
-  async function getSiglePerOggetto(obj) {
-    if (obj.tipo === 'ARTICOLO') {
-      try { return await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { return []; }
-    } else if (obj.tipo === 'KIT') {
-      try {
-        const kit = await apiFetch(`/api/kit/${obj.id}`);
-        const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
-        if (sciDetail && sciDetail.sigla_id) return await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
-        return [];
-      } catch(e) { return []; }
     }
-    return [];
+    res.json(result);
+  } catch (err) {
+    console.error('Errore GET /kit:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== GET single kit ==========
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const [kitRows] = await db.query('SELECT * FROM kit WHERE id = ?', [req.params.id]);
+    if (kitRows.length === 0) return res.status(404).json({ error: 'Kit non trovato' });
+    const [dettagli] = await db.query(`
+      SELECT d.*, 
+             a.descrizione AS articolo_descrizione,
+             sg.sigla,
+             sg.durezza AS sigla_durezza,
+             sg.lunghezza AS sigla_lunghezza
+      FROM kit_dettaglio d
+      LEFT JOIN articoli a ON d.articolo_id = a.articolo_id
+      LEFT JOIN sigle_articoli sg ON d.sigla_id = sg.id
+      WHERE d.kit_id = ?
+    `, [req.params.id]);
+    res.json({ ...kitRows[0], dettagli });
+  } catch (err) {
+    console.error('Errore GET /kit/:id:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== POST create kit ==========
+router.post('/', verifyToken, async (req, res) => {
+  const { magazzino, sci_id, note, destinazioneTipo, destinazioneId, righe } = req.body;
+  if (!magazzino || !sci_id || !righe || !righe.length) {
+    return res.status(400).json({ success: false, message: 'Dati incompleti (magazzino, sci_id, almeno una riga)' });
   }
 
-  function popolaTabella() {
-    const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
-    tbody.innerHTML = '';
-    oggetti.forEach((obj, idx) => {
-      const row = tbody.insertRow();
-      let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
-      row.insertCell(0).innerText = displayText;
-      row.insertCell(1).innerText = obj.sigla || '-';
-      row.insertCell(2).innerText = obj.totale ?? '-';
-      row.insertCell(3).innerText = obj.impegnato ?? '-';
-      row.insertCell(4).innerText = obj.giacenza ?? '-';
-      let assegnatoANome = obj.destinatarioNome || 'Magazzino';
-      row.insertCell(5).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(6);
-      const editBtn = document.createElement('button');
-      editBtn.textContent = '✏️';
-      editBtn.className = 'btn btn-secondary btn-sm';
-      if (radioMagazzino.checked) {
-        editBtn.onclick = () => apriModalAssegnazione(obj);
-      } else {
-        editBtn.onclick = () => apriModificaSingola(obj);
-      }
-      cellAzioni.appendChild(editBtn);
-    });
-  }
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
 
-  // ========== MODALE ASSEGNAZIONE (DA MAGAZZINO) ==========
-  async function apriModalAssegnazione(obj) {
-    currentAssignObj = obj;
-    const modalBody = document.getElementById('assignModalContent');
-    let siglaHtml = '<option value="">Nessuna sigla</option>';
-    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
-      for (const s of obj.sigleDisponibili) {
-        let text = s.sigla;
-        if (s.durezza) text += ` (${s.durezza})`;
-        if (s.lunghezza) text += ` - ${s.lunghezza}cm`;
-        siglaHtml += `<option value="${s.id}">${text}</option>`;
+  try {
+    const [maxSeqRow] = await connection.query(`
+      SELECT MAX(CAST(SUBSTRING(codice_kit, LOCATE('-', codice_kit, LOCATE('-', codice_kit)+1)+1) AS UNSIGNED)) AS max_seq
+      FROM kit WHERE magazzino = ?
+    `, [magazzino]);
+    const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
+    const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
+
+    const descrizioneKit = await generaDescrizioneKit(connection, sci_id, righe);
+
+    const [kitResult] = await connection.query(
+      `INSERT INTO kit (codice_kit, descrizione, quantita, magazzino, note, data_creazione, data_modifica)
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+      [codiceKit, descrizioneKit, 0, magazzino, note || null]
+    );
+    const kitId = kitResult.insertId;
+
+    let quantitaTotaleKit = 0;
+    for (const riga of righe) {
+      const { sigla_id, attacco_id, skistopper_id, quantita } = riga;
+      if (!sigla_id || !attacco_id) {
+        throw new Error('Ogni riga deve avere sigla e attacco');
       }
-    } else {
-      siglaHtml = '<option value="">Nessuna sigla disponibile</option>';
+      const [siglaCheck] = await connection.query(
+        'SELECT articolo_id FROM sigle_articoli WHERE id = ?',
+        [sigla_id]
+      );
+      if (!siglaCheck.length || siglaCheck[0].articolo_id !== sci_id) {
+        throw new Error(`La sigla ID ${sigla_id} non appartiene allo sci selezionato`);
+      }
+      
+      await consumaArticolo(connection, sci_id, quantita);
+      await consumaArticolo(connection, attacco_id, quantita);
+      if (skistopper_id) {
+        await consumaArticolo(connection, skistopper_id, quantita);
+      }
+      
+      await connection.query(
+        `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+         VALUES (?, 'SCI', ?, ?, ?)`,
+        [kitId, sci_id, sigla_id, quantita]
+      );
+      await connection.query(
+        `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+         VALUES (?, 'ATTACCHI', ?, NULL, ?)`,
+        [kitId, attacco_id, quantita]
+      );
+      if (skistopper_id) {
+        await connection.query(
+          `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+           VALUES (?, 'SKISTOPPER', ?, NULL, ?)`,
+          [kitId, skistopper_id, quantita]
+        );
+      }
+      quantitaTotaleKit += quantita;
     }
-    modalBody.innerHTML = `
-      <div class="form-group">
-        <label>📦 Oggetto</label>
-        <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>📊 Giacenza disponibile</label>
-        <input type="number" value="${obj.giacenza}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🔢 Quantità da assegnare</label>
-        <input type="number" id="assignQta" min="1" max="${obj.giacenza}" value="1" class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🏷️ Sigla</label>
-        <select id="assignSiglaId" class="form-control">${siglaHtml}</select>
-      </div>
-      <div class="form-group">
-        <label>🎯 Destinazione</label>
-        <select id="assignDestTipo" class="form-control">
-          <option value="PROMOTER">Promoter</option>
-          <option value="NEGOZIO">Negozio</option>
-          <option value="CLIENTE">Cliente</option>
-          <option value="AGENTE">Agente</option>
-        </select>
-        <select id="assignDestId" class="form-control" style="margin-top:8px;"></select>
-      </div>
-      <div class="form-group">
-        <label>📝 Note</label>
-        <input type="text" id="assignNote" class="form-control" placeholder="Note opzionali">
-      </div>
-    `;
-    const destTipoSelect = document.getElementById('assignDestTipo');
-    const destIdSelect = document.getElementById('assignDestId');
-    const caricaDestinazioni = async () => {
-      const tipo = destTipoSelect.value;
-      if (!tipo) return;
-      try {
-        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
-        data.forEach(item => {
-          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-          destIdSelect.appendChild(new Option(testo, item.id));
-        });
-      } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
-    };
-    destTipoSelect.addEventListener('change', caricaDestinazioni);
-    await caricaDestinazioni();
-    document.getElementById('assignModal').style.display = 'flex';
-    document.getElementById('assignConfirmBtn').onclick = () => confermaAssegnazione();
-  }
 
-  async function confermaAssegnazione() {
-    const obj = currentAssignObj;
-    if (!obj) return;
-    const qta = parseInt(document.getElementById('assignQta').value);
-    const siglaId = document.getElementById('assignSiglaId').value;
-    const destTipo = document.getElementById('assignDestTipo').value;
-    const destId = document.getElementById('assignDestId').value;
-    const note = document.getElementById('assignNote').value;
-    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
-    if (!destTipo || !destId) { showErrorModal('Seleziona una destinazione'); return; }
-    const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) { showErrorModal('Seleziona un magazzino di partenza'); return; }
-    const payload = {
-      magazzinoId: parseInt(magazzinoId),
-      destinazioneTipo: destTipo,
-      destinazioneId: parseInt(destId),
-      note: note,
-      oggetti: [{
-        tipoOggetto: obj.tipo,
-        oggettoId: obj.id,
-        siglaId: siglaId ? parseInt(siglaId) : null,
-        quantita: qta
-      }]
-    };
-    try {
-      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
-      if (res.success) {
-        showMessage('Assegnazione effettuata', 'success');
-        chiudiAssignModal();
-        await caricaOggettiDaMagazzino();
-      } else showErrorModal(res.message);
-    } catch(err) { showErrorModal(err.message); }
-  }
+    await connection.query(`UPDATE kit SET quantita = ? WHERE id = ?`, [quantitaTotaleKit, kitId]);
 
-  function chiudiAssignModal() {
-    document.getElementById('assignModal').style.display = 'none';
-    currentAssignObj = null;
-  }
-
-  // ========== MODIFICA SINGOLA (OGGETTI IN CARICO) ==========
-  async function apriModificaSingola(obj) {
-    if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
-      obj.sigleDisponibili = await getSiglePerOggetto({ tipo: obj.tipo, id: obj.id });
+    if (destinazioneTipo && destinazioneId) {
+      await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, 'KIT', kitId, null, quantitaTotaleKit);
+      await connection.query(
+        `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente)
+         VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?)`,
+        [`MAGAZZINO-${magazzino}`, `${destinazioneTipo}-${destinazioneId}`, kitId, 'KIT', quantitaTotaleKit, req.userId, note || 'Assegnazione kit', req.userId]
+      );
     }
-    currentEditObj = { ...obj, selectedSiglaId: obj.siglaId || null };
-    const modalBody = document.getElementById('editAssignmentContent');
-    let siglaOptions = '<option value="">Nessuna sigla</option>';
-    let hasOnlyOne = false;
-    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
-      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
-      for (const s of obj.sigleDisponibili) {
-        let optionText = s.sigla;
-        if (s.durezza) optionText += ` (${s.durezza})`;
-        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
-        let assegnatoA = null;
-        if (obj.destinatarioNome !== 'Magazzino' && s.id) {
-          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
-        }
-        if (assegnatoA) optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
-        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
-        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
-      }
-    } else {
-      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+
+    await connection.commit();
+    res.json({ success: true, message: 'Kit creato con successo', kitId });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Errore creazione kit:', err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// ========== PUT update kit ==========
+router.put('/:id', verifyToken, async (req, res) => {
+  const { magazzino, sci_id, note, righe } = req.body;
+  if (!magazzino || !sci_id || !righe || !righe.length) {
+    return res.status(400).json({ success: false, message: 'Dati incompleti' });
+  }
+
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    const [oldDetails] = await connection.query(
+      'SELECT * FROM kit_dettaglio WHERE kit_id = ?',
+      [req.params.id]
+    );
+    
+    for (const det of oldDetails) {
+      await rilasciaArticolo(connection, det.articolo_id, det.quantita);
     }
-    modalBody.innerHTML = `
-      <div class="form-group">
-        <label>📦 Oggetto</label>
-        <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>📊 Quantità disponibile</label>
-        <input type="number" value="${obj.giacenza}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🔢 Quantità da trasferire/rientrare</label>
-        <input type="number" id="editQta" min="1" max="${obj.giacenza}" value="1" class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🏷️ Sigla</label>
-        <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
-        <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
-      </div>
-      <div class="form-group">
-        <label>🎯 Nuova destinazione</label>
-        <select id="editDestTipo" class="form-control">
-          <option value="MAGAZZINO">🏭 Magazzino</option>
-          <option value="PROMOTER">Promoter</option>
-          <option value="NEGOZIO">Negozio</option>
-          <option value="CLIENTE">Cliente</option>
-          <option value="AGENTE">Agente</option>
-        </select>
-        <div id="destinazioneContainer" style="margin-top:8px;"></div>
-      </div>
-      <div class="form-group">
-        <label>📝 Note</label>
-        <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
-      </div>
-    `;
-    const destTipoSelect = document.getElementById('editDestTipo');
-    const destinazioneContainer = document.getElementById('destinazioneContainer');
-    const aggiornaCampoDestinazione = async () => {
-      const tipo = destTipoSelect.value;
-      destinazioneContainer.innerHTML = '';
-      if (tipo === 'MAGAZZINO') {
-        const selectMagazzino = document.createElement('select');
-        selectMagazzino.id = 'editDestId';
-        selectMagazzino.className = 'form-control';
-        selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
-        magazzini.forEach(m => selectMagazzino.appendChild(new Option(m.nome, m.id)));
-        destinazioneContainer.appendChild(selectMagazzino);
-      } else if (tipo && tipo !== 'MAGAZZINO') {
-        try {
-          const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-          const selectSoggetto = document.createElement('select');
-          selectSoggetto.id = 'editDestId';
-          selectSoggetto.className = 'form-control';
-          selectSoggetto.innerHTML = '<option value="">Seleziona...</option>';
-          data.forEach(item => {
-            let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-            selectSoggetto.appendChild(new Option(testo, item.id));
-          });
-          destinazioneContainer.appendChild(selectSoggetto);
-        } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+    
+    await connection.query('DELETE FROM kit_dettaglio WHERE kit_id = ?', [req.params.id]);
+    
+    let quantitaTotaleKit = 0;
+    for (const riga of righe) {
+      const { sigla_id, attacco_id, skistopper_id, quantita } = riga;
+      if (!sigla_id || !attacco_id) {
+        throw new Error('Ogni riga deve avere sigla e attacco');
       }
-    };
-    destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
-    await aggiornaCampoDestinazione();
-    const siglaSelect = document.getElementById('editSiglaId');
-    const warningDiv = document.getElementById('siglaWarning');
-    siglaSelect.addEventListener('change', async () => {
-      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
-      const assignedData = selectedOpt.getAttribute('data-assigned-to');
-      if (assignedData && assignedData !== 'null' && obj.destinatarioNome !== 'Magazzino') {
-        const assigned = JSON.parse(assignedData);
-        warningDiv.style.display = 'flex';
-        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
-      } else {
-        warningDiv.style.display = 'none';
+      const [siglaCheck] = await connection.query(
+        'SELECT articolo_id FROM sigle_articoli WHERE id = ?',
+        [sigla_id]
+      );
+      if (!siglaCheck.length || siglaCheck[0].articolo_id !== sci_id) {
+        throw new Error(`La sigla ID ${sigla_id} non appartiene allo sci selezionato`);
       }
-    });
-    document.getElementById('editAssignmentModal').style.display = 'flex';
-    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
-  }
-  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
-  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
-    if (!siglaId) return null;
-    try {
-      const params = new URLSearchParams();
-      params.append('tipo_oggetto', tipoOggetto);
-      params.append('oggetto_id', oggettoId);
-      params.append('sigla_id', siglaId);
-      if (excludeSubjectTipo && excludeSubjectId) {
-        params.append('escludi_tipo', excludeSubjectTipo);
-        params.append('escludi_id', excludeSubjectId);
+      
+      await consumaArticolo(connection, sci_id, quantita);
+      await consumaArticolo(connection, attacco_id, quantita);
+      if (skistopper_id) {
+        await consumaArticolo(connection, skistopper_id, quantita);
       }
-      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
-      return res.success ? res.assegnato_a : null;
-    } catch(e) { console.warn(e); return null; }
-  }
-  async function salvaModificaSingola() {
-    const obj = currentEditObj;
-    if (!obj) return;
-    const qta = parseInt(document.getElementById('editQta').value);
-    const siglaId = document.getElementById('editSiglaId').value;
-    const destTipo = document.getElementById('editDestTipo').value;
-    const destIdElement = document.getElementById('editDestId');
-    const destId = destIdElement ? destIdElement.value : null;
-    const note = document.getElementById('editNote').value;
-    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
-    const magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
-    if (!magazzinoId && destTipo !== 'MAGAZZINO') { showErrorModal('Nessun magazzino disponibile per il transito'); return; }
-    if (destTipo === 'MAGAZZINO') {
-      if (!destId) { showErrorModal('Seleziona un magazzino di destinazione'); return; }
-      const payload = {
-        magazzinoId: parseInt(destId),
-        note: note,
-        oggetti: [{
-          tipoOggetto: obj.tipo,
-          oggettoId: obj.id,
-          siglaId: siglaId ? parseInt(siglaId) : null,
-          quantita: qta,
-          daTipo: obj.destinazioneTipo,
-          daId: obj.destinazioneId
-        }]
-      };
-      try {
-        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) {
-          showMessage('Rientro in magazzino effettuato', 'success');
-          chiudiEditModal();
-          await caricaOggettiInCarico();
-        } else showErrorModal(res.message);
-      } catch(err) { showErrorModal(err.message); }
-      return;
+      
+      await connection.query(
+        `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+         VALUES (?, 'SCI', ?, ?, ?)`,
+        [req.params.id, sci_id, sigla_id, quantita]
+      );
+      await connection.query(
+        `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+         VALUES (?, 'ATTACCHI', ?, NULL, ?)`,
+        [req.params.id, attacco_id, quantita]
+      );
+      if (skistopper_id) {
+        await connection.query(
+          `INSERT INTO kit_dettaglio (kit_id, tipo_articolo, articolo_id, sigla_id, quantita)
+           VALUES (?, 'SKISTOPPER', ?, NULL, ?)`,
+          [req.params.id, skistopper_id, quantita]
+        );
+      }
+      quantitaTotaleKit += quantita;
     }
-    if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
-    const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
-    const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
-    if (siglaId) {
-      const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
-      if (assegnatoA) {
-        pendingAction = {
-          payload: {
-            daTipo, daId,
-            aTipo: destTipo,
-            aId: parseInt(destId),
-            magazzinoId: parseInt(magazzinoId),
-            oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
-            note
-          },
-          from: assegnatoA.nome
-        };
-        document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?`;
-        document.getElementById('confirmRiassegnaModal').style.display = 'flex';
-        document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
-        return;
-      }
+    
+    const nuovaDescrizione = await generaDescrizioneKit(connection, sci_id, righe);
+    
+    await connection.query(
+      `UPDATE kit SET magazzino = ?, note = ?, quantita = ?, descrizione = ?, data_modifica = NOW() WHERE id = ?`,
+      [magazzino, note || null, quantitaTotaleKit, nuovaDescrizione, req.params.id]
+    );
+    
+    await connection.commit();
+    res.json({ success: true, message: 'Kit aggiornato con successo' });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Errore PUT /kit:', err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// ========== DELETE kit ==========
+router.delete('/:id', verifyToken, async (req, res) => {
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  try {
+    const [dettagli] = await connection.query('SELECT * FROM kit_dettaglio WHERE kit_id = ?', [req.params.id]);
+    for (const d of dettagli) {
+      await rilasciaArticolo(connection, d.articolo_id, d.quantita);
     }
-    const payload = {
-      daTipo, daId,
-      aTipo: destTipo,
-      aId: parseInt(destId),
-      magazzinoId: parseInt(magazzinoId),
-      oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
-      note
-    };
-    try {
-      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-      if (res.success) {
-        showMessage('Trasferimento effettuato', 'success');
-        chiudiEditModal();
-        await caricaOggettiInCarico();
-      } else showErrorModal(res.message);
-    } catch(err) { showErrorModal(err.message); }
+    await connection.query('DELETE FROM kit WHERE id = ?', [req.params.id]);
+    await connection.commit();
+    res.json({ success: true, message: 'Kit eliminato' });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Errore DELETE /kit:', err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
   }
-  async function eseguiTrasferimentoConfermato() {
-    if (!pendingAction) return;
-    chiudiConfirmModal();
-    try {
-      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(pendingAction.payload) });
-      if (res.success) {
-        showMessage('Trasferimento effettuato con successo', 'success');
-        chiudiEditModal();
-        await caricaOggettiInCarico();
-      } else showErrorModal(res.message);
-    } catch(err) { showErrorModal(err.message); }
-    pendingAction = null;
-  }
-  function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
-  function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
+});
 
-  // ========== FILTRI MAGAZZINO ==========
-  function applicaFiltriMagazzino() {
-    if (radioMagazzino.checked) caricaOggettiDaMagazzino();
-  }
-  function resetFiltriMagazzino() {
-    filtroLunghezza.value = '';
-    filtroCategoria.value = '';
-    if (radioMagazzino.checked) caricaOggettiDaMagazzino();
-  }
-
-  // ========== GESTIONE UI ==========
-  function toggleSource() {
-    const isMagazzino = radioMagazzino.checked;
-    caricoSection.style.display = isMagazzino ? 'none' : 'flex';
-    magazzinoSection.style.display = isMagazzino ? 'flex' : 'none';
-    caricaOggetti();
-  }
-
-  async function caricaOggetti() {
-    document.body.style.cursor = 'wait';
-    try {
-      if (radioMagazzino.checked) {
-        await caricaOggettiDaMagazzino();
-      } else {
-        await caricaOggettiInCarico();
-      }
-    } finally {
-      document.body.style.cursor = 'default';
-    }
-  }
-
-  function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
-
-  function setup() {
-    const isAdmin = currentUser.ruolo === 'admin';
-    if (isAdmin) {
-      sourceTipo.disabled = false;
-      sourceId.disabled = false;
-      includeReferenced.disabled = false;
-      caricaSorgentiAdmin();
-      sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
-      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
-      includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
-    } else {
-      sourceTipo.disabled = true;
-      sourceId.disabled = true;
-      includeReferenced.disabled = true;
-      if (radioCarico.checked) caricaOggetti();
-    }
-    radioCarico.addEventListener('change', toggleSource);
-    radioMagazzino.addEventListener('change', toggleSource);
-    magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
-    tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
-    toggleSource();
-  }
-
-  window.onload = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><p>Devi effettuare il login.</p><a href="Login.html">Login</a></div>'; return; }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-      if (!currentUser.riferimento_id && currentUser.RiferimentoID) { currentUser.riferimento_id = parseInt(currentUser.RiferimentoID); localStorage.setItem('user', JSON.stringify(currentUser)); }
-    } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
-    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
-    await caricaMagazzini();
-    await caricaCategorie();
-    setup();
-  };
-</script>
-</body>
-</html>
+module.exports = router;
