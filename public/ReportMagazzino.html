@@ -21,13 +21,13 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             padding: 25px;
         }
-        h1 {
+        h1, h2 {
             margin-top: 0;
-            font-size: 1.8rem;
             border-left: 5px solid #1a73e8;
             padding-left: 15px;
             color: #1e2a3a;
         }
+        h2 { font-size: 1.3rem; margin-top: 30px; }
         .filter-section {
             background: #f8f9fa;
             border-radius: 12px;
@@ -74,13 +74,15 @@
         .btn-print { background: #27ae60; margin-left: 10px; }
         .btn-print:hover { background: #219653; }
         .report-section {
-            margin-top: 30px;
+            margin-top: 20px;
             page-break-before: avoid;
+            overflow-x: auto;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            font-size: 0.85rem;
         }
         th, td {
             border: 1px solid #ddd;
@@ -197,7 +199,7 @@
         <div style="display: flex; gap: 10px;">
             <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
             <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-            <button class="btn btn-secondary" onclick="caricaReport()">📋 Articoli in magazzino</button>
+            <button class="btn btn-secondary" onclick="caricaReport()">🔄 Aggiorna</button>
         </div>
     </div>
 
@@ -206,13 +208,13 @@
             <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
             <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
             <div class="filter-group"><label>Marca</label><select id="filtroMarca"><option value="">Tutti</option></select></div>
-            <div class="filter-group"><label>Tipo oggetto</label><select id="filtroTipo"><option value="">Tutti</option><option value="ARTICOLO">Articolo</option><option value="KIT">Kit</option></select></div>
+            <div class="filter-group"><label>Tipo oggetto (report principale)</label><select id="filtroTipo"><option value="">Tutti</option><option value="ARTICOLO">Articoli</option><option value="KIT">Kit</option></select></div>
         </div>
         <div class="filter-row">
             <div class="filter-group"><label>Descrizione (contiene)</label><input type="text" id="filtroDescrizione" placeholder="Contiene..."></div>
             <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" placeholder="Esatta"></div>
             <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" placeholder="Esatta"></div>
-            <div class="filter-group"><label>Sigla (testo)</label><input type="text" id="filtroSigla" placeholder="Cerca in tutte le sigle"></div>
+            <div class="filter-group"><label>Sigla (testo)</label><input type="text" id="filtroSigla" placeholder="Cerca in tutte le sigle (articoli)"></div>
         </div>
         <div class="filter-row">
             <button class="btn" onclick="caricaReport()">🔍 Applica filtri</button>
@@ -232,9 +234,15 @@
     </div>
 
     <div id="reportContent" class="density-medium">
+        <!-- Report principale: giacenza reale con totale/impegnato -->
         <div class="report-section">
-            <h2>📦 Magazzino - Giacenza reale</h2>
+            <h2>📦 Giacenza reale (magazzino)</h2>
             <div id="magazzinoTable"></div>
+        </div>
+        <!-- Report secondario: articoli con quantità totali (scorporati dai kit) -->
+        <div class="report-section">
+            <h2>📋 Articoli - Quantità totali (scorporati dai kit)</h2>
+            <div id="articoliTotaliTable"></div>
         </div>
     </div>
 </div>
@@ -272,6 +280,7 @@
     let currentUser = null;
     let magazzini = [], settori = [], marche = [];
     let magazzinoKey = 'id';
+    let cachedSigle = {}; // cache per sigle articoli
 
     const filtroMag = document.getElementById('filtroMagazzino');
     const filtroSet = document.getElementById('filtroSettore');
@@ -293,12 +302,18 @@
         const bodyDiv = document.getElementById('sigleModalBody');
         bodyDiv.innerHTML = '<p>Caricamento sigle...</p>';
         try {
-            const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+            let sigle;
+            if (cachedSigle[articoloId]) {
+                sigle = cachedSigle[articoloId];
+            } else {
+                sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+                cachedSigle[articoloId] = sigle;
+            }
             if (!sigle || sigle.length === 0) {
-                bodyDiv.innerHTML = `<p>Nessuna sigla associata all'articolo <strong>${codiceArticolo}</strong>.</p>`;
+                bodyDiv.innerHTML = `<p>Nessuna sigla associata all'articolo <strong>${escapeHtml(codiceArticolo)}</strong>.</p>`;
                 return;
             }
-            let html = `<p>Sigle per l'articolo <strong>${codiceArticolo}</strong>:</p><ul class="sigle-list">`;
+            let html = `<p>Sigle per l'articolo <strong>${escapeHtml(codiceArticolo)}</strong>:</p><ul class="sigle-list">`;
             sigle.forEach(s => {
                 html += `<li>
                             <span class="sigle-badge">${escapeHtml(s.sigla)}</span>
@@ -372,7 +387,6 @@
         if (filtroDesc.value) params.append('descrizione', filtroDesc.value);
         if (filtroLung.value) params.append('lunghezza', filtroLung.value);
         if (filtroDur.value) params.append('durezza', filtroDur.value);
-        // Nota: il filtro per sigla viene applicato lato client perché la API articoli non filtra per sigle direttamente
         params.append('min_giacenza', '0');
         const url = `/api/articoli?${params.toString()}`;
         const res = await apiFetch(url);
@@ -383,103 +397,168 @@
         const res = await apiFetch('/api/kit');
         let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
         if (filtroMag.value) kits = kits.filter(k => k.magazzino == filtroMag.value);
+        // Filtro descrizione e lunghezza/durezza sui kit (attraverso lo sci? Per semplicità filtra sulla descrizione del kit)
+        if (filtroDesc.value) kits = kits.filter(k => k.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
+        if (filtroLung.value) {
+            // per i kit, filtra per lunghezza dello sci (difficile senza chiamate extra). Omettiamo o filtriamo dopo.
+            // Per semplicità, non filtriamo per lunghezza/durezza sui kit in questa versione.
+        }
         return kits;
     }
 
-    // Filtro per sigla (testo) su articoli (attraverso le sigle associate)
-    async function filtraPerSigla(articoli, siglaCercata) {
+    async function filtraArticoliPerSigla(articoli, siglaCercata) {
         if (!siglaCercata) return articoli;
         const siglaLower = siglaCercata.toLowerCase();
-        const articoliConSigla = [];
+        const result = [];
         for (const art of articoli) {
-            try {
-                const sigle = await apiFetch(`/api/articoli/${art.id}/sigle`);
-                const match = sigle.some(s => s.sigla.toLowerCase().includes(siglaLower));
-                if (match) articoliConSigla.push(art);
-            } catch(e) {
-                // se errore nel recupero sigle, ignora l'articolo
-                console.warn(`Errore sigle per articolo ${art.id}`, e);
+            let sigle;
+            if (cachedSigle[art.id]) {
+                sigle = cachedSigle[art.id];
+            } else {
+                try {
+                    sigle = await apiFetch(`/api/articoli/${art.id}/sigle`);
+                    cachedSigle[art.id] = sigle;
+                } catch(e) {
+                    continue;
+                }
+            }
+            if (sigle.some(s => s.sigla.toLowerCase().includes(siglaLower))) {
+                result.push(art);
             }
         }
-        return articoliConSigla;
+        return result;
     }
 
     async function caricaReport() {
         try {
             document.getElementById('magazzinoTable').innerHTML = '<p class="text-center">Caricamento...</p>';
-            let items = [];
+            document.getElementById('articoliTotaliTable').innerHTML = '<p class="text-center">Caricamento...</p>';
+            
+            let articoli = [];
+            let kits = [];
             const tipo = filtroTipo.value;
             if (tipo === '' || tipo === 'ARTICOLO') {
-                let articoli = await getArticoliFiltrati();
-                // Filtro per sigla (se presente)
+                articoli = await getArticoliFiltrati();
                 if (filtroSigla.value) {
-                    articoli = await filtraPerSigla(articoli, filtroSigla.value);
+                    articoli = await filtraArticoliPerSigla(articoli, filtroSigla.value);
                 }
-                items.push(...articoli.map(a => ({
-                    ...a,
-                    tipo: 'ARTICOLO',
-                    giacenza: (a.quantita_totale || 0) - (a.quantita_in_kit || 0),
-                    quantita_totale: a.quantita_totale,
-                    id_originale: a.id
-                })));
             }
             if (tipo === '' || tipo === 'KIT') {
-                let kits = await getKitsFiltrati();
-                items.push(...kits.map(k => ({
-                    ...k,
-                    tipo: 'KIT',
-                    giacenza: k.quantita,
-                    quantita_totale: k.quantita,
-                    id_originale: k.id
-                })));
+                kits = await getKitsFiltrati();
             }
 
-            if (filtroDesc.value) items = items.filter(i => i.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
-            if (filtroLung.value) items = items.filter(i => i.lunghezza == filtroLung.value);
-            if (filtroDur.value) items = items.filter(i => i.durezza == filtroDur.value);
-            // Nota: il filtro sigla è già stato applicato sopra per gli articoli; per i kit non c'è gestione sigle
-
-            renderTable(items);
+            // Preparazione dati per report principale (articoli + kit)
+            let itemsPrincipale = [];
+            for (let a of articoli) {
+                const totale = a.quantita_totale;
+                const impegnato = a.quantita_in_kit;
+                const giacenza = totale - impegnato;
+                itemsPrincipale.push({
+                    tipo: 'ARTICOLO',
+                    id: a.id,
+                    codice: a.codice,
+                    descrizione: a.descrizione,
+                    lunghezza: a.lunghezza,
+                    durezza: a.durezza,
+                    magazzino: a.magazzino,
+                    totale: totale,
+                    impegnato: impegnato,
+                    giacenza: giacenza,
+                    hasSigle: true
+                });
+            }
+            for (let k of kits) {
+                const quantitaAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
+                const totale = k.quantita + quantitaAssegnata;
+                const impegnato = quantitaAssegnata;
+                const giacenza = k.quantita;
+                itemsPrincipale.push({
+                    tipo: 'KIT',
+                    id: k.id,
+                    codice: k.codice_kit,
+                    descrizione: k.descrizione,
+                    lunghezza: '-', // i kit non hanno lunghezza diretta
+                    durezza: '-',
+                    magazzino: k.magazzino,
+                    totale: totale,
+                    impegnato: impegnato,
+                    giacenza: giacenza,
+                    hasSigle: false
+                });
+            }
+            renderMainTable(itemsPrincipale);
+            
+            // Report secondario: solo articoli con quantità totali (scorporati dai kit)
+            // Usiamo gli stessi articoli (già filtrati) e mostriamo totale, in kit, disponibile
+            renderArticoliTotaliTable(articoli);
         } catch (err) {
             document.getElementById('magazzinoTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
+            document.getElementById('articoliTotaliTable').innerHTML = `<p class="text-center error">Errore: ${err.message}</p>`;
         }
     }
 
-    function renderTable(items) {
+    function renderMainTable(items) {
         const container = document.getElementById('magazzinoTable');
         if (!items.length) {
-            container.innerHTML = '<p>Nessun oggetto trovato in magazzino con i filtri selezionati.</p>';
+            container.innerHTML = '<p>Nessun oggetto trovato con i filtri selezionati.</p>';
             return;
         }
-
-        let html = `<table><thead>
-        <tr>
-            <th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigle</th><th>Magazzino</th><th>Quantità totale</th><th>Giacenza reale</th>
-        </tr>
-        </thead>
-        <tbody>`;
-
+        let html = `<table>
+            <thead>
+                <tr><th>Tipo</th><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigle</th><th>Magazzino</th><th>Quantità totale</th><th>Quantità impegnata</th><th>Giacenza</th></tr>
+            </thead>
+            <tbody>`;
         items.forEach(item => {
             const magNome = magazzini.find(m => m[magazzinoKey] == item.magazzino)?.nome || item.magazzino;
-            const codice = item.tipo === 'KIT' ? item.codice_kit : item.codice;
             html += '<tr>';
             html += `<td>${item.tipo === 'KIT' ? 'Kit' : 'Articolo'}</td>`;
-            html += `<td>${codice || '-'}</td>`;
-            html += `<td>${item.descrizione || '-'}</td>`;
-            html += `<td>${item.lunghezza || '-'}</td>`;
-            html += `<td>${item.durezza || '-'}</td>`;
-            // Colonna Sigle: solo per articoli con icona cliccabile
-            if (item.tipo === 'ARTICOLO') {
-                html += `<td class="icon-sigle" onclick="mostraSigle(${item.id_originale}, '${escapeHtml(codice)}')">🏷️</td>`;
+            html += `<td>${escapeHtml(item.codice) || '-'}</td>`;
+            html += `<td>${escapeHtml(item.descrizione) || '-'}</td>`;
+            html += `<td>${escapeHtml(item.lunghezza) || '-'}</td>`;
+            html += `<td>${escapeHtml(item.durezza) || '-'}</td>`;
+            if (item.hasSigle) {
+                html += `<td class="icon-sigle" onclick="mostraSigle(${item.id}, '${escapeHtml(item.codice)}')">🏷️</td>`;
             } else {
                 html += `<td>-</td>`;
             }
-            html += `<td>${magNome}</td>`;
-            html += `<td>${item.quantita_totale || 0}</td>`;
+            html += `<td>${escapeHtml(magNome)}</td>`;
+            html += `<td>${item.totale}</td>`;
+            html += `<td>${item.impegnato}</td>`;
             html += `<td>${item.giacenza}</td>`;
             html += '</tr>';
         });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
 
+    function renderArticoliTotaliTable(articoli) {
+        const container = document.getElementById('articoliTotaliTable');
+        if (!articoli.length) {
+            container.innerHTML = '<p>Nessun articolo trovato con i filtri selezionati.</p>';
+            return;
+        }
+        let html = `<table>
+            <thead>
+                <tr><th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigle</th><th>Magazzino</th><th>Quantità totale</th><th>Quantità in kit</th><th>Giacenza disponibile</th></tr>
+            </thead>
+            <tbody>`;
+        articoli.forEach(a => {
+            const magNome = magazzini.find(m => m[magazzinoKey] == a.magazzino)?.nome || a.magazzino;
+            const totale = a.quantita_totale;
+            const inKit = a.quantita_in_kit;
+            const giacenza = totale - inKit;
+            html += '<tr>';
+            html += `<td>${escapeHtml(a.codice) || '-'}</td>`;
+            html += `<td>${escapeHtml(a.descrizione) || '-'}</td>`;
+            html += `<td>${escapeHtml(a.lunghezza) || '-'}</td>`;
+            html += `<td>${escapeHtml(a.durezza) || '-'}</td>`;
+            html += `<td class="icon-sigle" onclick="mostraSigle(${a.id}, '${escapeHtml(a.codice)}')">🏷️</td>`;
+            html += `<td>${escapeHtml(magNome)}</td>`;
+            html += `<td>${totale}</td>`;
+            html += `<td>${inKit}</td>`;
+            html += `<td>${giacenza}</td>`;
+            html += '</tr>';
+        });
         html += '</tbody></table>';
         container.innerHTML = html;
     }
