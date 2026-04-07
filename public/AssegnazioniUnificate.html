@@ -694,84 +694,89 @@
   }
 
   // ========== MODIFICA SINGOLA (con gestione sigle) ==========
-  async function apriModificaSingola(idx) {
-    const obj = oggetti[idx];
-    currentEditObj = { ...obj, idx, selectedSiglaId: obj.siglaId || null };
-    const modalBody = document.getElementById('editAssignmentContent');
-    let siglaOptions = '<option value="">Nessuna sigla</option>';
-    let hasOnlyOne = false;
-    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
-      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
-      for (const s of obj.sigleDisponibili) {
-        let optionText = s.sigla;
-        if (s.durezza) optionText += ` (${s.durezza})`;
-        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
-        let assegnatoA = null;
-        if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
-          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
-        }
-        if (assegnatoA) {
-          optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
-        }
-        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
-        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
-      }
-    } else {
-      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
-    }
-    modalBody.innerHTML = `
-      <div class="form-group">
-        <label>📦 Oggetto</label>
-        <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>📊 Quantità disponibile</label>
-        <input type="number" value="${obj.disponibile}" disabled class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🔢 Quantità da trasferire/rientrare</label>
-        <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
-      </div>
-      <div class="form-group">
-        <label>🏷️ Sigla</label>
-        <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
-        <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
-      </div>
-      <div class="form-group">
-        <label>🎯 Nuova destinazione (solo se trasferisci)</label>
-        <div class="inline-refresh">
-          <select id="editDestTipo" class="form-control" style="flex:1;">
-            <option value="PROMOTER">Promoter</option>
-            <option value="NEGOZIO">Negozio</option>
-            <option value="CLIENTE">Cliente</option>
-            <option value="AGENTE">Agente</option>
-          </select>
-          <button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button>
-        </div>
-        <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
-      </div>
-      <div class="form-group">
-        <label>📝 Note</label>
-        <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
-      </div>
-    `;
-    await caricaEditDestinazioni();
-    const siglaSelect = document.getElementById('editSiglaId');
-    const warningDiv = document.getElementById('siglaWarning');
-    siglaSelect.addEventListener('change', async () => {
-      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
-      const assignedData = selectedOpt.getAttribute('data-assigned-to');
-      if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
-        const assigned = JSON.parse(assignedData);
-        warningDiv.style.display = 'flex';
-        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
-      } else {
-        warningDiv.style.display = 'none';
-      }
-    });
-    document.getElementById('editAssignmentModal').style.display = 'flex';
-    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
+ async function apriModificaSingola(idx) {
+  const obj = oggetti[idx];
+  // Forza il caricamento delle sigle se non sono già presenti
+  if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
+    obj.sigleDisponibili = await getSiglePerOggetto(obj);
   }
+  currentEditObj = { ...obj, idx, selectedSiglaId: obj.siglaId || null };
+  const modalBody = document.getElementById('editAssignmentContent');
+  let siglaOptions = '<option value="">Nessuna sigla</option>';
+  let hasOnlyOne = false;
+  if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+    if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
+    for (const s of obj.sigleDisponibili) {
+      let optionText = s.sigla;
+      if (s.durezza) optionText += ` (${s.durezza})`;
+      if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+      let assegnatoA = null;
+      if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
+        assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+      }
+      if (assegnatoA) {
+        optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+      }
+      const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
+      siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
+    }
+  } else {
+    siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+  }
+  modalBody.innerHTML = `
+    <div class="form-group">
+      <label>📦 Oggetto</label>
+      <input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control">
+    </div>
+    <div class="form-group">
+      <label>📊 Quantità disponibile</label>
+      <input type="number" value="${obj.disponibile}" disabled class="form-control">
+    </div>
+    <div class="form-group">
+      <label>🔢 Quantità da trasferire/rientrare</label>
+      <input type="number" id="editQta" min="1" max="${obj.disponibile}" value="1" class="form-control">
+    </div>
+    <div class="form-group">
+      <label>🏷️ Sigla</label>
+      <select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select>
+      <div id="siglaWarning" class="warning-badge" style="display: none;"></div>
+    </div>
+    <div class="form-group">
+      <label>🎯 Nuova destinazione (solo se trasferisci)</label>
+      <div class="inline-refresh">
+        <select id="editDestTipo" class="form-control" style="flex:1;">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+        </select>
+        <button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button>
+      </div>
+      <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
+    </div>
+    <div class="form-group">
+      <label>📝 Note</label>
+      <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
+    </div>
+  `;
+  await caricaEditDestinazioni();
+  const siglaSelect = document.getElementById('editSiglaId');
+  const warningDiv = document.getElementById('siglaWarning');
+  siglaSelect.addEventListener('change', async () => {
+    const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
+    const assignedData = selectedOpt.getAttribute('data-assigned-to');
+    if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
+      const assigned = JSON.parse(assignedData);
+      warningDiv.style.display = 'flex';
+      warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
+    } else {
+      warningDiv.style.display = 'none';
+    }
+  });
+  document.getElementById('editAssignmentModal').style.display = 'flex';
+  document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
+}
+
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
   async function caricaEditDestinazioni() {
     const tipo = document.getElementById('editDestTipo').value;
@@ -782,6 +787,7 @@
       data.forEach(item => destSelect.appendChild(new Option(item.nome, item.id)));
     } catch(err) { showMessage('Errore destinazioni', 'error'); }
   }
+
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
