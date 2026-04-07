@@ -377,7 +377,6 @@
 
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
-  const magazzinoSelect = document.getElementById('magazzino'); // non più usato nei filtri ma serve per altre funzioni
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
@@ -404,9 +403,7 @@
   async function caricaAnagrafiche() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      // Non serve più popolare i select dei filtri, ma manteniamo per eventuale uso futuro
-      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      // non usiamo più magazzinoSelect nei filtri, ma lo teniamo per compatibilità
+      // Popola anche un eventuale select globale se serve, ma non lo usiamo più nei filtri
     } catch(err) { console.error(err); showMessage('Errore caricamento dati', 'error'); }
   }
 
@@ -439,7 +436,6 @@
   }
 
   async function caricaOggettiDaMagazzino() {
-    // Non più usata perché abbiamo rimosso i filtri, ma la lasciamo per coerenza con la struttura
     oggetti = [];
     popolaTabella();
     showMessage('Modalità magazzino non più supportata, usa "In carico"', 'info');
@@ -587,7 +583,7 @@
           <option value="CLIENTE">Cliente</option>
           <option value="AGENTE">Agente</option>
         </select>
-        <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
+        <div id="destinazioneContainer" style="margin-top:8px;"></div>
       </div>
       <div class="form-group">
         <label>📝 Note</label>
@@ -595,31 +591,45 @@
       </div>
     `;
     const destTipoSelect = document.getElementById('editDestTipo');
-    const destIdSelect = document.getElementById('editDestId');
-    const caricaDestinazioni = async () => {
+    const destinazioneContainer = document.getElementById('destinazioneContainer');
+    const aggiornaCampoDestinazione = async () => {
       const tipo = destTipoSelect.value;
+      destinazioneContainer.innerHTML = '';
       if (tipo === 'MAGAZZINO') {
-        destIdSelect.disabled = true;
-        destIdSelect.innerHTML = '<option value="">Rientro in magazzino</option>';
-        return;
-      }
-      if (!tipo) {
-        destIdSelect.disabled = true;
-        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
-        return;
-      }
-      try {
-        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-        destIdSelect.disabled = false;
-        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
-        data.forEach(item => {
-          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-          destIdSelect.appendChild(new Option(testo, item.id));
+        // Mostra select con i magazzini disponibili
+        const selectMagazzino = document.createElement('select');
+        selectMagazzino.id = 'editDestId';
+        selectMagazzino.className = 'form-control';
+        selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
+        magazzini.forEach(m => {
+          selectMagazzino.appendChild(new Option(m.nome, m.id));
         });
-      } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+        destinazioneContainer.appendChild(selectMagazzino);
+      } else if (tipo && tipo !== 'MAGAZZINO') {
+        // Mostra select con i soggetti del tipo scelto
+        try {
+          const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+          const selectSoggetto = document.createElement('select');
+          selectSoggetto.id = 'editDestId';
+          selectSoggetto.className = 'form-control';
+          selectSoggetto.innerHTML = '<option value="">Seleziona...</option>';
+          data.forEach(item => {
+            let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+            selectSoggetto.appendChild(new Option(testo, item.id));
+          });
+          destinazioneContainer.appendChild(selectSoggetto);
+        } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+      } else {
+        // Nessun tipo selezionato
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'form-control';
+        emptyDiv.style.background = '#f1f3f5';
+        emptyDiv.innerText = 'Seleziona un tipo destinazione';
+        destinazioneContainer.appendChild(emptyDiv);
+      }
     };
-    destTipoSelect.addEventListener('change', caricaDestinazioni);
-    await caricaDestinazioni();
+    destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
+    await aggiornaCampoDestinazione(); // carica subito il campo in base al valore di default (Magazzino)
     const siglaSelect = document.getElementById('editSiglaId');
     const warningDiv = document.getElementById('siglaWarning');
     siglaSelect.addEventListener('change', async () => {
@@ -643,20 +653,25 @@
     const qta = parseInt(document.getElementById('editQta').value);
     const siglaId = document.getElementById('editSiglaId').value;
     const destTipo = document.getElementById('editDestTipo').value;
-    const destId = document.getElementById('editDestId').value;
+    const destIdElement = document.getElementById('editDestId');
+    const destId = destIdElement ? destIdElement.value : null;
     const note = document.getElementById('editNote').value;
     if (isNaN(qta) || qta < 1 || qta > obj.disponibile) { showErrorModal('Quantità non valida'); return; }
     const magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
     if (!magazzinoId) { showErrorModal('Nessun magazzino disponibile'); return; }
     const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
-    // Se la destinazione è il magazzino, eseguiamo un rientro
+    // Gestione rientro in magazzino
     if (destTipo === 'MAGAZZINO') {
       if (isInMagazzino) {
         showErrorModal('L\'oggetto è già in magazzino');
         return;
       }
+      if (!destId) {
+        showErrorModal('Seleziona un magazzino di destinazione');
+        return;
+      }
       const payload = {
-        magazzinoId: parseInt(magazzinoId),
+        magazzinoId: parseInt(destId),
         note: note,
         oggetti: [{
           tipoOggetto: obj.tipo,
@@ -678,8 +693,8 @@
       return;
     }
     // Altrimenti, gestione normale (assegnazione da magazzino o trasferimento)
+    if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
     if (isInMagazzino) {
-      if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
       const payload = {
         magazzinoId: parseInt(magazzinoId),
         destinazioneTipo: destTipo,
@@ -693,7 +708,6 @@
         else showErrorModal(res.message);
       } catch(err) { showErrorModal(err.message); }
     } else {
-      if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
       const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
       const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
       if (siglaId) {
