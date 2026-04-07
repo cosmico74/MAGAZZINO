@@ -44,6 +44,36 @@
       gap: 10px;
       font-weight: 500;
     }
+    .filters {
+      background: #f8f9fa;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 25px;
+      border: 1px solid #e2e8f0;
+    }
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .filter-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.7rem;
+      margin-bottom: 5px;
+      color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-group input, .filter-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      transition: 0.2s;
+    }
     .btn {
       background: #1a73e8;
       color: white;
@@ -219,6 +249,13 @@
       gap: 8px;
       margin-top: 8px;
     }
+    .checkbox-column { width: 30px; text-align: center; }
+    .batch-toolbar {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
   </style>
 </head>
 <body>
@@ -238,11 +275,11 @@
 
   <div class="source-selector">
     <div class="source-option">
-      <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
+      <input type="radio" name="source" id="sourceMagazzino" value="magazzino" checked>
       <label for="sourceMagazzino">🏭 Dal magazzino</label>
     </div>
     <div class="source-option">
-      <input type="radio" name="source" id="sourceCarico" value="carico" checked>
+      <input type="radio" name="source" id="sourceCarico" value="carico">
       <label for="sourceCarico">📦 In carico (da redistribuire)</label>
     </div>
   </div>
@@ -267,22 +304,82 @@
     </div>
   </div>
 
+  <!-- Filtri (visibili in entrambe le modalità, ma alcuni campi si adattano) -->
+  <div class="filters" id="filtersSection">
+    <div class="filter-row">
+      <div class="filter-group" id="magazzinoGroup">
+        <label id="magazzinoLabel">Magazzino *</label>
+        <select id="filtroMagazzino"></select>
+      </div>
+      <div class="filter-group"><label>Tipo oggetto</label><select id="filtroTipoOggetto"><option value="">Tutti</option><option value="ARTICOLO">📦 Articolo</option><option value="KIT">🔧 Kit</option></select></div>
+      <div class="filter-group"><label>Settore</label><select id="filtroSettore"></select></div>
+      <div class="filter-group"><label>Marca</label><select id="filtroMarca"></select></div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="descrizioneList" placeholder="Contiene..."><datalist id="descrizioneList"></datalist></div>
+      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta"><datalist id="lunghezzaList"></datalist></div>
+      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="durezzaList" placeholder="Esatta"><datalist id="durezzaList"></datalist></div>
+      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="siglaList" placeholder="Esatta"><datalist id="siglaList"></datalist></div>
+    </div>
+    <div class="filter-row">
+      <button class="btn" onclick="applicaFiltri()">🔍 Filtra</button>
+      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset</button>
+    </div>
+  </div>
+
+  <!-- Toolbar per azioni batch (solo in modalità magazzino) -->
+  <div id="batchToolbar" class="batch-toolbar" style="display: none;">
+    <button class="btn btn-success" onclick="apriModalAssegnazioneBatch()">📤 Assegna a soggetto</button>
+  </div>
+
   <!-- Tabella oggetti -->
   <div class="table-wrapper">
     <table id="tabellaOggetti">
-      <thead>
+      <thead id="tabellaHeader">
+         <th class="checkbox-column"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
          <th>Codice / Descrizione</th>
          <th>Sigla</th>
          <th>Disponibile</th>
          <th>Assegnato a</th>
          <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="5" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="6" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 </div>
 
-<!-- MODALE MODIFICA SINGOLA -->
+<!-- MODALE ASSEGNAZIONE BATCH (dal magazzino) -->
+<div id="batchAssignmentModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Assegna oggetti selezionati</h3>
+      <button class="btn btn-secondary btn-sm" onclick="chiudiBatchModal()" style="background: none; color: #6c757d; font-size: 1.5rem; padding: 0;">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>🎯 Destinazione</label>
+        <select id="batchDestTipo" class="form-control">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+        </select>
+        <select id="batchDestId" class="form-control" style="margin-top:8px;"></select>
+      </div>
+      <div class="form-group">
+        <label>📝 Note (opzionali)</label>
+        <input type="text" id="batchNote" class="form-control">
+      </div>
+      <div id="batchOggettiList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="confermaAssegnazioneBatch()">Assegna</button>
+      <button class="btn btn-secondary" onclick="chiudiBatchModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA SINGOLA (uguale per entrambe le modalità) -->
 <div id="editAssignmentModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -370,40 +467,59 @@
 
   let currentUser = null;
   let magazzini = [], settori = [], marche = [];
-  let oggetti = [];
-  let magazzinoKey = 'id';
+  let oggetti = [];          // oggetti visualizzati (sia magazzino che carico)
+  let categoryIds = { sci: null, attacchi: null, skistopper: null };
   let currentEditObj = null;
   let pendingAction = null;
 
+  // DOM elements
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
+  const filtroMagazzino = document.getElementById('filtroMagazzino');
+  const filtroTipoOggetto = document.getElementById('filtroTipoOggetto');
+  const filtroSettore = document.getElementById('filtroSettore');
+  const filtroMarca = document.getElementById('filtroMarca');
+  const filtroDescrizione = document.getElementById('filtroDescrizione');
+  const filtroLunghezza = document.getElementById('filtroLunghezza');
+  const filtroDurezza = document.getElementById('filtroDurezza');
+  const filtroSigla = document.getElementById('filtroSigla');
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
-
-  // ========== VERIFICA SIGLA ==========
-  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
-    if (!siglaId) return null;
-    try {
-      const params = new URLSearchParams();
-      params.append('tipo_oggetto', tipoOggetto);
-      params.append('oggetto_id', oggettoId);
-      params.append('sigla_id', siglaId);
-      if (excludeSubjectTipo && excludeSubjectId) {
-        params.append('escludi_tipo', excludeSubjectTipo);
-        params.append('escludi_id', excludeSubjectId);
-      }
-      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
-      return res.success ? res.assegnato_a : null;
-    } catch(e) { console.warn(e); return null; }
-  }
+  const batchToolbar = document.getElementById('batchToolbar');
+  const magazzinoGroup = document.getElementById('magazzinoGroup');
+  const magazzinoLabel = document.getElementById('magazzinoLabel');
 
   // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
     try {
-      magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      // Popola anche un eventuale select globale se serve, ma non lo usiamo più nei filtri
+      [magazzini, settori, marche] = await Promise.all([
+        apiFetch('/api/anagrafiche/magazzini'),
+        apiFetch('/api/anagrafiche/settori'),
+        apiFetch('/api/anagrafiche/marche')
+      ]);
+      const categorie = await apiFetch('/api/anagrafiche/categorie');
+      const findId = (nome) => {
+        const c = categorie.find(cat => cat.nome.toLowerCase() === nome.toLowerCase());
+        return c ? c.id : null;
+      };
+      categoryIds.sci = findId('sci');
+      categoryIds.attacchi = findId('attacchi');
+      categoryIds.skistopper = findId('skistopper');
+
+      function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
+        if (!select) return;
+        select.innerHTML = '';
+        if (conVuoto) select.appendChild(new Option('Tutti', ''));
+        items.forEach(i => select.appendChild(new Option(i[textKey], i[valueKey])));
+      }
+      popolaSelect(filtroMagazzino, magazzini, 'id', 'nome', false);
+      popolaSelect(filtroSettore, settori, 'settore_id', 'nome', true);
+      popolaSelect(filtroMarca, marche, 'marca_id', 'nome', true);
+      
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) filtroMagazzino.value = defaultMag.id;
     } catch(err) { console.error(err); showMessage('Errore caricamento dati', 'error'); }
   }
 
@@ -435,12 +551,55 @@
     return [];
   }
 
+  // ========== CARICAMENTO OGGETTI DAL MAGAZZINO ==========
   async function caricaOggettiDaMagazzino() {
-    oggetti = [];
-    popolaTabella();
-    showMessage('Modalità magazzino non più supportata, usa "In carico"', 'info');
+    const magId = filtroMagazzino.value;
+    if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
+    const tipo = filtroTipoOggetto.value;
+    let lista = [];
+    try {
+      const paramsArticoli = new URLSearchParams();
+      paramsArticoli.append('magazzino', magId);
+      if (filtroSettore.value) paramsArticoli.append('settore', filtroSettore.value);
+      if (filtroMarca.value) paramsArticoli.append('marca', filtroMarca.value);
+      if (filtroDescrizione.value) paramsArticoli.append('descrizione', filtroDescrizione.value);
+      if (filtroLunghezza.value) paramsArticoli.append('lunghezza', filtroLunghezza.value);
+      if (filtroDurezza.value) paramsArticoli.append('durezza', filtroDurezza.value);
+      if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
+      paramsArticoli.append('min_giacenza', '1');
+      if (categoryIds.sci) paramsArticoli.append('categoria', categoryIds.sci);
+      else if (tipo === 'ARTICOLO') paramsArticoli.append('categoria', categoryIds.sci);
+
+      if (tipo === '' || tipo === 'ARTICOLO') {
+        const res = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
+        let articoli = res.success ? res.data : (res.data || []);
+        for (let a of articoli) a.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: a.id });
+        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
+      }
+      if (tipo === '' || tipo === 'KIT') {
+        const res = await apiFetch('/api/kit');
+        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
+        kits = kits.filter(k => k.magazzino == magId);
+        for (let k of kits) k.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: k.id });
+        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
+      }
+      oggetti = lista.map(item => ({
+        id: item.id,
+        tipo: item.tipo,
+        codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit,
+        descrizione: item.descrizione,
+        disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
+        sigleDisponibili: item.sigleDisponibili || [],
+        siglaId: null,
+        siglaCorrente: null,
+        destinatarioNome: 'Magazzino',
+        tipoAssegnazione: 'me'
+      }));
+      popolaTabella();
+    } catch(err) { showMessage('Errore caricamento magazzino: ' + err.message, 'error'); }
   }
 
+  // ========== CARICAMENTO OGGETTI IN CARICO ==========
   async function caricaOggettiInCarico() {
     const body = {};
     if (currentUser.ruolo === 'admin' && sourceId.value) {
@@ -458,6 +617,16 @@
       const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
       if (res.success) {
         let tutti = res.oggetti || [];
+        // Applica filtri (tranne magazzino)
+        const tipoFiltro = filtroTipoOggetto.value;
+        if (tipoFiltro) tutti = tutti.filter(item => item.tipo === tipoFiltro);
+        if (filtroSettore.value) tutti = tutti.filter(o => o.SETTORE == filtroSettore.value);
+        if (filtroMarca.value) tutti = tutti.filter(o => o.MARCA == filtroMarca.value);
+        if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
+        if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
+        if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
+        if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
+
         for (let obj of tutti) {
           if (obj.tipo === 'KIT') {
             obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
@@ -465,9 +634,7 @@
               try {
                 const kitDetail = await apiFetch(`/api/kit/${obj.ID}`);
                 const sciRow = kitDetail.dettagli?.find(d => d.tipo_articolo === 'SCI');
-                if (sciRow && sciRow.sigla_id) {
-                  obj.siglaId = sciRow.sigla_id;
-                }
+                if (sciRow && sciRow.sigla_id) obj.siglaId = sciRow.sigla_id;
               } catch(e) { console.warn(e); }
             }
           } else {
@@ -483,9 +650,7 @@
           if (obj.siglaId && obj.sigleDisponibili) {
             const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
             if (found) siglaCorrente = found.sigla;
-          } else if (obj.SIGLA_CORRENTE) {
-            siglaCorrente = obj.SIGLA_CORRENTE;
-          }
+          } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
           return {
             id: obj.ID,
             tipo: obj.tipo,
@@ -503,39 +668,163 @@
         });
         popolaTabella();
       } else throw new Error(res.message);
-    } catch(err) { showMessage('Errore caricamento: ' + err.message, 'error'); }
+    } catch(err) { showMessage('Errore caricamento in carico: ' + err.message, 'error'); }
   }
 
+  // ========== POPOLA TABELLA (con checkbox solo per modalità magazzino) ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    const header = document.getElementById('tabellaHeader');
+    const isMagazzino = radioMagazzino.checked;
+    // Mostra/nascondi checkbox nella prima colonna
+    const checkboxes = document.querySelectorAll('.checkbox-column');
+    if (isMagazzino) {
+      header.style.display = ''; // assicura che la colonna sia visibile
+      if (header.cells[0]) header.cells[0].style.display = '';
+    } else {
+      if (header.cells[0]) header.cells[0].style.display = 'none';
+    }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
+      // Checkbox solo in modalità magazzino
+      if (isMagazzino) {
+        const cbCell = row.insertCell(0);
+        if (obj.disponibile > 0) {
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'oggetto-checkbox';
+          cb.dataset.idx = idx;
+          cb.dataset.id = obj.id;
+          cb.dataset.tipo = obj.tipo;
+          cbCell.appendChild(cb);
+        }
+      } else {
+        // In modalità carico, inserisci una cella vuota per mantenere l'allineamento
+        const emptyCell = row.insertCell(0);
+        emptyCell.style.display = 'none';
+      }
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
-      row.insertCell(0).innerText = displayText;
-      row.insertCell(1).innerText = obj.siglaCorrente || '-';
-      row.insertCell(2).innerText = obj.disponibile;
+      row.insertCell(isMagazzino ? 1 : 0).innerText = displayText;
+      row.insertCell(isMagazzino ? 2 : 1).innerText = obj.siglaCorrente || '-';
+      row.insertCell(isMagazzino ? 3 : 2).innerText = obj.disponibile;
       let assegnatoANome = obj.destinatarioNome;
       if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
       else if (!assegnatoANome) assegnatoANome = 'Magazzino';
-      row.insertCell(3).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(4);
+      row.insertCell(isMagazzino ? 4 : 3).innerText = assegnatoANome;
+      const cellAzioni = row.insertCell(isMagazzino ? 5 : 4);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
-      editBtn.onclick = () => apriModificaSingola(idx);
+      editBtn.onclick = () => apriModificaSingola(obj, isMagazzino);
       cellAzioni.appendChild(editBtn);
     });
   }
 
-  // ========== MODIFICA SINGOLA ==========
-  async function apriModificaSingola(idx) {
-    const obj = oggetti[idx];
+  // ========== GESTIONE CHECKBOX BATCH (solo modalità magazzino) ==========
+  function getSelectedOggetti() {
+    const selected = [];
+    document.querySelectorAll('.oggetto-checkbox:checked').forEach(cb => {
+      const idx = parseInt(cb.dataset.idx);
+      if (!isNaN(idx) && oggetti[idx]) selected.push(oggetti[idx]);
+    });
+    return selected;
+  }
+  function toggleSelectAll() {
+    const checkAll = document.getElementById('selectAllCheckbox').checked;
+    document.querySelectorAll('.oggetto-checkbox').forEach(cb => cb.checked = checkAll);
+  }
+
+  // ========== MODALE ASSEGNAZIONE BATCH ==========
+  async function apriModalAssegnazioneBatch() {
+    const selected = getSelectedOggetti();
+    if (selected.length === 0) { showMessage('Seleziona almeno un oggetto', 'error'); return; }
+    // Popola lista oggetti
+    const container = document.getElementById('batchOggettiList');
+    container.innerHTML = '';
+    selected.forEach(obj => {
+      const div = document.createElement('div');
+      div.style.padding = '8px';
+      div.style.borderBottom = '1px solid #eee';
+      div.innerHTML = `<strong>${obj.codice}</strong> - ${obj.descrizione}<br>
+                       <select class="sigla-select" data-id="${obj.id}" data-tipo="${obj.tipo}" style="width:100%; margin-top:5px;">
+                         <option value="">Nessuna sigla</option>`;
+      if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+        obj.sigleDisponibili.forEach(s => {
+          div.querySelector('.sigla-select').innerHTML += `<option value="${s.id}">${s.sigla}</option>`;
+        });
+      } else {
+        div.querySelector('.sigla-select').innerHTML = '<option value="">Nessuna sigla disponibile</option>';
+      }
+      div.querySelector('.sigla-select').disabled = (obj.sigleDisponibili && obj.sigleDisponibili.length === 0);
+      container.appendChild(div);
+    });
+    // Carica destinatari in base al tipo di default (Promoter)
+    await caricaDestinazioniBatch();
+    document.getElementById('batchAssignmentModal').style.display = 'flex';
+  }
+  async function caricaDestinazioniBatch() {
+    const tipo = document.getElementById('batchDestTipo').value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      const destSelect = document.getElementById('batchDestId');
+      destSelect.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        destSelect.appendChild(new Option(testo, item.id));
+      });
+    } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+  }
+  async function confermaAssegnazioneBatch() {
+    const destTipo = document.getElementById('batchDestTipo').value;
+    const destId = document.getElementById('batchDestId').value;
+    const note = document.getElementById('batchNote').value;
+    if (!destTipo || !destId) { showMessage('Seleziona destinazione', 'error'); return; }
+    const magazzinoId = filtroMagazzino.value;
+    if (!magazzinoId) { showMessage('Seleziona un magazzino', 'error'); return; }
+    const oggettiDaAssegnare = [];
+    const divs = document.querySelectorAll('#batchOggettiList > div');
+    for (let div of divs) {
+      const siglaSelect = div.querySelector('.sigla-select');
+      const siglaId = siglaSelect ? siglaSelect.value : null;
+      const id = parseInt(siglaSelect.dataset.id);
+      const tipo = siglaSelect.dataset.tipo;
+      const obj = oggetti.find(o => o.id === id && o.tipo === tipo);
+      if (obj) {
+        oggettiDaAssegnare.push({
+          tipoOggetto: obj.tipo,
+          oggettoId: obj.id,
+          siglaId: siglaId ? parseInt(siglaId) : null,
+          quantita: obj.disponibile
+        });
+      }
+    }
+    if (oggettiDaAssegnare.length === 0) { showMessage('Nessun oggetto valido', 'error'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destTipo,
+      destinazioneId: parseInt(destId),
+      note: note,
+      oggetti: oggettiDaAssegnare
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Assegnazione completata', 'success');
+        chiudiBatchModal();
+        await caricaOggetti();
+      } else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
+  function chiudiBatchModal() { document.getElementById('batchAssignmentModal').style.display = 'none'; }
+
+  // ========== MODIFICA SINGOLA (usata da entrambe le modalità) ==========
+  async function apriModificaSingola(obj, isFromMagazzino) {
     if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
       obj.sigleDisponibili = await getSiglePerOggetto(obj);
     }
-    currentEditObj = { ...obj, idx, selectedSiglaId: obj.siglaId || null };
+    currentEditObj = { ...obj, isFromMagazzino, selectedSiglaId: obj.siglaId || null };
     const modalBody = document.getElementById('editAssignmentContent');
     let siglaOptions = '<option value="">Nessuna sigla</option>';
     let hasOnlyOne = false;
@@ -546,7 +835,7 @@
         if (s.durezza) optionText += ` (${s.durezza})`;
         if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
         let assegnatoA = null;
-        if (radioCarico.checked && obj.destinatarioNome !== 'Magazzino' && s.id) {
+        if (!isFromMagazzino && obj.destinatarioNome !== 'Magazzino' && s.id) {
           assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
         }
         if (assegnatoA) optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
@@ -577,7 +866,7 @@
       <div class="form-group">
         <label>🎯 Nuova destinazione</label>
         <select id="editDestTipo" class="form-control">
-          <option value="MAGAZZINO">🏭 Magazzino</option>
+          ${!isFromMagazzino ? '<option value="MAGAZZINO">🏭 Magazzino</option>' : ''}
           <option value="PROMOTER">Promoter</option>
           <option value="NEGOZIO">Negozio</option>
           <option value="CLIENTE">Cliente</option>
@@ -596,17 +885,13 @@
       const tipo = destTipoSelect.value;
       destinazioneContainer.innerHTML = '';
       if (tipo === 'MAGAZZINO') {
-        // Mostra select con i magazzini disponibili
         const selectMagazzino = document.createElement('select');
         selectMagazzino.id = 'editDestId';
         selectMagazzino.className = 'form-control';
         selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
-        magazzini.forEach(m => {
-          selectMagazzino.appendChild(new Option(m.nome, m.id));
-        });
+        magazzini.forEach(m => selectMagazzino.appendChild(new Option(m.nome, m.id)));
         destinazioneContainer.appendChild(selectMagazzino);
       } else if (tipo && tipo !== 'MAGAZZINO') {
-        // Mostra select con i soggetti del tipo scelto
         try {
           const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
           const selectSoggetto = document.createElement('select');
@@ -619,23 +904,16 @@
           });
           destinazioneContainer.appendChild(selectSoggetto);
         } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
-      } else {
-        // Nessun tipo selezionato
-        const emptyDiv = document.createElement('div');
-        emptyDiv.className = 'form-control';
-        emptyDiv.style.background = '#f1f3f5';
-        emptyDiv.innerText = 'Seleziona un tipo destinazione';
-        destinazioneContainer.appendChild(emptyDiv);
       }
     };
     destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
-    await aggiornaCampoDestinazione(); // carica subito il campo in base al valore di default (Magazzino)
+    await aggiornaCampoDestinazione();
     const siglaSelect = document.getElementById('editSiglaId');
     const warningDiv = document.getElementById('siglaWarning');
     siglaSelect.addEventListener('change', async () => {
       const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
       const assignedData = selectedOpt.getAttribute('data-assigned-to');
-      if (assignedData && assignedData !== 'null' && radioCarico.checked && obj.destinatarioNome !== 'Magazzino') {
+      if (assignedData && assignedData !== 'null' && !isFromMagazzino && obj.destinatarioNome !== 'Magazzino') {
         const assigned = JSON.parse(assignedData);
         warningDiv.style.display = 'flex';
         warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
@@ -647,6 +925,21 @@
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo = null, excludeSubjectId = null) {
+    if (!siglaId) return null;
+    try {
+      const params = new URLSearchParams();
+      params.append('tipo_oggetto', tipoOggetto);
+      params.append('oggetto_id', oggettoId);
+      params.append('sigla_id', siglaId);
+      if (excludeSubjectTipo && excludeSubjectId) {
+        params.append('escludi_tipo', excludeSubjectTipo);
+        params.append('escludi_id', excludeSubjectId);
+      }
+      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params.toString()}`);
+      return res.success ? res.assegnato_a : null;
+    } catch(e) { console.warn(e); return null; }
+  }
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
@@ -657,44 +950,12 @@
     const destId = destIdElement ? destIdElement.value : null;
     const note = document.getElementById('editNote').value;
     if (isNaN(qta) || qta < 1 || qta > obj.disponibile) { showErrorModal('Quantità non valida'); return; }
-    const magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
-    if (!magazzinoId) { showErrorModal('Nessun magazzino disponibile'); return; }
-    const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
-    // Gestione rientro in magazzino
-    if (destTipo === 'MAGAZZINO') {
-      if (isInMagazzino) {
-        showErrorModal('L\'oggetto è già in magazzino');
-        return;
-      }
-      if (!destId) {
-        showErrorModal('Seleziona un magazzino di destinazione');
-        return;
-      }
-      const payload = {
-        magazzinoId: parseInt(destId),
-        note: note,
-        oggetti: [{
-          tipoOggetto: obj.tipo,
-          oggettoId: obj.id,
-          siglaId: siglaId ? parseInt(siglaId) : null,
-          quantita: qta,
-          daTipo: obj.destinazioneTipo,
-          daId: obj.destinazioneId
-        }]
-      };
-      try {
-        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) {
-          showMessage('Rientro in magazzino effettuato', 'success');
-          chiudiEditModal();
-          await caricaOggetti();
-        } else showErrorModal(res.message);
-      } catch(err) { showErrorModal(err.message); }
-      return;
-    }
-    // Altrimenti, gestione normale (assegnazione da magazzino o trasferimento)
-    if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
-    if (isInMagazzino) {
+    const isFromMagazzino = obj.isFromMagazzino;
+    const magazzinoId = isFromMagazzino ? filtroMagazzino.value : (destTipo === 'MAGAZZINO' ? destId : (magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id));
+    if (!magazzinoId) { showErrorModal('Seleziona un magazzino valido'); return; }
+    // Caso: oggetto in magazzino -> assegnazione a soggetto
+    if (isFromMagazzino) {
+      if (!destId || destTipo === 'MAGAZZINO') { showErrorModal('Seleziona una destinazione valida (non magazzino)'); return; }
       const payload = {
         magazzinoId: parseInt(magazzinoId),
         destinazioneTipo: destTipo,
@@ -707,43 +968,67 @@
         if (res.success) { showMessage('Assegnazione effettuata', 'success'); chiudiEditModal(); await caricaOggetti(); }
         else showErrorModal(res.message);
       } catch(err) { showErrorModal(err.message); }
-    } else {
-      const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
-      const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
-      if (siglaId) {
-        const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
-        if (assegnatoA) {
-          pendingAction = {
-            payload: {
-              daTipo, daId,
-              aTipo: destTipo,
-              aId: parseInt(destId),
-              magazzinoId: parseInt(magazzinoId),
-              oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
-              note
-            },
-            from: assegnatoA.nome
-          };
-          document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?`;
-          document.getElementById('confirmRiassegnaModal').style.display = 'flex';
-          document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
-          return;
-        }
-      }
+      return;
+    }
+    // Caso: oggetto in carico
+    if (destTipo === 'MAGAZZINO') {
+      if (!destId) { showErrorModal('Seleziona un magazzino di destinazione'); return; }
       const payload = {
-        daTipo, daId,
-        aTipo: destTipo,
-        aId: parseInt(destId),
-        magazzinoId: parseInt(magazzinoId),
-        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
-        note
+        magazzinoId: parseInt(destId),
+        note,
+        oggetti: [{
+          tipoOggetto: obj.tipo,
+          oggettoId: obj.id,
+          siglaId: siglaId ? parseInt(siglaId) : null,
+          quantita: qta,
+          daTipo: obj.destinazioneTipo,
+          daId: obj.destinazioneId
+        }]
       };
       try {
-        const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggetti(); }
+        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) { showMessage('Rientro in magazzino effettuato', 'success'); chiudiEditModal(); await caricaOggetti(); }
         else showErrorModal(res.message);
       } catch(err) { showErrorModal(err.message); }
+      return;
     }
+    // Trasferimento tra soggetti
+    if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
+    const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
+    const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
+    if (siglaId) {
+      const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
+      if (assegnatoA) {
+        pendingAction = {
+          payload: {
+            daTipo, daId,
+            aTipo: destTipo,
+            aId: parseInt(destId),
+            magazzinoId: parseInt(magazzinoId),
+            oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
+            note
+          },
+          from: assegnatoA.nome
+        };
+        document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?`;
+        document.getElementById('confirmRiassegnaModal').style.display = 'flex';
+        document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
+        return;
+      }
+    }
+    const payload = {
+      daTipo, daId,
+      aTipo: destTipo,
+      aId: parseInt(destId),
+      magazzinoId: parseInt(magazzinoId),
+      oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
+      note
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggetti(); }
+      else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
   }
   async function eseguiTrasferimentoConfermato() {
     if (!pendingAction) return;
@@ -758,6 +1043,46 @@
   function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
+  // ========== FILTRI E RICARICA ==========
+  async function getDistinctFilterValues(field, exceptField = null) {
+    const params = new URLSearchParams();
+    if (filtroMagazzino.value) params.append('magazzino', filtroMagazzino.value);
+    if (filtroSettore.value) params.append('settore', filtroSettore.value);
+    if (filtroMarca.value) params.append('marca', filtroMarca.value);
+    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
+    if (exceptField !== 'descrizione' && filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
+    if (exceptField !== 'lunghezza' && filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
+    if (exceptField !== 'durezza' && filtroDurezza.value) params.append('durezza', filtroDurezza.value);
+    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
+    const data = await apiFetch(`/api/articoli/valori/${field}?${params.toString()}`);
+    const map = { descrizioni: 'descrizione', sigle: 'sigla', lunghezze: 'lunghezza', durezze: 'durezza' };
+    const col = map[field] || field;
+    return data.map(item => item[col]).filter(v => v && v !== '');
+  }
+  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
+    try {
+      const values = await getDistinctFilterValues(field, exceptField);
+      const dl = document.getElementById(datalistId);
+      if (dl) { dl.innerHTML = ''; values.forEach(v => { const opt = document.createElement('option'); opt.value = v; dl.appendChild(opt); }); }
+    } catch(err) { console.error(err); }
+  }
+  async function refreshFilterDatalists() {
+    if (!filtroMagazzino.value) return;
+    await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
+    await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
+    await popolaFilterDatalist('lunghezze', 'lunghezzaList', 'lunghezza');
+    await popolaFilterDatalist('durezze', 'durezzaList', 'durezza');
+  }
+
+  let debounceTimer;
+  async function handleFilterChange() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => { await refreshFilterDatalists(); await caricaOggetti(); }, 300);
+  }
+  function attachFilterEvents() {
+    [filtroDescrizione, filtroLunghezza, filtroDurezza, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
+    [filtroMagazzino, filtroSettore, filtroMarca, filtroTipoOggetto].forEach(sel => sel?.addEventListener('change', handleFilterChange));
+  }
   async function caricaOggetti() {
     document.body.style.cursor = 'wait';
     try {
@@ -767,14 +1092,24 @@
       document.body.style.cursor = 'default';
     }
   }
+  async function applicaFiltri() { await refreshFilterDatalists(); await caricaOggetti(); }
+  async function resetFiltri() {
+    filtroSettore.value = ''; filtroMarca.value = ''; filtroDescrizione.value = ''; filtroLunghezza.value = ''; filtroDurezza.value = ''; filtroSigla.value = '';
+    if (magazzini.length && !filtroMagazzino.value) filtroMagazzino.value = magazzini[0]?.id;
+    await refreshFilterDatalists(); await caricaOggetti();
+  }
 
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
 
   function setupExternalMode() {
     const isAdmin = currentUser.ruolo === 'admin';
     const canUseWarehouse = isAdmin || (currentUser.ruolo === 'promoter' && currentUser.livello === 1) || currentUser.ruolo === 'agente';
-    if (canUseWarehouse) radioMagazzino.disabled = false;
-    else { radioMagazzino.disabled = true; radioMagazzino.checked = false; radioCarico.checked = true; showMessage('Ruolo non permette prelievo dal magazzino', 'info'); }
+    if (!canUseWarehouse) {
+      radioMagazzino.disabled = true;
+      radioMagazzino.checked = false;
+      radioCarico.checked = true;
+      showMessage('Ruolo non permette prelievo dal magazzino', 'info');
+    }
     if (isAdmin) {
       adminSourceSection.style.display = radioCarico.checked ? 'flex' : 'none';
       sourceTipo.disabled = false; sourceId.disabled = false; includeReferenced.disabled = false;
@@ -784,14 +1119,26 @@
       includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
     }
     function updateUIBasedOnMode() {
-      if (radioMagazzino.checked) {
-        if (adminSourceSection) adminSourceSection.style.display = 'none';
+      const isMagazzino = radioMagazzino.checked;
+      batchToolbar.style.display = isMagazzino ? 'flex' : 'none';
+      if (isMagazzino) {
+        magazzinoGroup.style.display = 'block';
+        magazzinoLabel.innerText = 'Magazzino *';
+        adminSourceSection.style.display = 'none';
+        // Mostra colonna checkbox nell'header
+        const headerRow = document.querySelector('#tabellaHeader');
+        if (headerRow && headerRow.cells[0]) headerRow.cells[0].style.display = '';
       } else {
+        magazzinoGroup.style.display = 'none';
         if (isAdmin && adminSourceSection) adminSourceSection.style.display = 'flex';
+        // Nascondi colonna checkbox nell'header
+        const headerRow = document.querySelector('#tabellaHeader');
+        if (headerRow && headerRow.cells[0]) headerRow.cells[0].style.display = 'none';
       }
+      caricaOggetti();
     }
-    radioMagazzino.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
-    radioCarico.addEventListener('change', () => { updateUIBasedOnMode(); caricaOggetti(); });
+    radioMagazzino.addEventListener('change', updateUIBasedOnMode);
+    radioCarico.addEventListener('change', updateUIBasedOnMode);
     updateUIBasedOnMode();
   }
 
@@ -804,7 +1151,9 @@
     } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
     document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
     await caricaAnagrafiche();
+    attachFilterEvents();
     setupExternalMode();
+    await refreshFilterDatalists();
     await caricaOggetti();
   };
 </script>
