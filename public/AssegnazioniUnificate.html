@@ -563,61 +563,96 @@
     } catch(err) { showMessage('Errore caricamento', 'error'); }
   }
 
-  async function caricaOggettiInCarico() {
-    const body = {};
-    if (currentUser.ruolo === 'admin' && sourceId.value) {
-      body.targetTipo = sourceTipo.value;
-      body.targetId = parseInt(sourceId.value);
-      body.includeReferenced = includeReferenced.checked;
-    } else if (currentUser.ruolo !== 'admin') {
-      if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
-      body.targetTipo = currentUser.ruolo.toUpperCase();
-      body.targetId = currentUser.riferimento_id;
-      body.includeReferenced = includeReferenced.checked;
-    } else { oggetti = []; popolaTabella(); return; }
-    if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
-    try {
-      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-      if (res.success) {
-        let tutti = res.oggetti || [];
-        const tipoFiltro = tipoOggettoSelect.value;
-        if (tipoFiltro) tutti = tutti.filter(item => item.tipo === tipoFiltro);
-        if (settoreSelect.value) tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
-        if (marcaSelect.value) tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
-        if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
-        if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
-        if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
-        if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
-        for (let obj of tutti) {
-          if (obj.tipo === 'KIT') obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
-          else obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
-        }
-        oggetti = tutti.map(obj => {
-          // Calcola la sigla corrente (stringa) a partire da siglaId e sigleDisponibili
-          let siglaCorrente = null;
-          if (obj.siglaId && obj.sigleDisponibili) {
-            const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
-            if (found) siglaCorrente = found.sigla;
+async function caricaOggettiInCarico() {
+  const body = {};
+  if (currentUser.ruolo === 'admin' && sourceId.value) {
+    body.targetTipo = sourceTipo.value;
+    body.targetId = parseInt(sourceId.value);
+    body.includeReferenced = includeReferenced.checked;
+  } else if (currentUser.ruolo !== 'admin') {
+    if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
+    body.targetTipo = currentUser.ruolo.toUpperCase();
+    body.targetId = currentUser.riferimento_id;
+    body.includeReferenced = includeReferenced.checked;
+  } else { oggetti = []; popolaTabella(); return; }
+
+  if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
+
+  try {
+    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+    if (res.success) {
+      let tutti = res.oggetti || [];
+
+      // Applica filtri
+      const tipoFiltro = tipoOggettoSelect.value;
+      if (tipoFiltro) tutti = tutti.filter(item => item.tipo === tipoFiltro);
+      if (settoreSelect.value) tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
+      if (marcaSelect.value) tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
+      if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
+      if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
+      if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
+      if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
+
+      // Per ogni oggetto, arricchiamo i dati con la sigla effettiva (se manca)
+      for (let obj of tutti) {
+        // Carica le sigle disponibili (utile per il dropdown nella modifica)
+        if (obj.tipo === 'KIT') {
+          obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
+          // Se l'API non ha restituito siglaId, lo recuperiamo dal dettaglio del kit
+          if (!obj.siglaId) {
+            try {
+              const kitDetail = await apiFetch(`/api/kit/${obj.ID}`);
+              const sciRow = kitDetail.dettagli?.find(d => d.tipo_articolo === 'SCI');
+              if (sciRow && sciRow.sigla_id) {
+                obj.siglaId = sciRow.sigla_id;
+              }
+            } catch(e) { console.warn(`Errore recupero dettaglio kit ${obj.ID}:`, e); }
           }
-          return {
-            id: obj.ID,
-            tipo: obj.tipo,
-            codice: obj.codice,
-            descrizione: obj.descrizione,
-            disponibile: obj.quantita,
-            sigleDisponibili: obj.sigleDisponibili || [],
-            siglaId: obj.siglaId || null,
-            siglaCorrente: siglaCorrente,
-            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
-            tipoAssegnazione: obj.tipoAssegnazione,
-            destinazioneTipo: obj.destinazioneTipo,
-            destinazioneId: obj.destinazioneId
-          };
-        });
-        popolaTabella();
-      } else throw new Error(res.message);
-    } catch(err) { showMessage('Errore caricamento', 'error'); }
+        } else {
+          obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
+          // Per gli articoli, la sigla corrente potrebbe essere nel campo SIGLA_CORRENTE dell'API
+          if (!obj.siglaId && obj.SIGLA_CORRENTE) {
+            // Se l'API ha restituito il testo della sigla ma non l'id, cerchiamo l'id tra le sigle disponibili
+            const found = obj.sigleDisponibili.find(s => s.sigla === obj.SIGLA_CORRENTE);
+            if (found) obj.siglaId = found.id;
+          }
+        }
+      }
+
+      // Mappa finale degli oggetti per la tabella
+      oggetti = tutti.map(obj => {
+        let siglaCorrente = null;
+        if (obj.siglaId && obj.sigleDisponibili) {
+          const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
+          if (found) siglaCorrente = found.sigla;
+        } else if (obj.SIGLA_CORRENTE) {
+          // Fallback: se non abbiamo id ma abbiamo il testo, usiamo quello
+          siglaCorrente = obj.SIGLA_CORRENTE;
+        }
+        return {
+          id: obj.ID,
+          tipo: obj.tipo,
+          codice: obj.codice,
+          descrizione: obj.descrizione,
+          disponibile: obj.quantita,
+          sigleDisponibili: obj.sigleDisponibili || [],
+          siglaId: obj.siglaId || null,
+          siglaCorrente: siglaCorrente,
+          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
+          tipoAssegnazione: obj.tipoAssegnazione,
+          destinazioneTipo: obj.destinazioneTipo,
+          destinazioneId: obj.destinazioneId
+        };
+      });
+
+      popolaTabella();
+    } else {
+      throw new Error(res.message);
+    }
+  } catch(err) {
+    showMessage('Errore caricamento oggetti in carico: ' + err.message, 'error');
   }
+}
 
   // ========== TABELLA CON COLONNA SIGLA ==========
   function popolaTabella() {
