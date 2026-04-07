@@ -52,12 +52,6 @@
       margin-bottom: 25px;
       border: 1px solid #e2e8f0;
     }
-    .filter-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      margin-bottom: 15px;
-    }
     .filter-group label {
       display: block;
       font-weight: 600;
@@ -302,22 +296,22 @@
       </div>
     </div>
     <div class="filters">
-      <div class="filter-row">
-        <div class="filter-group">
+      <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div class="filter-group" style="flex: 1; min-width: 150px;">
           <label>Lunghezza</label>
           <input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta">
           <datalist id="lunghezzaList"></datalist>
         </div>
-        <div class="filter-group">
+        <div class="filter-group" style="flex: 1; min-width: 150px;">
           <label>Categoria</label>
           <select id="filtroCategoria">
             <option value="">Tutte</option>
           </select>
         </div>
-      </div>
-      <div class="filter-row">
-        <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
-        <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
+          <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
+        </div>
       </div>
     </div>
   </div>
@@ -443,12 +437,11 @@
   let currentUser = null;
   let magazzini = [];
   let categorie = [];
-  let oggetti = [];            // oggetti visualizzati (sia da magazzino che da carico)
-  let currentEditObj = null;   // per modifica oggetto in carico
+  let oggetti = [];
+  let currentEditObj = null;
   let pendingAction = null;
-  let currentAssignObj = null;  // per assegnazione da magazzino
+  let currentAssignObj = null;
 
-  // DOM elements
   const radioCarico = document.getElementById('sourceCarico');
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const caricoSection = document.getElementById('caricoSection');
@@ -496,7 +489,7 @@
     } catch(err) { showMessage('Errore sorgenti', 'error'); }
   }
 
-  // ========== OGGETTI DAL MAGAZZINO (CON FILTRI) ==========
+  // ========== OGGETTI DAL MAGAZZINO (LOGICA CORRETTA) ==========
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
@@ -506,7 +499,7 @@
     let lista = [];
 
     try {
-      // Carica articoli
+      // ---- ARTICOLI ----
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
         const params = new URLSearchParams();
         params.append('magazzino', magId);
@@ -519,14 +512,17 @@
           let sigle = [];
           try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
           let siglaCorrente = sigle.length ? sigle[0].sigla : null;
+          const totale = a.quantita_totale;
+          const impegnato = a.quantita_in_kit;
+          const giacenza = totale - impegnato;
           lista.push({
             id: a.id,
             tipo: 'ARTICOLO',
             codice: a.codice,
             descrizione: a.descrizione,
-            totale: a.quantita_totale,
-            impegnato: a.quantita_in_kit,
-            giacenza: a.quantita_totale - a.quantita_in_kit,
+            totale: totale,
+            impegnato: impegnato,
+            giacenza: giacenza,
             sigla: siglaCorrente,
             sigleDisponibili: sigle,
             destinatarioNome: 'Magazzino',
@@ -535,7 +531,7 @@
           });
         }
       }
-      // Carica kit
+      // ---- KIT ----
       if (tipo === 'TUTTI' || tipo === 'KIT') {
         const res = await apiFetch('/api/kit');
         let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
@@ -549,11 +545,9 @@
             const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
             if (sciDetail && sciDetail.articolo_id) {
               try {
-                // Recupera l'articolo sci per ottenere lunghezza e categoria
                 const sciArt = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
                 lunghezzaSci = sciArt.lunghezza;
                 categoriaSci = sciArt.categoria;
-                // Recupera le sigle dell'articolo sci
                 const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
                 sigleDisponibili = sigle;
                 if (sciDetail.sigla_id) {
@@ -566,16 +560,22 @@
           // Applica filtri lunghezza e categoria (sullo sci associato)
           if (filtroLung && lunghezzaSci != filtroLung) continue;
           if (filtroCat && categoriaSci != filtroCat) continue;
-          // Quantità assegnata (da carico_sintesi)
-          let quantitaAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
+          
+          // LOGICA CORRETTA PER I KIT IN MAGAZZINO
+          const totale = k.quantita;          // quantità fisica in magazzino
+          const impegnato = 0;                // i kit in magazzino non hanno "impegnato" (è una quantità già uscita)
+          const giacenza = totale;             // giacenza = totale
+          // Nota: se totale è negativo (dati inconsistenti), lo portiamo a 0
+          const safeTotale = Math.max(0, totale);
+          
           lista.push({
             id: k.id,
             tipo: 'KIT',
             codice: k.codice_kit,
             descrizione: k.descrizione,
-            totale: k.quantita,
-            impegnato: quantitaAssegnata,
-            giacenza: k.quantita - quantitaAssegnata,
+            totale: safeTotale,
+            impegnato: 0,
+            giacenza: safeTotale,
             sigla: siglaSci,
             sigleDisponibili: sigleDisponibili,
             destinatarioNome: 'Magazzino',
@@ -586,7 +586,7 @@
       }
       oggetti = lista;
       popolaTabella();
-      // Popola datalist lunghezze per i filtri (basata sugli oggetti caricati)
+      // Popola datalist lunghezze
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
       lunghezzaList.innerHTML = '';
       lunghezze.forEach(l => { const opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
@@ -671,7 +671,6 @@
     return [];
   }
 
-  // ========== POPOLA TABELLA ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
