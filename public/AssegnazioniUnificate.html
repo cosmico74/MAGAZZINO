@@ -489,7 +489,7 @@
     } catch(err) { showMessage('Errore sorgenti', 'error'); }
   }
 
-  // ========== OGGETTI DAL MAGAZZINO (LOGICA CORRETTA) ==========
+  // ========== OGGETTI DAL MAGAZZINO (LOGICA CORRETTA PER I KIT) ==========
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
@@ -562,20 +562,21 @@
           if (filtroCat && categoriaSci != filtroCat) continue;
           
           // LOGICA CORRETTA PER I KIT IN MAGAZZINO
-          const totale = k.quantita;          // quantità fisica in magazzino
-          const impegnato = 0;                // i kit in magazzino non hanno "impegnato" (è una quantità già uscita)
-          const giacenza = totale;             // giacenza = totale
-          // Nota: se totale è negativo (dati inconsistenti), lo portiamo a 0
-          const safeTotale = Math.max(0, totale);
+          // k.quantita è la giacenza residua (ciò che è ancora in magazzino)
+          // k.assegnato_a.quantita è la quantità già assegnata (non presente in magazzino)
+          let quantitaAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
+          const totale = k.quantita + quantitaAssegnata;   // quantità originale creata
+          const impegnato = quantitaAssegnata;             // quantità già uscita
+          const giacenza = k.quantita;                     // ciò che resta in magazzino
           
           lista.push({
             id: k.id,
             tipo: 'KIT',
             codice: k.codice_kit,
             descrizione: k.descrizione,
-            totale: safeTotale,
-            impegnato: 0,
-            giacenza: safeTotale,
+            totale: totale,
+            impegnato: impegnato,
+            giacenza: giacenza,
             sigla: siglaSci,
             sigleDisponibili: sigleDisponibili,
             destinatarioNome: 'Magazzino',
