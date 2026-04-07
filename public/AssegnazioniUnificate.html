@@ -672,56 +672,58 @@
   }
 
   // ========== POPOLA TABELLA (con checkbox solo per modalità magazzino) ==========
-  function popolaTabella() {
+ function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    const header = document.getElementById('tabellaHeader');
     const isMagazzino = radioMagazzino.checked;
-    // Mostra/nascondi checkbox nella prima colonna
-    const checkboxes = document.querySelectorAll('.checkbox-column');
-    if (isMagazzino) {
-      header.style.display = ''; // assicura che la colonna sia visibile
-      if (header.cells[0]) header.cells[0].style.display = '';
-    } else {
-      if (header.cells[0]) header.cells[0].style.display = 'none';
+    
+    // Gestione visibilità checkbox nell'header (in modo sicuro)
+    const header = document.querySelector('#tabellaOggetti thead');
+    if (header && header.rows.length > 0 && header.rows[0].cells.length > 0) {
+        const firstCell = header.rows[0].cells[0];
+        if (firstCell.classList && firstCell.classList.contains('checkbox-column')) {
+            firstCell.style.display = isMagazzino ? '' : 'none';
+        }
     }
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    
+    if (!oggetti.length) { 
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nessun oggetto disponibile</td></tr>'; 
+        return; 
+    }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
-      const row = tbody.insertRow();
-      // Checkbox solo in modalità magazzino
-      if (isMagazzino) {
-        const cbCell = row.insertCell(0);
-        if (obj.disponibile > 0) {
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.className = 'oggetto-checkbox';
-          cb.dataset.idx = idx;
-          cb.dataset.id = obj.id;
-          cb.dataset.tipo = obj.tipo;
-          cbCell.appendChild(cb);
+        const row = tbody.insertRow();
+        if (isMagazzino) {
+            const cbCell = row.insertCell(0);
+            if (obj.disponibile > 0) {
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'oggetto-checkbox';
+                cb.dataset.idx = idx;
+                cb.dataset.id = obj.id;
+                cb.dataset.tipo = obj.tipo;
+                cbCell.appendChild(cb);
+            }
+        } else {
+            // Cella vuota nascosta per mantenere l'allineamento
+            const emptyCell = row.insertCell(0);
+            emptyCell.style.display = 'none';
         }
-      } else {
-        // In modalità carico, inserisci una cella vuota per mantenere l'allineamento
-        const emptyCell = row.insertCell(0);
-        emptyCell.style.display = 'none';
-      }
-      let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
-      row.insertCell(isMagazzino ? 1 : 0).innerText = displayText;
-      row.insertCell(isMagazzino ? 2 : 1).innerText = obj.siglaCorrente || '-';
-      row.insertCell(isMagazzino ? 3 : 2).innerText = obj.disponibile;
-      let assegnatoANome = obj.destinatarioNome;
-      if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
-      else if (!assegnatoANome) assegnatoANome = 'Magazzino';
-      row.insertCell(isMagazzino ? 4 : 3).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(isMagazzino ? 5 : 4);
-      const editBtn = document.createElement('button');
-      editBtn.textContent = '✏️';
-      editBtn.className = 'btn btn-secondary btn-sm';
-      editBtn.onclick = () => apriModificaSingola(obj, isMagazzino);
-      cellAzioni.appendChild(editBtn);
+        let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
+        row.insertCell(isMagazzino ? 1 : 0).innerText = displayText;
+        row.insertCell(isMagazzino ? 2 : 1).innerText = obj.siglaCorrente || '-';
+        row.insertCell(isMagazzino ? 3 : 2).innerText = obj.disponibile;
+        let assegnatoANome = obj.destinatarioNome;
+        if (obj.tipoAssegnazione === 'referente' && obj.referenteDa) assegnatoANome = `${obj.destinatarioNome} (referente)`;
+        else if (!assegnatoANome) assegnatoANome = 'Magazzino';
+        row.insertCell(isMagazzino ? 4 : 3).innerText = assegnatoANome;
+        const cellAzioni = row.insertCell(isMagazzino ? 5 : 4);
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️';
+        editBtn.className = 'btn btn-secondary btn-sm';
+        editBtn.onclick = () => apriModificaSingola(obj, isMagazzino);
+        cellAzioni.appendChild(editBtn);
     });
-  }
-
+}
   // ========== GESTIONE CHECKBOX BATCH (solo modalità magazzino) ==========
   function getSelectedOggetti() {
     const selected = [];
@@ -1118,29 +1120,28 @@
       sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
       includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
     }
-    function updateUIBasedOnMode() {
-      const isMagazzino = radioMagazzino.checked;
-      batchToolbar.style.display = isMagazzino ? 'flex' : 'none';
-      if (isMagazzino) {
+    
+function updateUIBasedOnMode() {
+    const isMagazzino = radioMagazzino.checked;
+    batchToolbar.style.display = isMagazzino ? 'flex' : 'none';
+    if (isMagazzino) {
         magazzinoGroup.style.display = 'block';
         magazzinoLabel.innerText = 'Magazzino *';
         adminSourceSection.style.display = 'none';
-        // Mostra colonna checkbox nell'header
-        const headerRow = document.querySelector('#tabellaHeader');
-        if (headerRow && headerRow.cells[0]) headerRow.cells[0].style.display = '';
-      } else {
+    } else {
         magazzinoGroup.style.display = 'none';
-        if (isAdmin && adminSourceSection) adminSourceSection.style.display = 'flex';
-        // Nascondi colonna checkbox nell'header
-        const headerRow = document.querySelector('#tabellaHeader');
-        if (headerRow && headerRow.cells[0]) headerRow.cells[0].style.display = 'none';
-      }
-      caricaOggetti();
+        if (currentUser.ruolo === 'admin' && adminSourceSection) adminSourceSection.style.display = 'flex';
     }
-    radioMagazzino.addEventListener('change', updateUIBasedOnMode);
-    radioCarico.addEventListener('change', updateUIBasedOnMode);
-    updateUIBasedOnMode();
-  }
+    // Gestione visibilità colonna checkbox nell'header in modo sicuro
+    const header = document.querySelector('#tabellaOggetti thead');
+    if (header && header.rows.length > 0 && header.rows[0].cells.length > 0) {
+        const firstCell = header.rows[0].cells[0];
+        if (firstCell.classList && firstCell.classList.contains('checkbox-column')) {
+            firstCell.style.display = isMagazzino ? '' : 'none';
+        }
+    }
+    caricaOggetti();
+}
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
