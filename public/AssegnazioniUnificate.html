@@ -44,36 +44,6 @@
       gap: 10px;
       font-weight: 500;
     }
-    .filters {
-      background: #f8f9fa;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 25px;
-      border: 1px solid #e2e8f0;
-    }
-    .filter-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      margin-bottom: 15px;
-    }
-    .filter-group label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.7rem;
-      margin-bottom: 5px;
-      color: #2c3e50;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .filter-group input, .filter-group select {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #cbd5e0;
-      border-radius: 10px;
-      font-size: 0.8rem;
-      transition: 0.2s;
-    }
     .btn {
       background: #1a73e8;
       color: white;
@@ -176,9 +146,6 @@
     .source-selection .form-group {
       flex: 1;
       min-width: 150px;
-    }
-    .loading-overlay {
-      cursor: wait;
     }
     .modal {
       display: none;
@@ -300,30 +267,7 @@
     </div>
   </div>
 
-  <!-- Filtri -->
-  <div class="filters">
-    <div class="filter-row">
-      <div class="filter-group" id="magazzinoGroup">
-        <label id="magazzinoLabel">Magazzino *</label>
-        <select id="magazzino"></select>
-      </div>
-      <div class="filter-group"><label>Tipo oggetto</label><select id="tipoOggetto"><option value="">Tutti</option><option value="ARTICOLO">📦 Articolo</option><option value="KIT">🔧 Kit</option></select></div>
-      <div class="filter-group"><label>Settore</label><select id="settore"></select></div>
-      <div class="filter-group"><label>Marca</label><select id="marca"></select></div>
-    </div>
-    <div class="filter-row">
-      <div class="filter-group"><label>Descrizione</label><input type="text" id="filtroDescrizione" list="descrizioneList" placeholder="Contiene..."><datalist id="descrizioneList"></datalist></div>
-      <div class="filter-group"><label>Lunghezza</label><input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta"><datalist id="lunghezzaList"></datalist></div>
-      <div class="filter-group"><label>Durezza</label><input type="text" id="filtroDurezza" list="durezzaList" placeholder="Esatta"><datalist id="durezzaList"></datalist></div>
-      <div class="filter-group"><label>Sigla</label><input type="text" id="filtroSigla" list="siglaList" placeholder="Esatta"><datalist id="siglaList"></datalist></div>
-    </div>
-    <div class="filter-row">
-      <button class="btn" onclick="applicaFiltri()">🔍 Filtra</button>
-      <button class="btn btn-secondary" onclick="resetFiltri()">🔄 Reset</button>
-    </div>
-  </div>
-
-  <!-- Tabella oggetti (senza checkbox) -->
+  <!-- Tabella oggetti -->
   <div class="table-wrapper">
     <table id="tabellaOggetti">
       <thead>
@@ -433,15 +377,7 @@
 
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const radioCarico = document.getElementById('sourceCarico');
-  const magazzinoSelect = document.getElementById('magazzino');
-  const magazzinoLabel = document.getElementById('magazzinoLabel');
-  const tipoOggettoSelect = document.getElementById('tipoOggetto');
-  const settoreSelect = document.getElementById('settore');
-  const marcaSelect = document.getElementById('marca');
-  const filtroDescrizione = document.getElementById('filtroDescrizione');
-  const filtroLunghezza = document.getElementById('filtroLunghezza');
-  const filtroDurezza = document.getElementById('filtroDurezza');
-  const filtroSigla = document.getElementById('filtroSigla');
+  const magazzinoSelect = document.getElementById('magazzino'); // non più usato nei filtri ma serve per altre funzioni
   const adminSourceSection = document.getElementById('adminSourceSection');
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
@@ -468,25 +404,9 @@
   async function caricaAnagrafiche() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      settori = await apiFetch('/api/anagrafiche/settori');
-      marche = await apiFetch('/api/anagrafiche/marche');
-      if (magazzini.length) {
-        const first = magazzini[0];
-        if (first.hasOwnProperty('magazzino_id')) magazzinoKey = 'magazzino_id';
-        else if (first.hasOwnProperty('id')) magazzinoKey = 'id';
-        else magazzinoKey = Object.keys(first).find(k => !isNaN(parseInt(k))) || 'id';
-      }
-      function popolaSelect(select, items, valueKey, textKey, conVuoto = true) {
-        if (!select) return;
-        select.innerHTML = '';
-        if (conVuoto) select.appendChild(new Option('Tutti', ''));
-        items.forEach(i => select.appendChild(new Option(i[textKey], i[valueKey])));
-      }
-      popolaSelect(magazzinoSelect, magazzini, magazzinoKey, 'nome', false);
-      popolaSelect(settoreSelect, settori, 'settore_id', 'nome', true);
-      popolaSelect(marcaSelect, marche, 'marca_id', 'nome', true);
+      // Non serve più popolare i select dei filtri, ma manteniamo per eventuale uso futuro
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) magazzinoSelect.value = defaultMag[magazzinoKey];
+      // non usiamo più magazzinoSelect nei filtri, ma lo teniamo per compatibilità
     } catch(err) { console.error(err); showMessage('Errore caricamento dati', 'error'); }
   }
 
@@ -519,142 +439,77 @@
   }
 
   async function caricaOggettiDaMagazzino() {
-    const magId = magazzinoSelect.value;
-    if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
-    const tipo = tipoOggettoSelect.value;
-    let lista = [];
+    // Non più usata perché abbiamo rimosso i filtri, ma la lasciamo per coerenza con la struttura
+    oggetti = [];
+    popolaTabella();
+    showMessage('Modalità magazzino non più supportata, usa "In carico"', 'info');
+  }
+
+  async function caricaOggettiInCarico() {
+    const body = {};
+    if (currentUser.ruolo === 'admin' && sourceId.value) {
+      body.targetTipo = sourceTipo.value;
+      body.targetId = parseInt(sourceId.value);
+      body.includeReferenced = includeReferenced.checked;
+    } else if (currentUser.ruolo !== 'admin') {
+      if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
+      body.targetTipo = currentUser.ruolo.toUpperCase();
+      body.targetId = currentUser.riferimento_id;
+      body.includeReferenced = includeReferenced.checked;
+    } else { oggetti = []; popolaTabella(); return; }
+    if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
     try {
-      const paramsArticoli = new URLSearchParams();
-      paramsArticoli.append('magazzino', magId);
-      if (settoreSelect.value) paramsArticoli.append('settore', settoreSelect.value);
-      if (marcaSelect.value) paramsArticoli.append('marca', marcaSelect.value);
-      if (filtroDescrizione.value) paramsArticoli.append('descrizione', filtroDescrizione.value);
-      if (filtroLunghezza.value) paramsArticoli.append('lunghezza', filtroLunghezza.value);
-      if (filtroDurezza.value) paramsArticoli.append('durezza', filtroDurezza.value);
-      if (filtroSigla.value) paramsArticoli.append('sigla', filtroSigla.value);
-      paramsArticoli.append('min_giacenza', '1');
-
-      if (tipo === '' || tipo === 'ARTICOLO') {
-        const res = await apiFetch(`/api/articoli?${paramsArticoli.toString()}`);
-        let articoli = res.success ? res.data : (res.data || []);
-        for (let a of articoli) a.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: a.id });
-        lista.push(...articoli.map(a => ({ ...a, tipo: 'ARTICOLO', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
-      }
-      if (tipo === '' || tipo === 'KIT') {
-        const res = await apiFetch('/api/kit');
-        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
-        kits = kits.filter(k => k.magazzino == magId);
-        for (let k of kits) k.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: k.id });
-        lista.push(...kits.map(k => ({ ...k, tipo: 'KIT', tipoAssegnazione: 'me', destinatarioNome: 'Magazzino' })));
-      }
-      oggetti = lista.map(item => ({
-        id: item.id,
-        tipo: item.tipo,
-        codice: item.tipo === 'ARTICOLO' ? item.codice : item.codice_kit,
-        descrizione: item.descrizione,
-        disponibile: item.tipo === 'ARTICOLO' ? (item.quantita_totale - item.quantita_in_kit) : item.quantita,
-        sigleDisponibili: item.sigleDisponibili || [],
-        siglaId: null,
-        siglaCorrente: null,
-        destinatarioNome: 'Magazzino',
-        tipoAssegnazione: 'me'
-      }));
-      popolaTabella();
-    } catch(err) { showMessage('Errore caricamento', 'error'); }
-  }
-
-async function caricaOggettiInCarico() {
-  const body = {};
-  if (currentUser.ruolo === 'admin' && sourceId.value) {
-    body.targetTipo = sourceTipo.value;
-    body.targetId = parseInt(sourceId.value);
-    body.includeReferenced = includeReferenced.checked;
-  } else if (currentUser.ruolo !== 'admin') {
-    if (!currentUser.riferimento_id) { oggetti = []; popolaTabella(); return; }
-    body.targetTipo = currentUser.ruolo.toUpperCase();
-    body.targetId = currentUser.riferimento_id;
-    body.includeReferenced = includeReferenced.checked;
-  } else { oggetti = []; popolaTabella(); return; }
-
-  if (!body.targetTipo || !body.targetId) { oggetti = []; popolaTabella(); return; }
-
-  try {
-    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
-    if (res.success) {
-      let tutti = res.oggetti || [];
-
-      // Applica filtri
-      const tipoFiltro = tipoOggettoSelect.value;
-      if (tipoFiltro) tutti = tutti.filter(item => item.tipo === tipoFiltro);
-      if (settoreSelect.value) tutti = tutti.filter(o => o.SETTORE == settoreSelect.value);
-      if (marcaSelect.value) tutti = tutti.filter(o => o.MARCA == marcaSelect.value);
-      if (filtroDescrizione.value) tutti = tutti.filter(o => o.descrizione?.toLowerCase().includes(filtroDescrizione.value.toLowerCase()));
-      if (filtroLunghezza.value) tutti = tutti.filter(o => o.LUNGHEZZA == filtroLunghezza.value);
-      if (filtroDurezza.value) tutti = tutti.filter(o => o.DUREZZA == filtroDurezza.value);
-      if (filtroSigla.value) tutti = tutti.filter(o => o.SIGLA_CORRENTE == filtroSigla.value);
-
-      // Per ogni oggetto, arricchiamo i dati con la sigla effettiva (se manca)
-      for (let obj of tutti) {
-        // Carica le sigle disponibili (utile per il dropdown nella modifica)
-        if (obj.tipo === 'KIT') {
-          obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
-          // Se l'API non ha restituito siglaId, lo recuperiamo dal dettaglio del kit
-          if (!obj.siglaId) {
-            try {
-              const kitDetail = await apiFetch(`/api/kit/${obj.ID}`);
-              const sciRow = kitDetail.dettagli?.find(d => d.tipo_articolo === 'SCI');
-              if (sciRow && sciRow.sigla_id) {
-                obj.siglaId = sciRow.sigla_id;
-              }
-            } catch(e) { console.warn(`Errore recupero dettaglio kit ${obj.ID}:`, e); }
-          }
-        } else {
-          obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
-          // Per gli articoli, la sigla corrente potrebbe essere nel campo SIGLA_CORRENTE dell'API
-          if (!obj.siglaId && obj.SIGLA_CORRENTE) {
-            // Se l'API ha restituito il testo della sigla ma non l'id, cerchiamo l'id tra le sigle disponibili
-            const found = obj.sigleDisponibili.find(s => s.sigla === obj.SIGLA_CORRENTE);
-            if (found) obj.siglaId = found.id;
+      const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+      if (res.success) {
+        let tutti = res.oggetti || [];
+        for (let obj of tutti) {
+          if (obj.tipo === 'KIT') {
+            obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'KIT', id: obj.ID });
+            if (!obj.siglaId) {
+              try {
+                const kitDetail = await apiFetch(`/api/kit/${obj.ID}`);
+                const sciRow = kitDetail.dettagli?.find(d => d.tipo_articolo === 'SCI');
+                if (sciRow && sciRow.sigla_id) {
+                  obj.siglaId = sciRow.sigla_id;
+                }
+              } catch(e) { console.warn(e); }
+            }
+          } else {
+            obj.sigleDisponibili = await getSiglePerOggetto({ tipo: 'ARTICOLO', id: obj.ID });
+            if (!obj.siglaId && obj.SIGLA_CORRENTE) {
+              const found = obj.sigleDisponibili.find(s => s.sigla === obj.SIGLA_CORRENTE);
+              if (found) obj.siglaId = found.id;
+            }
           }
         }
-      }
-
-      // Mappa finale degli oggetti per la tabella
-      oggetti = tutti.map(obj => {
-        let siglaCorrente = null;
-        if (obj.siglaId && obj.sigleDisponibili) {
-          const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
-          if (found) siglaCorrente = found.sigla;
-        } else if (obj.SIGLA_CORRENTE) {
-          // Fallback: se non abbiamo id ma abbiamo il testo, usiamo quello
-          siglaCorrente = obj.SIGLA_CORRENTE;
-        }
-        return {
-          id: obj.ID,
-          tipo: obj.tipo,
-          codice: obj.codice,
-          descrizione: obj.descrizione,
-          disponibile: obj.quantita,
-          sigleDisponibili: obj.sigleDisponibili || [],
-          siglaId: obj.siglaId || null,
-          siglaCorrente: siglaCorrente,
-          destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
-          tipoAssegnazione: obj.tipoAssegnazione,
-          destinazioneTipo: obj.destinazioneTipo,
-          destinazioneId: obj.destinazioneId
-        };
-      });
-
-      popolaTabella();
-    } else {
-      throw new Error(res.message);
-    }
-  } catch(err) {
-    showMessage('Errore caricamento oggetti in carico: ' + err.message, 'error');
+        oggetti = tutti.map(obj => {
+          let siglaCorrente = null;
+          if (obj.siglaId && obj.sigleDisponibili) {
+            const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
+            if (found) siglaCorrente = found.sigla;
+          } else if (obj.SIGLA_CORRENTE) {
+            siglaCorrente = obj.SIGLA_CORRENTE;
+          }
+          return {
+            id: obj.ID,
+            tipo: obj.tipo,
+            codice: obj.codice,
+            descrizione: obj.descrizione,
+            disponibile: obj.quantita,
+            sigleDisponibili: obj.sigleDisponibili || [],
+            siglaId: obj.siglaId || null,
+            siglaCorrente: siglaCorrente,
+            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
+            tipoAssegnazione: obj.tipoAssegnazione,
+            destinazioneTipo: obj.destinazioneTipo,
+            destinazioneId: obj.destinazioneId
+          };
+        });
+        popolaTabella();
+      } else throw new Error(res.message);
+    } catch(err) { showMessage('Errore caricamento: ' + err.message, 'error'); }
   }
-}
 
-  // ========== TABELLA CON COLONNA SIGLA ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) { tbody.innerHTML = '<td colspan="5" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
@@ -662,9 +517,7 @@ async function caricaOggettiInCarico() {
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
-      if (obj.tipo === 'KIT' && obj.LUNGHEZZA) displayText += ` (${obj.LUNGHEZZA}cm)`;
       row.insertCell(0).innerText = displayText;
-      // Colonna Sigla
       row.insertCell(1).innerText = obj.siglaCorrente || '-';
       row.insertCell(2).innerText = obj.disponibile;
       let assegnatoANome = obj.destinatarioNome;
@@ -728,6 +581,7 @@ async function caricaOggettiInCarico() {
       <div class="form-group">
         <label>🎯 Nuova destinazione</label>
         <select id="editDestTipo" class="form-control">
+          <option value="MAGAZZINO">🏭 Magazzino</option>
           <option value="PROMOTER">Promoter</option>
           <option value="NEGOZIO">Negozio</option>
           <option value="CLIENTE">Cliente</option>
@@ -744,14 +598,24 @@ async function caricaOggettiInCarico() {
     const destIdSelect = document.getElementById('editDestId');
     const caricaDestinazioni = async () => {
       const tipo = destTipoSelect.value;
+      if (tipo === 'MAGAZZINO') {
+        destIdSelect.disabled = true;
+        destIdSelect.innerHTML = '<option value="">Rientro in magazzino</option>';
+        return;
+      }
       if (!tipo) {
+        destIdSelect.disabled = true;
         destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
         return;
       }
       try {
         const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+        destIdSelect.disabled = false;
         destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
-        data.forEach(item => destIdSelect.appendChild(new Option(item.nome, item.id)));
+        data.forEach(item => {
+          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+          destIdSelect.appendChild(new Option(testo, item.id));
+        });
       } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
     };
     destTipoSelect.addEventListener('change', caricaDestinazioni);
@@ -782,12 +646,47 @@ async function caricaOggettiInCarico() {
     const destId = document.getElementById('editDestId').value;
     const note = document.getElementById('editNote').value;
     if (isNaN(qta) || qta < 1 || qta > obj.disponibile) { showErrorModal('Quantità non valida'); return; }
+    const magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
+    if (!magazzinoId) { showErrorModal('Nessun magazzino disponibile'); return; }
     const isInMagazzino = (obj.destinatarioNome === 'Magazzino' || !obj.destinatarioNome);
-    const magazzinoId = magazzinoSelect.value;
-    if (!magazzinoId) { showErrorModal('Seleziona un magazzino'); return; }
+    // Se la destinazione è il magazzino, eseguiamo un rientro
+    if (destTipo === 'MAGAZZINO') {
+      if (isInMagazzino) {
+        showErrorModal('L\'oggetto è già in magazzino');
+        return;
+      }
+      const payload = {
+        magazzinoId: parseInt(magazzinoId),
+        note: note,
+        oggetti: [{
+          tipoOggetto: obj.tipo,
+          oggettoId: obj.id,
+          siglaId: siglaId ? parseInt(siglaId) : null,
+          quantita: qta,
+          daTipo: obj.destinazioneTipo,
+          daId: obj.destinazioneId
+        }]
+      };
+      try {
+        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) {
+          showMessage('Rientro in magazzino effettuato', 'success');
+          chiudiEditModal();
+          await caricaOggetti();
+        } else showErrorModal(res.message);
+      } catch(err) { showErrorModal(err.message); }
+      return;
+    }
+    // Altrimenti, gestione normale (assegnazione da magazzino o trasferimento)
     if (isInMagazzino) {
       if (!destId) { showErrorModal('Seleziona una destinazione'); return; }
-      const payload = { magazzinoId: parseInt(magazzinoId), destinazioneTipo: destTipo, destinazioneId: parseInt(destId), note, oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }] };
+      const payload = {
+        magazzinoId: parseInt(magazzinoId),
+        destinazioneTipo: destTipo,
+        destinazioneId: parseInt(destId),
+        note,
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }]
+      };
       try {
         const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
         if (res.success) { showMessage('Assegnazione effettuata', 'success'); chiudiEditModal(); await caricaOggetti(); }
@@ -800,14 +699,31 @@ async function caricaOggettiInCarico() {
       if (siglaId) {
         const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
         if (assegnatoA) {
-          pendingAction = { payload: { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note }, from: assegnatoA.nome };
+          pendingAction = {
+            payload: {
+              daTipo, daId,
+              aTipo: destTipo,
+              aId: parseInt(destId),
+              magazzinoId: parseInt(magazzinoId),
+              oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
+              note
+            },
+            from: assegnatoA.nome
+          };
           document.getElementById('confirmMsg').innerHTML = `La sigla selezionata è attualmente assegnata a <strong>${assegnatoA.nome}</strong>. Vuoi trasferirla al nuovo destinatario?`;
           document.getElementById('confirmRiassegnaModal').style.display = 'flex';
           document.getElementById('confirmOkBtn').onclick = () => eseguiTrasferimentoConfermato();
           return;
         }
       }
-      const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoId), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note };
+      const payload = {
+        daTipo, daId,
+        aTipo: destTipo,
+        aId: parseInt(destId),
+        magazzinoId: parseInt(magazzinoId),
+        oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }],
+        note
+      };
       try {
         const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
         if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggetti(); }
@@ -828,45 +744,6 @@ async function caricaOggettiInCarico() {
   function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
-  // ========== FILTRI ==========
-  async function getDistinctFilterValues(field, exceptField = null) {
-    const params = new URLSearchParams();
-    if (magazzinoSelect.value) params.append('magazzino', magazzinoSelect.value);
-    if (settoreSelect.value) params.append('settore', settoreSelect.value);
-    if (marcaSelect.value) params.append('marca', marcaSelect.value);
-    if (exceptField !== 'descrizione' && filtroDescrizione.value) params.append('descrizione', filtroDescrizione.value);
-    if (exceptField !== 'lunghezza' && filtroLunghezza.value) params.append('lunghezza', filtroLunghezza.value);
-    if (exceptField !== 'durezza' && filtroDurezza.value) params.append('durezza', filtroDurezza.value);
-    if (exceptField !== 'sigla' && filtroSigla.value) params.append('sigla', filtroSigla.value);
-    const data = await apiFetch(`/api/articoli/valori/${field}?${params.toString()}`);
-    const map = { descrizioni: 'descrizione', sigle: 'sigla', lunghezze: 'lunghezza', durezze: 'durezza' };
-    const col = map[field] || field;
-    return data.map(item => item[col]).filter(v => v && v !== '');
-  }
-  async function popolaFilterDatalist(field, datalistId, exceptField = null) {
-    try {
-      const values = await getDistinctFilterValues(field, exceptField);
-      const dl = document.getElementById(datalistId);
-      if (dl) { dl.innerHTML = ''; values.forEach(v => { const opt = document.createElement('option'); opt.value = v; dl.appendChild(opt); }); }
-    } catch(err) { console.error(err); }
-  }
-  async function refreshFilterDatalists() {
-    if (!magazzinoSelect.value) return;
-    await popolaFilterDatalist('descrizioni', 'descrizioneList', 'descrizione');
-    await popolaFilterDatalist('sigle', 'siglaList', 'sigla');
-    await popolaFilterDatalist('lunghezze', 'lunghezzaList', 'lunghezza');
-    await popolaFilterDatalist('durezze', 'durezzaList', 'durezza');
-  }
-
-  let debounceTimer;
-  async function handleFilterChange() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(async () => { await refreshFilterDatalists(); await caricaOggetti(); }, 300);
-  }
-  function attachFilterEvents() {
-    [filtroDescrizione, filtroLunghezza, filtroDurezza, filtroSigla].forEach(inp => inp?.addEventListener('input', handleFilterChange));
-    [magazzinoSelect, settoreSelect, marcaSelect, tipoOggettoSelect].forEach(sel => sel?.addEventListener('change', handleFilterChange));
-  }
   async function caricaOggetti() {
     document.body.style.cursor = 'wait';
     try {
@@ -875,11 +752,6 @@ async function caricaOggettiInCarico() {
     } finally {
       document.body.style.cursor = 'default';
     }
-  }
-  async function applicaFiltri() { await refreshFilterDatalists(); await caricaOggetti(); }
-  async function resetFiltri() {
-    settoreSelect.value = ''; marcaSelect.value = ''; filtroDescrizione.value = ''; filtroLunghezza.value = ''; filtroDurezza.value = ''; filtroSigla.value = '';
-    await refreshFilterDatalists(); await caricaOggetti();
   }
 
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
@@ -894,15 +766,13 @@ async function caricaOggettiInCarico() {
       sourceTipo.disabled = false; sourceId.disabled = false; includeReferenced.disabled = false;
       caricaSorgentiAdmin();
       sourceTipo.addEventListener('change', () => { if (radioCarico.checked) caricaSorgentiAdmin(); });
-      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
-      includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
+      includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaOggetti(); });
     }
     function updateUIBasedOnMode() {
       if (radioMagazzino.checked) {
-        magazzinoLabel.innerText = 'Magazzino *';
         if (adminSourceSection) adminSourceSection.style.display = 'none';
       } else {
-        magazzinoLabel.innerText = 'Magazzino di rientro *';
         if (isAdmin && adminSourceSection) adminSourceSection.style.display = 'flex';
       }
     }
@@ -920,9 +790,7 @@ async function caricaOggettiInCarico() {
     } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
     document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
     await caricaAnagrafiche();
-    attachFilterEvents();
     setupExternalMode();
-    await refreshFilterDatalists();
     await caricaOggetti();
   };
 </script>
