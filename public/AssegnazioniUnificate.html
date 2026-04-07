@@ -285,19 +285,40 @@
     </div>
   </div>
 
-  <!-- Sezione per "Dal magazzino" -->
-  <div id="magazzinoSection" style="display: none;" class="source-selection">
-    <div class="form-group">
-      <label>Magazzino</label>
-      <select id="magazzinoSelect"></select>
+  <!-- Sezione per "Dal magazzino" (con filtri) -->
+  <div id="magazzinoSection" style="display: none;">
+    <div class="source-selection">
+      <div class="form-group">
+        <label>Magazzino</label>
+        <select id="magazzinoSelect"></select>
+      </div>
+      <div class="form-group">
+        <label>Tipo oggetto</label>
+        <select id="tipoOggettoMagazzino">
+          <option value="TUTTI">Tutti</option>
+          <option value="ARTICOLO">Articoli</option>
+          <option value="KIT">Kit</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Tipo oggetto</label>
-      <select id="tipoOggettoMagazzino">
-        <option value="TUTTI">Tutti</option>
-        <option value="ARTICOLO">Articoli</option>
-        <option value="KIT">Kit</option>
-      </select>
+    <div class="filters">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Lunghezza</label>
+          <input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta">
+          <datalist id="lunghezzaList"></datalist>
+        </div>
+        <div class="filter-group">
+          <label>Categoria</label>
+          <select id="filtroCategoria">
+            <option value="">Tutte</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
+        <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
+      </div>
     </div>
   </div>
 
@@ -421,6 +442,7 @@
 
   let currentUser = null;
   let magazzini = [];
+  let categorie = [];
   let oggetti = [];            // oggetti visualizzati (sia da magazzino che da carico)
   let currentEditObj = null;   // per modifica oggetto in carico
   let pendingAction = null;
@@ -436,6 +458,9 @@
   const includeReferenced = document.getElementById('includeReferenced');
   const magazzinoSelect = document.getElementById('magazzinoSelect');
   const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
+  const filtroLunghezza = document.getElementById('filtroLunghezza');
+  const filtroCategoria = document.getElementById('filtroCategoria');
+  const lunghezzaList = document.getElementById('lunghezzaList');
 
   // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaMagazzini() {
@@ -446,6 +471,15 @@
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) magazzinoSelect.value = defaultMag.id;
     } catch(err) { console.error(err); showMessage('Errore caricamento magazzini', 'error'); }
+  }
+
+  async function caricaCategorie() {
+    try {
+      const res = await apiFetch('/api/anagrafiche/categorie');
+      categorie = res || [];
+      filtroCategoria.innerHTML = '<option value="">Tutte</option>';
+      categorie.forEach(c => filtroCategoria.appendChild(new Option(c.nome, c.id)));
+    } catch(err) { console.error(err); }
   }
 
   async function caricaSorgentiAdmin() {
@@ -462,25 +496,28 @@
     } catch(err) { showMessage('Errore sorgenti', 'error'); }
   }
 
-  // ========== OGGETTI DAL MAGAZZINO ==========
+  // ========== OGGETTI DAL MAGAZZINO (CON FILTRI) ==========
   async function caricaOggettiDaMagazzino() {
     const magId = magazzinoSelect.value;
     if (!magId) { oggetti = []; popolaTabella(); showMessage('Seleziona un magazzino', 'info'); return; }
     const tipo = tipoOggettoMagazzino.value;
+    const filtroLung = filtroLunghezza.value.trim();
+    const filtroCat = filtroCategoria.value;
     let lista = [];
+
     try {
       // Carica articoli
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
         const params = new URLSearchParams();
         params.append('magazzino', magId);
         params.append('min_giacenza', '1');
+        if (filtroLung) params.append('lunghezza', filtroLung);
+        if (filtroCat) params.append('categoria', filtroCat);
         const res = await apiFetch(`/api/articoli?${params.toString()}`);
         let articoli = res.success ? res.data : (res.data || []);
         for (let a of articoli) {
-          // Recupera sigle disponibili
           let sigle = [];
           try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
-          // La sigla "principale" potrebbe essere la prima o una specifica; per semplicità prendiamo la prima se presente
           let siglaCorrente = sigle.length ? sigle[0].sigla : null;
           lista.push({
             id: a.id,
@@ -492,7 +529,9 @@
             giacenza: a.quantita_totale - a.quantita_in_kit,
             sigla: siglaCorrente,
             sigleDisponibili: sigle,
-            destinatarioNome: 'Magazzino'
+            destinatarioNome: 'Magazzino',
+            lunghezza: a.lunghezza,
+            categoria: a.categoria_id
           });
         }
       }
@@ -502,26 +541,33 @@
         let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
         kits = kits.filter(k => k.magazzino == magId);
         for (let k of kits) {
-          // Recupera la sigla dello sci dal dettaglio
           let siglaSci = null;
+          let lunghezzaSci = null;
+          let categoriaSci = null;
           let sigleDisponibili = [];
           if (k.dettagli) {
             const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
-            if (sciDetail && sciDetail.sigla_id) {
+            if (sciDetail && sciDetail.articolo_id) {
               try {
+                // Recupera l'articolo sci per ottenere lunghezza e categoria
+                const sciArt = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
+                lunghezzaSci = sciArt.lunghezza;
+                categoriaSci = sciArt.categoria;
+                // Recupera le sigle dell'articolo sci
                 const sigle = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
                 sigleDisponibili = sigle;
-                const found = sigle.find(s => s.id == sciDetail.sigla_id);
-                if (found) siglaSci = found.sigla;
-              } catch(e) {}
+                if (sciDetail.sigla_id) {
+                  const found = sigle.find(s => s.id == sciDetail.sigla_id);
+                  if (found) siglaSci = found.sigla;
+                }
+              } catch(e) { console.warn(e); }
             }
           }
-          // Calcola quantità assegnata (da carico_sintesi)
-          let quantitaAssegnata = 0;
-          try {
-            const assegnato = await apiFetch(`/api/assegnazioni/quantita-assegnata?tipo=KIT&id=${k.id}`);
-            quantitaAssegnata = assegnato.quantita || 0;
-          } catch(e) {}
+          // Applica filtri lunghezza e categoria (sullo sci associato)
+          if (filtroLung && lunghezzaSci != filtroLung) continue;
+          if (filtroCat && categoriaSci != filtroCat) continue;
+          // Quantità assegnata (da carico_sintesi)
+          let quantitaAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
           lista.push({
             id: k.id,
             tipo: 'KIT',
@@ -532,12 +578,18 @@
             giacenza: k.quantita - quantitaAssegnata,
             sigla: siglaSci,
             sigleDisponibili: sigleDisponibili,
-            destinatarioNome: 'Magazzino'
+            destinatarioNome: 'Magazzino',
+            lunghezza: lunghezzaSci,
+            categoria: categoriaSci
           });
         }
       }
       oggetti = lista;
       popolaTabella();
+      // Popola datalist lunghezze per i filtri (basata sugli oggetti caricati)
+      const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
+      lunghezzaList.innerHTML = '';
+      lunghezze.forEach(l => { const opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
     } catch(err) { showMessage('Errore caricamento magazzino: ' + err.message, 'error'); }
   }
 
@@ -588,8 +640,8 @@
             tipo: obj.tipo,
             codice: obj.codice,
             descrizione: obj.descrizione,
-            totale: obj.quantita,  // per consistenza, ma in carico è la quantità assegnata
-            impegnato: 0,          // non applicabile
+            totale: obj.quantita,
+            impegnato: 0,
             giacenza: obj.quantita,
             sigla: siglaCorrente,
             sigleDisponibili: obj.sigleDisponibili || [],
@@ -651,7 +703,6 @@
   async function apriModalAssegnazione(obj) {
     currentAssignObj = obj;
     const modalBody = document.getElementById('assignModalContent');
-    // Popola select sigle (se disponibili)
     let siglaHtml = '<option value="">Nessuna sigla</option>';
     if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
       for (const s of obj.sigleDisponibili) {
@@ -695,7 +746,6 @@
         <input type="text" id="assignNote" class="form-control" placeholder="Note opzionali">
       </div>
     `;
-    // Carica destinatari in base al tipo selezionato
     const destTipoSelect = document.getElementById('assignDestTipo');
     const destIdSelect = document.getElementById('assignDestId');
     const caricaDestinazioni = async () => {
@@ -745,7 +795,7 @@
       if (res.success) {
         showMessage('Assegnazione effettuata', 'success');
         chiudiAssignModal();
-        await caricaOggettiDaMagazzino();  // ricarica la tabella del magazzino
+        await caricaOggettiDaMagazzino();
       } else showErrorModal(res.message);
     } catch(err) { showErrorModal(err.message); }
   }
@@ -968,19 +1018,21 @@
   function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
 
+  // ========== FILTRI MAGAZZINO ==========
+  function applicaFiltriMagazzino() {
+    if (radioMagazzino.checked) caricaOggettiDaMagazzino();
+  }
+  function resetFiltriMagazzino() {
+    filtroLunghezza.value = '';
+    filtroCategoria.value = '';
+    if (radioMagazzino.checked) caricaOggettiDaMagazzino();
+  }
+
   // ========== GESTIONE UI ==========
   function toggleSource() {
     const isMagazzino = radioMagazzino.checked;
     caricoSection.style.display = isMagazzino ? 'none' : 'flex';
     magazzinoSection.style.display = isMagazzino ? 'flex' : 'none';
-    // Cambia intestazione tabella
-    const header = document.querySelector('#tabellaHeader');
-    if (isMagazzino) {
-      // Mostra colonne: Codice, Sigla, Totale, Impegnato, Giacenza, Assegnato a, Azioni
-      // già così
-    } else {
-      // Per carico: la colonna "Assegnato a" ha senso, "Totale" è la quantità in carico, "Impegnato" non usato
-    }
     caricaOggetti();
   }
 
@@ -1015,12 +1067,11 @@
       includeReferenced.disabled = true;
       if (radioCarico.checked) caricaOggetti();
     }
-    // Eventi per cambio sorgente
     radioCarico.addEventListener('change', toggleSource);
     radioMagazzino.addEventListener('change', toggleSource);
     magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
     tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
-    toggleSource(); // iniziale
+    toggleSource();
   }
 
   window.onload = async () => {
@@ -1032,6 +1083,7 @@
     } catch(e) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; return; }
     document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
     await caricaMagazzini();
+    await caricaCategorie();
     setup();
   };
 </script>
