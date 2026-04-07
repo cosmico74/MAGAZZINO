@@ -42,8 +42,7 @@ async function generaDescrizioneKit(connection, sciId, righe) {
   if (!sci.length) throw new Error('Sci non trovato');
   const sciDisplay = `${sci[0].descrizione} ${sci[0].lunghezza || ''} ${sci[0].durezza || ''}`.trim();
   
-  // Recupera gli attacchi (dalla prima riga, assumendo che tutte le righe abbiano lo stesso attacco? No, potrebbero essere diversi.
-  // Ma nella logica attuale, ogni riga ha il proprio attacco. Per la descrizione, mostriamo tutti gli attacchi usati.
+  // Recupera gli attacchi (prendiamo dalla prima riga, ma mostriamo tutti quelli unici)
   const attacchiIds = [...new Set(righe.map(r => r.attacco_id))];
   const attacchiDesc = [];
   for (let id of attacchiIds) {
@@ -61,7 +60,6 @@ async function generaDescrizioneKit(connection, sciId, righe) {
   }
   const skDisplay = skDesc.length ? ` + ${skDesc.join(' + ')}` : '';
   
-  // Sigle (per info, non obbligatorie nella descrizione)
   return `Kit: ${sciDisplay} + ${attacchiDisplay}${skDisplay}`;
 }
 
