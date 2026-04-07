@@ -615,7 +615,6 @@
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
-      // Mostra codice e descrizione
       let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
       if (obj.tipo === 'KIT' && obj.LUNGHEZZA) displayText += ` (${obj.LUNGHEZZA}cm)`;
       row.insertCell(0).innerText = displayText;
@@ -680,15 +679,12 @@
       </div>
       <div class="form-group">
         <label>🎯 Nuova destinazione</label>
-        <div class="inline-refresh">
-          <select id="editDestTipo" class="form-control" style="flex:1;">
-            <option value="PROMOTER">Promoter</option>
-            <option value="NEGOZIO">Negozio</option>
-            <option value="CLIENTE">Cliente</option>
-            <option value="AGENTE">Agente</option>
-          </select>
-          <button class="btn btn-secondary" onclick="caricaEditDestinazioni()">🔄</button>
-        </div>
+        <select id="editDestTipo" class="form-control">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+        </select>
         <select id="editDestId" class="form-control" style="margin-top:8px;"></select>
       </div>
       <div class="form-group">
@@ -696,7 +692,23 @@
         <input type="text" id="editNote" class="form-control" placeholder="Note opzionali">
       </div>
     `;
-    await caricaEditDestinazioni();
+    // Caricamento automatico dei destinatari quando cambia il tipo
+    const destTipoSelect = document.getElementById('editDestTipo');
+    const destIdSelect = document.getElementById('editDestId');
+    const caricaDestinazioni = async () => {
+      const tipo = destTipoSelect.value;
+      if (!tipo) {
+        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+        return;
+      }
+      try {
+        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+        data.forEach(item => destIdSelect.appendChild(new Option(item.nome, item.id)));
+      } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+    };
+    destTipoSelect.addEventListener('change', caricaDestinazioni);
+    await caricaDestinazioni(); // carica subito se il tipo è già selezionato (default Promoter)
     const siglaSelect = document.getElementById('editSiglaId');
     const warningDiv = document.getElementById('siglaWarning');
     siglaSelect.addEventListener('change', async () => {
@@ -714,15 +726,7 @@
     document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
   }
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
-  async function caricaEditDestinazioni() {
-    const tipo = document.getElementById('editDestTipo').value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      const destSelect = document.getElementById('editDestId');
-      destSelect.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => destSelect.appendChild(new Option(item.nome, item.id)));
-    } catch(err) { showMessage('Errore destinazioni', 'error'); }
-  }
+  // La funzione caricaEditDestinazioni non serve più (sostituita dall'evento change)
   async function salvaModificaSingola() {
     const obj = currentEditObj;
     if (!obj) return;
