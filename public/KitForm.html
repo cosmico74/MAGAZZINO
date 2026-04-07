@@ -330,7 +330,17 @@
       });
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) kitMagazzinoSelect.value = defaultMag.id;
-
+        kitMagazzinoSelect.addEventListener('change', async () => {
+          const magId = kitMagazzinoSelect.value;
+          if (magId) {
+            await aggiornaTuttiGliAttacchi(magId);
+            await aggiornaTuttiGliSkistoppers(magId);
+          }
+        });
+        if (kitMagazzinoSelect.value) {
+          await aggiornaTuttiGliAttacchi(kitMagazzinoSelect.value);
+          await aggiornaTuttiGliSkistoppers(kitMagazzinoSelect.value);
+        }
       await caricaArticoliSci();
       await refreshFilterDatalists();
       await caricaKit();
@@ -340,22 +350,50 @@
     }
   }
 
-  async function caricaArticoliSci() {
-    const params = new URLSearchParams();
-    if (kitMagazzinoSelect.value) params.append('magazzino', kitMagazzinoSelect.value);
-    params.append('min_giacenza', '1');
-    if (categoryIds.sci) params.append('categoria', categoryIds.sci);
-    const res = await apiFetch(`/api/articoli?${params.toString()}`);
-    articoliSci = res.success ? res.data : [];
-    const sciList = document.getElementById('sciList');
-    sciList.innerHTML = '';
-    articoliSci.forEach(art => {
-      const opt = document.createElement('option');
-      opt.value = formatArticleDisplay(art);
-      opt.setAttribute('data-id', art.id);
-      sciList.appendChild(opt);
-    });
-  }
+ async function caricaArticoliSci() {
+  const params = new URLSearchParams();
+  if (kitMagazzinoSelect.value) params.append('magazzino', kitMagazzinoSelect.value);
+  params.append('min_giacenza', '1');
+  if (categoryIds.sci) params.append('categoria', categoryIds.sci);
+  const res = await apiFetch(`/api/articoli?${params.toString()}`);
+  articoliSci = res.success ? res.data : [];
+  const sciList = document.getElementById('sciList');
+  sciList.innerHTML = '';
+  articoliSci.forEach(art => {
+    const opt = document.createElement('option');
+    opt.value = formatArticleDisplay(art);
+    opt.setAttribute('data-id', art.id);
+    sciList.appendChild(opt);
+  });
+
+  // Aggiunge l'event listener per popolare le sigle quando lo sci viene selezionato
+  const sciInput = document.getElementById('kitSci');
+  // Rimuovi eventuali listener precedenti per evitare duplicati
+  const newSciInput = sciInput.cloneNode(true);
+  sciInput.parentNode.replaceChild(newSciInput, sciInput);
+  newSciInput.addEventListener('change', async () => {
+    const value = newSciInput.value;
+    let articoloId = null;
+    for (let opt of sciList.options) {
+      if (opt.value === value) {
+        articoloId = opt.getAttribute('data-id');
+        break;
+      }
+    }
+    if (articoloId) {
+      await aggiornaTutteLeRigheSigle(articoloId);
+    } else {
+      // Se non è valido, svuota i dropdown delle sigle in tutte le righe
+      const righe = document.querySelectorAll('#sigleTbody tr');
+      for (let row of righe) {
+        const siglaSelect = row.cells[0].querySelector('select');
+        if (siglaSelect) siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+      }
+    }
+  });
+  // Ripristina l'id (il clone lo perde)
+  newSciInput.id = 'kitSci';
+}
 
   async function caricaArticoliAttacchi(magazzinoId) {
     const params = new URLSearchParams();
@@ -385,38 +423,69 @@
   }
 
   // ========== GESTIONE RIGHE SIGLE (creazione nuovo kit) ==========
-  function aggiungiRigaSigla() {
-    const tbody = document.getElementById('sigleTbody');
-    const row = tbody.insertRow();
-    const tdSigla = row.insertCell(0);
-    const siglaSelect = document.createElement('select');
-    siglaSelect.className = 'sigla-select';
-    siglaSelect.innerHTML = '<option value="">Seleziona prima lo sci</option>';
-    tdSigla.appendChild(siglaSelect);
-    const tdAtt = row.insertCell(1);
-    const attSelect = document.createElement('select');
-    attSelect.className = 'attacco-select';
+function aggiungiRigaSigla() {
+  const tbody = document.getElementById('sigleTbody');
+  const row = tbody.insertRow();
+
+  // Colonna Sigla (verrà popolata dopo la selezione dello sci)
+  const tdSigla = row.insertCell(0);
+  const siglaSelect = document.createElement('select');
+  siglaSelect.className = 'sigla-select';
+  siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+  tdSigla.appendChild(siglaSelect);
+
+  // Colonna Attacco (popolata con gli attacchi del magazzino corrente)
+  const tdAtt = row.insertCell(1);
+  const attSelect = document.createElement('select');
+  attSelect.className = 'attacco-select';
+  if (window.attacchiDisponibili && window.attacchiDisponibili.length) {
     attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
-    tdAtt.appendChild(attSelect);
-    const tdSk = row.insertCell(2);
-    const skSelect = document.createElement('select');
-    skSelect.className = 'skistopper-select';
-    skSelect.innerHTML = '<option value="">Nessuno</option>';
-    tdSk.appendChild(skSelect);
-    const tdQta = row.insertCell(3);
-    const qtyInput = document.createElement('input');
-    qtyInput.type = 'number';
-    qtyInput.value = 1;
-    qtyInput.min = 1;
-    qtyInput.style.width = '70px';
-    tdQta.appendChild(qtyInput);
-    const tdAz = row.insertCell(4);
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '🗑️';
-    delBtn.className = 'btn btn-danger';
-    delBtn.onclick = () => row.remove();
-    tdAz.appendChild(delBtn);
+    window.attacchiDisponibili.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.text = formatArticleDisplay(a);
+      attSelect.appendChild(opt);
+    });
+  } else {
+    attSelect.innerHTML = '<option value="">Seleziona prima un magazzino</option>';
   }
+  tdAtt.appendChild(attSelect);
+
+  // Colonna Skistopper (popolata con gli skistoppers del magazzino corrente)
+  const tdSk = row.insertCell(2);
+  const skSelect = document.createElement('select');
+  skSelect.className = 'skistopper-select';
+  if (window.skistoppersDisponibili && window.skistoppersDisponibili.length) {
+    skSelect.innerHTML = '<option value="">Nessuno</option>';
+    window.skistoppersDisponibili.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.text = formatArticleDisplay(s);
+      skSelect.appendChild(opt);
+    });
+  } else {
+    skSelect.innerHTML = '<option value="">Nessuno</option>';
+  }
+  tdSk.appendChild(skSelect);
+
+  // Colonna Quantità
+  const tdQta = row.insertCell(3);
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number';
+  qtyInput.value = 1;
+  qtyInput.min = 1;
+  qtyInput.step = 1;
+  qtyInput.style.width = '70px';
+  tdQta.appendChild(qtyInput);
+
+  // Colonna Azioni (bottone per rimuovere la riga)
+  const tdAz = row.insertCell(4);
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '🗑️';
+  delBtn.className = 'btn btn-danger';
+  delBtn.onclick = () => row.remove();
+  tdAz.appendChild(delBtn);
+}
 
   // ========== CREAZIONE KIT ==========
   async function salvaKit() {
@@ -1273,6 +1342,74 @@
       }
     });
   }
+
+  // Aggiorna i dropdown delle sigle in tutte le righe della tabella di creazione
+async function aggiornaTutteLeRigheSigle(articoloId) {
+  if (!articoloId) return;
+  const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+  const righe = document.querySelectorAll('#sigleTbody tr');
+  for (let row of righe) {
+    const siglaSelect = row.cells[0].querySelector('select');
+    if (siglaSelect) {
+      const currentVal = siglaSelect.value;
+      siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
+      sigle.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
+        if (currentVal && currentVal == s.id) opt.selected = true;
+        siglaSelect.appendChild(opt);
+      });
+      // Se c'è una sola sigla, la seleziona automaticamente
+      if (sigle.length === 1) siglaSelect.value = sigle[0].id;
+    }
+  }
+}
+
+// Carica gli attacchi disponibili per il magazzino e aggiorna tutte le righe
+async function aggiornaTuttiGliAttacchi(magazzinoId) {
+  if (!magazzinoId) return;
+  const attacchi = await caricaArticoliAttacchi(magazzinoId);
+  window.attacchiDisponibili = attacchi;
+  const righe = document.querySelectorAll('#sigleTbody tr');
+  for (let row of righe) {
+    const attSelect = row.cells[1].querySelector('select');
+    if (attSelect) {
+      const currentVal = attSelect.value;
+      attSelect.innerHTML = '<option value="">Seleziona attacco</option>';
+      attacchi.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.text = formatArticleDisplay(a);
+        if (currentVal && currentVal == a.id) opt.selected = true;
+        attSelect.appendChild(opt);
+      });
+    }
+  }
+}
+
+// Carica gli skistoppers disponibili per il magazzino (opzionale)
+async function aggiornaTuttiGliSkistoppers(magazzinoId) {
+  if (!magazzinoId) return;
+  const skistoppers = await caricaArticoliSkistopper(magazzinoId);
+  window.skistoppersDisponibili = skistoppers;
+  const righe = document.querySelectorAll('#sigleTbody tr');
+  for (let row of righe) {
+    const skSelect = row.cells[2].querySelector('select');
+    if (skSelect) {
+      const currentVal = skSelect.value;
+      skSelect.innerHTML = '<option value="">Nessuno</option>';
+      skistoppers.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.text = formatArticleDisplay(s);
+        if (currentVal && currentVal == s.id) opt.selected = true;
+        skSelect.appendChild(opt);
+      });
+    }
+  }
+}
+
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
