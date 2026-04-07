@@ -234,7 +234,7 @@
       <table class="sigle-table" id="editSigleTable">
         <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
         <tbody id="editSigleTbody"></tbody>
-      </table>
+      能有
       <button type="button" class="btn" onclick="aggiungiRigaSiglaEdit()">➕ Aggiungi sigla</button>
       <div class="modal-buttons">
         <button type="button" class="btn" onclick="salvaModificaKit()">💾 Salva</button>
@@ -365,7 +365,7 @@
       await refreshFilterDatalists();
       await caricaKit();
 
-      // Event listeners per auto-aggiornamento destinazioni nei modali
+      // Event listeners per auto-aggiornamento destinazioni nei modali (nessun pulsante Aggiorna)
       document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
       destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
     } catch(err) {
@@ -650,7 +650,7 @@
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
     if (!kitFiltrati.length) {
-      tbody.innerHTML = '<tr><td colspan="9">Nessun kit trovato</td></tr>';
+      tbody.innerHTML = '默认为<td colspan="9">Nessun kit trovato</td></tr>';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -786,6 +786,7 @@
     assegnaMagazzino.innerHTML = '';
     magazzini.forEach(m => assegnaMagazzino.appendChild(new Option(m.nome, m.id)));
     assegnaMagazzino.value = kitMagazzinoSelect.value;
+    // Carica automaticamente i destinatari in base al tipo selezionato (di default PROMOTER)
     await caricaDestinazioniAssegnazione();
     popolaListaKit('assegnaKitList', selected);
     document.getElementById('modalAssegnazione').style.display = 'flex';
