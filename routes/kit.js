@@ -35,6 +35,36 @@ async function rilasciaArticolo(connection, articoloId, quantita) {
   );
 }
 
+// ========== HELPER PER GENERARE DESCRIZIONE KIT ==========
+async function generaDescrizioneKit(connection, sciId, righe) {
+  // Recupera lo sci
+  const [sci] = await connection.query('SELECT descrizione, lunghezza, durezza FROM articoli WHERE articolo_id = ?', [sciId]);
+  if (!sci.length) throw new Error('Sci non trovato');
+  const sciDisplay = `${sci[0].descrizione} ${sci[0].lunghezza || ''} ${sci[0].durezza || ''}`.trim();
+  
+  // Recupera gli attacchi (dalla prima riga, assumendo che tutte le righe abbiano lo stesso attacco? No, potrebbero essere diversi.
+  // Ma nella logica attuale, ogni riga ha il proprio attacco. Per la descrizione, mostriamo tutti gli attacchi usati.
+  const attacchiIds = [...new Set(righe.map(r => r.attacco_id))];
+  const attacchiDesc = [];
+  for (let id of attacchiIds) {
+    const [att] = await connection.query('SELECT descrizione FROM articoli WHERE articolo_id = ?', [id]);
+    if (att.length) attacchiDesc.push(att[0].descrizione);
+  }
+  const attacchiDisplay = attacchiDesc.join(' + ');
+  
+  // Skistoppers (opzionali)
+  const skIds = [...new Set(righe.filter(r => r.skistopper_id).map(r => r.skistopper_id))];
+  const skDesc = [];
+  for (let id of skIds) {
+    const [sk] = await connection.query('SELECT descrizione FROM articoli WHERE articolo_id = ?', [id]);
+    if (sk.length) skDesc.push(sk[0].descrizione);
+  }
+  const skDisplay = skDesc.length ? ` + ${skDesc.join(' + ')}` : '';
+  
+  // Sigle (per info, non obbligatorie nella descrizione)
+  return `Kit: ${sciDisplay} + ${attacchiDisplay}${skDisplay}`;
+}
+
 // ========== GET all kits ==========
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -124,11 +154,14 @@ router.post('/', verifyToken, async (req, res) => {
     const nextSeq = (maxSeqRow[0].max_seq || 0) + 1;
     const codiceKit = `KIT-${magazzino}-${nextSeq.toString().padStart(4, '0')}`;
 
+    // Genera descrizione
+    const descrizioneKit = await generaDescrizioneKit(connection, sci_id, righe);
+
     // Inserisci kit
     const [kitResult] = await connection.query(
       `INSERT INTO kit (codice_kit, descrizione, quantita, magazzino, note, data_creazione, data_modifica)
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      [codiceKit, '', 0, magazzino, note || null]
+      [codiceKit, descrizioneKit, 0, magazzino, note || null]
     );
     const kitId = kitResult.insertId;
 
@@ -258,9 +291,12 @@ router.put('/:id', verifyToken, async (req, res) => {
       quantitaTotaleKit += quantita;
     }
     
+    // Genera nuova descrizione
+    const nuovaDescrizione = await generaDescrizioneKit(connection, sci_id, righe);
+    
     await connection.query(
-      `UPDATE kit SET magazzino = ?, note = ?, quantita = ?, data_modifica = NOW() WHERE id = ?`,
-      [magazzino, note || null, quantitaTotaleKit, req.params.id]
+      `UPDATE kit SET magazzino = ?, note = ?, quantita = ?, descrizione = ?, data_modifica = NOW() WHERE id = ?`,
+      [magazzino, note || null, quantitaTotaleKit, nuovaDescrizione, req.params.id]
     );
     
     await connection.commit();
