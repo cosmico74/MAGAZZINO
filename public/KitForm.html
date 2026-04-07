@@ -175,12 +175,20 @@
   </div>
 </div>
 
-<!-- MODALE TRASFERIMENTO (tra soggetti) -->
+<!-- MODALE TRASFERIMENTO (tra soggetti) - SENZA PULSANTE AGGIORNA -->
 <div id="modalTrasferimento" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
     <div class="form-group"><label>Magazzino transito *</label><select id="transferMagazzino"></select></div>
-    <div class="form-group"><label>Tipo destinazione *</label><select id="destinatarioTipo"><option value="">Seleziona...</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Tipo destinazione *</label>
+      <select id="destinatarioTipo">
+        <option value="">Seleziona...</option>
+        <option value="PROMOTER">Promoter</option>
+        <option value="NEGOZIO">Negozio</option>
+        <option value="CLIENTE">Cliente</option>
+        <option value="AGENTE">Agente</option>
+      </select>
+    </div>
     <div class="form-group"><label>Destinatario *</label><select id="destinatarioId" disabled><option value="">Seleziona prima il tipo</option></select></div>
     <div class="form-group"><label>Kit selezionati (scegli sigla per ciascuno)</label><div id="transferKitList"></div></div>
     <div class="form-group"><label>Note</label><input type="text" id="transferNote"></div>
@@ -188,12 +196,19 @@
   </div>
 </div>
 
-<!-- MODALE ASSEGNAZIONE DA MAGAZZINO -->
+<!-- MODALE ASSEGNAZIONE DA MAGAZZINO - SENZA PULSANTE AGGIORNA -->
 <div id="modalAssegnazione" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>📤 Assegna kit a soggetto esterno</h3>
     <div class="form-group"><label>Magazzino di partenza *</label><select id="assegnaMagazzino"></select></div>
-    <div class="form-group"><label>Tipo destinazione *</label><select id="assegnaDestTipo"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select></div>
+    <div class="form-group"><label>Tipo destinazione *</label>
+      <select id="assegnaDestTipo">
+        <option value="PROMOTER">Promoter</option>
+        <option value="NEGOZIO">Negozio</option>
+        <option value="CLIENTE">Cliente</option>
+        <option value="AGENTE">Agente</option>
+      </select>
+    </div>
     <div class="form-group"><label>Destinatario *</label><select id="assegnaDestId"></select></div>
     <div class="form-group"><label>Kit selezionati (scegli sigla per ciascuno)</label><div id="assegnaKitList"></div></div>
     <div class="form-group"><label>Note</label><input type="text" id="assegnaNote"></div>
@@ -282,8 +297,6 @@
   let currentEditSciId = null;
   let currentEditSigleDisponibili = [];
   let currentAssignedSigle = new Set();
-
-  // Variabili globali per attacchi e skistoppers (popolate dal magazzino)
   window.attacchiDisponibili = [];
   window.skistoppersDisponibili = [];
 
@@ -335,16 +348,14 @@
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) kitMagazzinoSelect.value = defaultMag.id;
 
-      // Listener per cambio magazzino (aggiorna attacchi e skistoppers)
       kitMagazzinoSelect.addEventListener('change', async () => {
         const magId = kitMagazzinoSelect.value;
         if (magId) {
           await aggiornaTuttiGliAttacchi(magId);
           await aggiornaTuttiGliSkistoppers(magId);
-          await caricaArticoliSci(); // ricarica gli sci (potrebbero cambiare in base al magazzino)
+          await caricaArticoliSci();
         }
       });
-      // Carica subito per il magazzino di default
       if (kitMagazzinoSelect.value) {
         await aggiornaTuttiGliAttacchi(kitMagazzinoSelect.value);
         await aggiornaTuttiGliSkistoppers(kitMagazzinoSelect.value);
@@ -353,6 +364,10 @@
       await caricaArticoliSci();
       await refreshFilterDatalists();
       await caricaKit();
+
+      // Event listeners per auto-aggiornamento destinazioni nei modali
+      document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
+      destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
     } catch(err) {
       console.error(err);
       showMessage('Errore caricamento dati iniziali', 'error');
@@ -375,7 +390,6 @@
       sciList.appendChild(opt);
     });
 
-    // Listener per selezione sci (popola le sigle in tutte le righe)
     const sciInput = document.getElementById('kitSci');
     sciInput.removeEventListener('change', handleSciChange);
     sciInput.addEventListener('change', handleSciChange);
@@ -395,7 +409,6 @@
     if (articoloId) {
       await aggiornaTutteLeRigheSigle(articoloId);
     } else {
-      // Svuota i dropdown delle sigle in tutte le righe
       const righe = document.querySelectorAll('#sigleTbody tr');
       for (let row of righe) {
         const siglaSelect = row.cells[0].querySelector('select');
@@ -431,19 +444,14 @@
     return parts.join(' ');
   }
 
-  // ========== GESTIONE RIGHE SIGLE (creazione nuovo kit) ==========
   function aggiungiRigaSigla() {
     const tbody = document.getElementById('sigleTbody');
     const row = tbody.insertRow();
-
-    // Sigla
     const tdSigla = row.insertCell(0);
     const siglaSelect = document.createElement('select');
     siglaSelect.className = 'sigla-select';
     siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
     tdSigla.appendChild(siglaSelect);
-
-    // Attacco
     const tdAtt = row.insertCell(1);
     const attSelect = document.createElement('select');
     attSelect.className = 'attacco-select';
@@ -459,8 +467,6 @@
       attSelect.innerHTML = '<option value="">Seleziona prima un magazzino</option>';
     }
     tdAtt.appendChild(attSelect);
-
-    // Skistopper
     const tdSk = row.insertCell(2);
     const skSelect = document.createElement('select');
     skSelect.className = 'skistopper-select';
@@ -476,18 +482,13 @@
       skSelect.innerHTML = '<option value="">Nessuno</option>';
     }
     tdSk.appendChild(skSelect);
-
-    // Quantità
     const tdQta = row.insertCell(3);
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
     qtyInput.value = 1;
     qtyInput.min = 1;
-    qtyInput.step = 1;
     qtyInput.style.width = '70px';
     tdQta.appendChild(qtyInput);
-
-    // Azioni
     const tdAz = row.insertCell(4);
     const delBtn = document.createElement('button');
     delBtn.textContent = '🗑️';
@@ -496,7 +497,6 @@
     tdAz.appendChild(delBtn);
   }
 
-  // Aggiorna tutte le righe con le sigle dello sci selezionato
   async function aggiornaTutteLeRigheSigle(articoloId) {
     if (!articoloId) return;
     const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
@@ -518,7 +518,6 @@
     }
   }
 
-  // Aggiorna tutti gli attacchi in base al magazzino
   async function aggiornaTuttiGliAttacchi(magazzinoId) {
     if (!magazzinoId) return;
     const attacchi = await caricaArticoliAttacchi(magazzinoId);
@@ -540,7 +539,6 @@
     }
   }
 
-  // Aggiorna tutti gli skistoppers in base al magazzino
   async function aggiornaTuttiGliSkistoppers(magazzinoId) {
     if (!magazzinoId) return;
     const skistoppers = await caricaArticoliSkistopper(magazzinoId);
@@ -562,7 +560,6 @@
     }
   }
 
-  // ========== CREAZIONE KIT ==========
   async function salvaKit() {
     const magazzino = kitMagazzinoSelect.value;
     const sciInput = document.getElementById('kitSci').value;
@@ -613,7 +610,7 @@
     };
     const saveBtn = document.getElementById('saveKitBtn');
     saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Salvataggio...';
+    saveBtn.innerHTML = '<span class="spinner"></span>';
     try {
       const result = await apiFetch('/api/kit', { method: 'POST', body: JSON.stringify(payload) });
       if (result.success) {
@@ -638,7 +635,6 @@
     document.getElementById('kitNote').value = '';
   }
 
-  // ========== CARICAMENTO KIT ==========
   async function caricaKit() {
     try {
       const data = await apiFetch('/api/kit');
@@ -701,7 +697,6 @@
     });
   }
 
-  // ========== FUNZIONI PER MODALI DI ASSEGNAZIONE E TRASFERIMENTO ==========
   function getSelectedKits() {
     const selected = [];
     document.querySelectorAll('.kit-checkbox:checked').forEach(cb => {
@@ -744,11 +739,11 @@
         div.appendChild(select);
         siglaSelect = select;
       } else {
-        const note = document.createElement('div');
-        note.style.fontSize = '0.8rem';
-        note.style.color = '#6c757d';
-        note.innerHTML = '⚠️ Questo kit non ha sigle associate. Verrà trasferito senza sigla.';
-        div.appendChild(note);
+        const noteDiv = document.createElement('div');
+        noteDiv.style.fontSize = '0.8rem';
+        noteDiv.style.color = '#6c757d';
+        noteDiv.innerHTML = '⚠️ Questo kit non ha sigle associate. Verrà trasferito senza sigla.';
+        div.appendChild(noteDiv);
         const hidden = document.createElement('input');
         hidden.type = 'hidden';
         hidden.value = '';
@@ -955,7 +950,6 @@
     finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
   }
 
-  // ========== MODIFICA KIT ==========
   async function modificaKit(id) {
     try {
       const kit = await apiFetch(`/api/kit/${id}`);
@@ -1350,7 +1344,6 @@
     }
   }
 
-  // ========== FILTRI ==========
   async function getDistinctFilterValues(field, exceptField = null) {
     const params = new URLSearchParams();
     if (filtroMag.value) params.append('magazzino', filtroMag.value);
@@ -1387,9 +1380,6 @@
     await popolaFilterDatalist('descrizioni', 'filtroDescrizioneList', 'descrizione');
     await popolaFilterDatalist('sigle', 'filtroSiglaList', 'sigla');
   }
-
-  destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
-  document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
 
   function toggleSelectAll() {
     const checkAll = document.getElementById('selectAllCheckbox').checked;
