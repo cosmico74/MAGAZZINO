@@ -104,6 +104,22 @@
     .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
     .sigle-table th { background: #e9ecef; }
+
+    /* Densità righe (per tabella kit) */
+    .density-small th, .density-small td { padding: 2px 5px; font-size: 0.65rem; }
+    .density-medium th, .density-medium td { padding: 4px 6px; font-size: 0.7rem; }
+    .density-large th, .density-large td { padding: 8px 10px; font-size: 0.85rem; }
+
+    /* Stampa - nasconde elementi non necessari */
+    @media print {
+      .no-print { display: none !important; }
+      .compact-bar, .batch-toolbar, .filter-section, .header-bar .btn, .btn-secondary, .btn, .modal { display: none !important; }
+      body { background: white; padding: 0; margin: 0; }
+      .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
+      .table-wrapper { overflow: visible; }
+      table { page-break-inside: avoid; }
+      th, td { border: 1px solid #ccc; }
+    }
   </style>
 </head>
 <body>
@@ -155,13 +171,24 @@
     </div>
   </div>
 
-  <div class="batch-toolbar">
+  <!-- Toolbar: densità, stampa, export -->
+  <div class="batch-toolbar no-print">
+    <div class="density-selector" style="display: flex; align-items: center; gap: 8px; margin-right: auto;">
+      <span>📏 Densità:</span>
+      <select id="densitySelect" onchange="changeDensity()">
+        <option value="small">Piccola</option>
+        <option value="medium" selected>Media</option>
+        <option value="large">Grande</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary" onclick="stampaTabella()">🖨️ Stampa</button>
+    <button class="btn btn-success" onclick="esportaExcel()">📎 Esporta Excel</button>
     <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
     <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
     <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna a soggetto</button>
   </div>
 
-  <div class="table-wrapper">
+  <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaKit">
       <thead>
          <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
@@ -285,6 +312,48 @@
     window.location.href = 'Login.html';
   }
 
+  // ========== DENSITÀ, STAMPA, EXPORT ==========
+  function changeDensity() {
+    const val = document.getElementById('densitySelect').value;
+    const wrapper = document.getElementById('tableWrapper');
+    wrapper.classList.remove('density-small', 'density-medium', 'density-large');
+    wrapper.classList.add(`density-${val}`);
+  }
+
+  function stampaTabella() {
+    window.print();
+  }
+
+  function esportaExcel() {
+    const table = document.getElementById('tabellaKit');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    for (let row of rows) {
+      let rowData = [];
+      let cells = row.querySelectorAll('th, td');
+      for (let cell of cells) {
+        let text = cell.innerText.trim();
+        // Escludi la colonna delle checkbox (prima colonna) e la colonna azioni (ultima colonna)
+        // Individuiamo l'indice: la checkbox è la prima colonna, le azioni l'ultima.
+        // In esportazione, saltiamo la checkbox e l'ultima colonna (azioni)
+        if (cell.cellIndex === 0 || cell.cellIndex === cells.length - 1) {
+          continue;
+        }
+        rowData.push(text);
+      }
+      if (rowData.length > 0) csv.push(rowData.join(','));
+    }
+    const blob = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'kit_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   // ========== GLOBALI ==========
   let currentUser = null;
   let magazzini = [], settori = [], marche = [], allSoggetti = [];
@@ -364,7 +433,7 @@
       await refreshFilterDatalists();
       await caricaKit();
 
-      // Event listeners per auto-aggiornamento destinazioni nei modali (nessun pulsante Aggiorna)
+      // Event listeners per auto-aggiornamento destinazioni nei modali
       document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
       destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
     } catch(err) {
@@ -649,7 +718,7 @@
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
     if (!kitFiltrati.length) {
-      tbody.innerHTML = '默认为<td colspan="9">Nessun kit trovato</td></tr>';
+      tbody.innerHTML = '<td colspan="9">Nessun kit trovato</td>';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -785,7 +854,6 @@
     assegnaMagazzino.innerHTML = '';
     magazzini.forEach(m => assegnaMagazzino.appendChild(new Option(m.nome, m.id)));
     assegnaMagazzino.value = kitMagazzinoSelect.value;
-    // Carica automaticamente i destinatari in base al tipo selezionato (di default PROMOTER)
     await caricaDestinazioniAssegnazione();
     popolaListaKit('assegnaKitList', selected);
     document.getElementById('modalAssegnazione').style.display = 'flex';
@@ -1415,6 +1483,7 @@
     await caricaAnagrafiche();
     attachFilterEvents();
     resetForm();
+    changeDensity(); // applica densità iniziale
   };
 </script>
 </body>
