@@ -14,7 +14,6 @@
       height: 100vh;
       overflow: hidden;
     }
-    /* layout come kitform */
     .compact-bar {
       display: flex;
       justify-content: space-between;
@@ -55,7 +54,6 @@
       color: #1e2a3a;
       display: inline-block;
     }
-    /* form compatto */
     .form-row-5col, .form-row-3col, .form-row-4col-slim, .form-row-2col {
       display: grid;
       gap: 8px;
@@ -207,6 +205,11 @@
       margin-bottom: 6px;
     }
     .logo img { height: 28px; }
+    /* evidenziazione campi obbligatori mancanti */
+    .required-error {
+      border: 1px solid #ef4444 !important;
+      background-color: #fee2e2 !important;
+    }
   </style>
 </head>
 <body>
@@ -493,7 +496,7 @@
     ordinaArticoli();
     const tbody = document.querySelector('#tabellaArticoli tbody');
     tbody.innerHTML = '';
-    if (!articoliCorrente.length) { tbody.innerHTML = '<td><td colspan="15">Nessun articolo</td></tr>'; return; }
+    if (!articoliCorrente.length) { tbody.innerHTML = '<tr><td colspan="15">Nessun articolo</td></tr>'; return; }
     articoliCorrente.forEach(a => {
       const mag = magazzini.find(m=>m.id==a.magazzino)?.nome || a.magazzino;
       const cat = categorie.find(c=>c.id==a.categoria)?.nome || a.categoria;
@@ -539,7 +542,36 @@
   }
 
   // ========== CRUD ARTICOLO ==========
+  // Funzione per rimuovere evidenziazione errori
+  function resetErrorStyles() {
+    [magazzinoSelect, settoreSelect, categoriaSelect, marcaSelect, descrizioneInput, quantitaInput].forEach(el => {
+      el.classList.remove('required-error');
+    });
+  }
+
   async function salvaArticolo() {
+    resetErrorStyles();
+    // Controllo campi obbligatori con messaggi specifici
+    let missing = [];
+    if (!descrizioneInput.value.trim()) missing.push('Descrizione');
+    if (!magazzinoSelect.value) missing.push('Magazzino');
+    if (!settoreSelect.value) missing.push('Settore');
+    if (!categoriaSelect.value) missing.push('Categoria');
+    if (!marcaSelect.value) missing.push('Marca');
+    if (!quantitaInput.value || quantitaInput.value <= 0) missing.push('Quantità');
+
+    if (missing.length > 0) {
+      showMessage(`Campi obbligatori mancanti: ${missing.join(', ')}`, 'error');
+      // Evidenzia i campi mancanti
+      if (!descrizioneInput.value.trim()) descrizioneInput.classList.add('required-error');
+      if (!magazzinoSelect.value) magazzinoSelect.classList.add('required-error');
+      if (!settoreSelect.value) settoreSelect.classList.add('required-error');
+      if (!categoriaSelect.value) categoriaSelect.classList.add('required-error');
+      if (!marcaSelect.value) marcaSelect.classList.add('required-error');
+      if (!quantitaInput.value || quantitaInput.value <= 0) quantitaInput.classList.add('required-error');
+      return;
+    }
+
     const payload = {
       descrizione: descrizioneInput.value.trim(),
       magazzino: parseInt(magazzinoSelect.value),
@@ -553,9 +585,6 @@
       note: document.getElementById('note').value.trim(),
       codiceModello: codiceModelloInput.value.trim()
     };
-    if (!payload.descrizione || !payload.magazzino || !payload.settore || !payload.categoria || !payload.marca || !payload.quantita) {
-      showMessage('Compila tutti i campi obbligatori', 'error'); return;
-    }
     const saveBtn = document.getElementById('saveBtn');
     saveBtn.disabled = true; saveBtn.innerHTML = '<span class="spinner"></span>';
     try {
@@ -683,7 +712,6 @@
     currentSigleArticoloId = articoloId;
     document.getElementById('sigleArticoloDesc').innerText = descrizione;
     await caricaSigleArticolo(articoloId);
-    // popola datalist modelli
     try {
       const res = await apiFetch(`/api/articoli/valori/modelli?descrizione=${encodeURIComponent(descrizione)}`);
       const dl = document.getElementById('modelliList');
