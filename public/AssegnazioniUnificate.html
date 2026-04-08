@@ -211,6 +211,11 @@
       /* Logo più piccolo e titolo più grande in stampa */
       .logo img { height: 20px !important; }
       h2 { font-size: 1.8rem !important; }
+      /* Nasconde la colonna Azioni (ultima colonna) */
+      #tabellaOggetti th:last-child,
+      #tabellaOggetti td:last-child {
+        display: none;
+      }
       /* Footer personalizzato in basso a destra */
       .print-footer-right {
         display: block !important;
