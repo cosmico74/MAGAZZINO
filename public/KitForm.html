@@ -50,7 +50,7 @@
     h2 { margin: 2px 0 4px 0; font-size: 1.2rem; border-left: 4px solid #1a73e8; padding-left: 10px; }
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
     h3 { font-size: 0.9rem; margin: 4px 0 2px; }
-    h4 { font-size: 0.8rem; margin: 2px 0 2px; }  /* ridotto margine */
+    h4 { font-size: 0.8rem; margin: 2px 0 2px; }
     .form-row { display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-end; }
     .form-group { flex: 1; margin-bottom: 2px; }
     label { display: block; font-weight: 600; margin-bottom: 1px; font-size: 0.65rem; }
@@ -130,7 +130,7 @@
     .density-medium th, .density-medium td { padding: 4px 6px; font-size: 0.7rem; }
     .density-large th, .density-large td { padding: 6px 8px; font-size: 0.8rem; }
 
-    /* Stampa */
+    /* Stampa - intestazione personalizzata */
     @media print {
       .no-print, .compact-bar, .filter-section, .batch-toolbar, .btn, .modal, .header-bar .btn, .btn-secondary, #selectAllCheckbox, .checkbox-column, .action-buttons, .btn-danger, .btn-success {
         display: none !important;
@@ -140,9 +140,18 @@
       .table-wrapper { overflow: visible; }
       table { page-break-inside: avoid; }
       th, td { border: 1px solid #ccc; }
-      h2 { font-size: 1rem; margin: 5px 0; }
-      .logo img { display: none; }
+      h2 { display: none; } /* nasconde il titolo normale, mostriamo quello nell'intestazione */
+      .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .print-header img { height: 40px; }
+      .print-header .print-date { font-size: 10px; color: #666; margin-top: 4px; }
+      .print-header .print-user { font-size: 10px; color: #666; }
+      .print-header h2 { display: block; font-size: 1.2rem; margin: 5px 0; border-left: none; }
     }
+    .print-header { display: none; }
 
     .inline-buttons {
       display: flex;
@@ -218,6 +227,14 @@
     <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna</button>
   </div>
 
+  <!-- Intestazione per la stampa (visibile solo in stampa) -->
+  <div class="print-header">
+    <img src="/images/kastle-logo.png" alt="Kastle">
+    <h2>📦 Composizione Kit</h2>
+    <div class="print-date">Data: <span id="printDate"></span></div>
+    <div class="print-user">Utente: <span id="printUser"></span></div>
+  </div>
+
   <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaKit">
       <thead>
@@ -225,7 +242,7 @@
          <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="descrizione">Descrizione</th>
          <th data-sort="magazzino_nome">Magazzino</th><th data-sort="quantita">Quantità</th>
          <th data-sort="assegnato_nome">Assegnato a</th>
-         <th>Sigla</th>  <!-- colonna semplificata -->
+         <th>Sigla</th>
          <th>Azioni</th>
       </thead>
       <tbody></tbody>
@@ -352,6 +369,11 @@
     wrapper.classList.add(`density-${val}`);
   }
   function stampaTabella() {
+    // Imposta data e utente nell'intestazione di stampa
+    const now = new Date().toLocaleString();
+    document.getElementById('printDate').innerText = now;
+    const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
+    document.getElementById('printUser').innerText = userDisplay;
     window.print();
   }
   function esportaExcel() {
