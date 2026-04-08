@@ -21,10 +21,10 @@
       align-items: center;
       background: white;
       border-radius: 0 0 12px 12px;
-      padding: 2px 15px; /* ridotto padding */
+      padding: 2px 15px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
-    .logo img { height: 24px; } /* logo più piccolo */
+    .logo img { height: 24px; }
     .btn-secondary {
       background: #6c757d;
       border: none;
@@ -44,12 +44,13 @@
       background: white;
       border-radius: 16px 16px 0 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      padding: 4px 20px 15px 20px; /* ridotto padding top */
+      padding: 4px 20px 15px 20px;
       overflow-y: auto;
     }
     h2 { margin: 2px 0 4px 0; font-size: 1.2rem; border-left: 4px solid #1a73e8; padding-left: 10px; }
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
     h3 { font-size: 0.9rem; margin: 4px 0 2px; }
+    h4 { font-size: 0.8rem; margin: 2px 0 2px; }  /* ridotto margine */
     .form-row { display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-end; }
     .form-group { flex: 1; margin-bottom: 2px; }
     label { display: block; font-weight: 600; margin-bottom: 1px; font-size: 0.65rem; }
@@ -143,12 +144,11 @@
       .logo img { display: none; }
     }
 
-    /* Layout per affiancare i due pulsanti */
     .inline-buttons {
       display: flex;
       gap: 10px;
       align-items: center;
-      margin-top: 6px;
+      margin-top: 4px;
     }
   </style>
 </head>
@@ -201,7 +201,7 @@
     </div>
   </div>
 
-  <!-- Toolbar compatta: densità, stampa, export e pulsanti azioni -->
+  <!-- Toolbar compatta -->
   <div class="batch-toolbar no-print">
     <div class="density-selector">
       <span>📏 Densità:</span>
@@ -224,7 +224,9 @@
          <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="no-print"></th>
          <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="descrizione">Descrizione</th>
          <th data-sort="magazzino_nome">Magazzino</th><th data-sort="quantita">Quantità</th>
-         <th data-sort="assegnato_nome">Assegnato a</th><th>Sigle/Attacchi</th><th>Azioni</th>
+         <th data-sort="assegnato_nome">Assegnato a</th>
+         <th>Sigla</th>  <!-- colonna semplificata -->
+         <th>Azioni</th>
       </thead>
       <tbody></tbody>
     </table>
@@ -736,6 +738,7 @@
     }
   }
 
+  // MODIFICATA: colonna "Sigla" invece di "Sigle/Attacchi", mostra solo la sigla dello sci
   function popolaTabellaKit() {
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
@@ -767,19 +770,13 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
-      const compCell = row.insertCell(7);
+      // Colonna Sigla: estrae la sigla dello sci dal dettaglio
+      let siglaKit = '-';
       if (k.dettagli && k.dettagli.length) {
-        const sigleMap = new Map();
-        for (let d of k.dettagli) {
-          if (d.tipo_articolo === 'SCI') {
-            sigleMap.set(d.sigla_id, { sigla: d.sigla, sci_id: d.articolo_id });
-          }
-        }
-        const sigleTesto = Array.from(sigleMap.values()).map(s => s.sigla).join(', ');
-        compCell.innerHTML = `Sigle: ${sigleTesto}<br>Attacchi: ${k.dettagli.filter(d => d.tipo_articolo === 'ATTACCHI').length}<br>Skistopper: ${k.dettagli.filter(d => d.tipo_articolo === 'SKISTOPPER').length}`;
-      } else {
-        compCell.innerText = '-';
+        const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
+        if (sciDetail && sciDetail.sigla) siglaKit = sciDetail.sigla;
       }
+      row.insertCell(7).innerText = siglaKit;
       const actions = row.insertCell(8);
       actions.className = 'action-buttons';
       actions.innerHTML = `<button class="btn" onclick="modificaKit(${k.id})" ${isEsaurito ? 'disabled' : ''}>✏️</button>
