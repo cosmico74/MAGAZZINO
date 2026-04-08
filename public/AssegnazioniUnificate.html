@@ -3,7 +3,7 @@
 <head>
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>📦 Assegnazioni e Rientri</title>
   <style>
     * { box-sizing: border-box; }
@@ -89,7 +89,7 @@
     .btn-sm { padding: 2px 6px; font-size: 0.65rem; }
 
     /* Selezioni sorgente e filtri compatti e uniformi */
-    .source-selector, .source-selection, .filters {
+    .source-selector, .source-selection {
       background: #f8f9fa;
       border-radius: 10px;
       border: 1px solid #e2e8f0;
@@ -116,10 +116,6 @@
       flex-wrap: wrap;
       align-items: flex-end;
     }
-    .filters {
-      padding: 8px 12px;
-      margin-bottom: 10px;
-    }
     .form-group {
       margin-bottom: 0;
       flex: 1;
@@ -140,23 +136,16 @@
       border-radius: 6px;
       font-size: 0.7rem;
     }
-    .filter-row {
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-      flex-wrap: wrap;
-    }
-    .filter-group {
-      flex: 1;
-      min-width: 130px;
-    }
 
-    /* Tabella */
+    /* Tabella con intestazione fissa */
     .table-wrapper {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: 70vh;
       border-radius: 12px;
       border: 1px solid #e2e8f0;
       background: white;
+      position: relative;
     }
     table {
       width: 100%;
@@ -173,6 +162,17 @@
     th {
       background: #f8fafc;
       font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover { background: #e2e8f0; }
+    th .sort-arrow {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.7rem;
     }
     tr:hover td { background: #fefce8; }
 
@@ -187,12 +187,10 @@
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
       .no-print { display: none !important; }
       .print-footer { display: block !important; text-align: center; font-size: 9px; color: #666; margin-top: 15px; }
-      .table-wrapper { overflow-x: visible; }
+      .table-wrapper { overflow: visible; max-height: none; }
       table { page-break-inside: avoid; width: 100%; }
       th, td { border: 1px solid #ccc; }
-      .density-small th, .density-small td { padding: 2px 5px; }
-      .density-medium th, .density-medium td { padding: 5px 7px; }
-      .density-large th, .density-large td { padding: 8px 10px; }
+      th { position: static; }
     }
     .print-footer { display: none; }
 
@@ -208,7 +206,7 @@
     .info { background: #e8f0fe; color: #1a73e8; border-left: 3px solid #1a73e8; }
     .text-center { text-align: center; }
 
-    /* Modali (invariati) */
+    /* Modali */
     .modal {
       display: none;
       position: fixed;
@@ -267,6 +265,18 @@
       border-radius: 8px;
       font-size: 0.65rem;
       margin-top: 4px;
+    }
+
+    /* Mobile ottimizzazione */
+    @media (max-width: 768px) {
+      body { padding: 8px; }
+      .container { padding: 8px 12px; }
+      .source-selector, .source-selection { flex-direction: column; align-items: stretch; }
+      .source-selection { gap: 8px; }
+      .form-group { min-width: auto; }
+      .toolbar { justify-content: center; }
+      .density-medium th, .density-medium td { padding: 4px 6px; font-size: 0.65rem; }
+      .table-wrapper { max-height: 60vh; }
     }
   </style>
 </head>
@@ -349,7 +359,6 @@
         </select>
       </div>
     </div>
-    <!-- Filtri con stesso stile -->
     <div class="source-selection">
       <div class="form-group">
         <label>Lunghezza</label>
@@ -373,14 +382,21 @@
   <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaOggetti">
       <thead>
-         <th>Codice</th><th>Descrizione</th><th>Lunghezza</th><th>Sigla</th>
-         <th>Qtà totale</th><th>Qtà impegnata</th><th>Giacenza</th><th>Assegnato a</th><th>Azioni</th>
+         <th data-sort="codice">Codice <span class="sort-arrow"></span></th>
+         <th data-sort="descrizione">Descrizione <span class="sort-arrow"></span></th>
+         <th data-sort="lunghezza">Lunghezza <span class="sort-arrow"></span></th>
+         <th data-sort="sigla">Sigla <span class="sort-arrow"></span></th>
+         <th data-sort="totale">Qtà totale <span class="sort-arrow"></span></th>
+         <th data-sort="impegnato">Qtà impegnata <span class="sort-arrow"></span></th>
+         <th data-sort="giacenza">Giacenza <span class="sort-arrow"></span></th>
+         <th data-sort="destinatario">Assegnato a <span class="sort-arrow"></span></th>
+         <th>Azioni</th>
       </thead>
       <tbody id="tabellaBody"><td colspan="9" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 
-  <!-- Footer per la stampa (solo visibile in stampa) -->
+  <!-- Footer per la stampa -->
   <div class="print-footer">
     Data report: <span id="printDateFooter"></span>
   </div>
@@ -490,6 +506,10 @@
   let oggetti = [];
   let currentEditObj = null, pendingAction = null, currentAssignObj = null;
 
+  // Variabili per ordinamento
+  let sortColumn = 'codice';
+  let sortAsc = true;
+
   const radioCarico = document.getElementById('sourceCarico');
   const radioMagazzino = document.getElementById('sourceMagazzino');
   const caricoSection = document.getElementById('caricoSection');
@@ -502,6 +522,56 @@
   const filtroLunghezza = document.getElementById('filtroLunghezza');
   const filtroCategoria = document.getElementById('filtroCategoria');
   const lunghezzaList = document.getElementById('lunghezzaList');
+
+  // ========== SORTING ==========
+  function sortOggetti() {
+    oggetti.sort((a, b) => {
+      let valA = a[sortColumn];
+      let valB = b[sortColumn];
+      if (sortColumn === 'totale' || sortColumn === 'impegnato' || sortColumn === 'giacenza') {
+        valA = parseFloat(valA) || 0;
+        valB = parseFloat(valB) || 0;
+      } else if (sortColumn === 'lunghezza') {
+        valA = parseFloat(valA) || 0;
+        valB = parseFloat(valB) || 0;
+      } else {
+        valA = (valA || '').toString().toLowerCase();
+        valB = (valB || '').toString().toLowerCase();
+      }
+      if (valA < valB) return sortAsc ? -1 : 1;
+      if (valA > valB) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function updateSortArrows() {
+    document.querySelectorAll('#tabellaOggetti th[data-sort]').forEach(th => {
+      const col = th.getAttribute('data-sort');
+      const arrowSpan = th.querySelector('.sort-arrow');
+      if (col === sortColumn) {
+        arrowSpan.innerHTML = sortAsc ? ' ↑' : ' ↓';
+      } else {
+        arrowSpan.innerHTML = '';
+      }
+    });
+  }
+
+  function attachSortHandlers() {
+    document.querySelectorAll('#tabellaOggetti th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-sort');
+        if (col === sortColumn) {
+          sortAsc = !sortAsc;
+        } else {
+          sortColumn = col;
+          sortAsc = true;
+        }
+        sortOggetti();
+        popolaTabella();
+        updateSortArrows();
+      });
+    });
+  }
 
   // ========== DENSITÀ, STAMPA, EXPORT ==========
   function changeDensity() {
@@ -524,6 +594,7 @@
       for (let cell of cells) {
         let text = cell.innerText.trim();
         if (text === '✏️') text = '';
+        if (cell.tagName === 'TH') text = text.replace(/[↑↓]/g, '').trim();
         rowData.push(text);
       }
       csv.push(rowData.join(','));
@@ -580,7 +651,6 @@
     const filtroCat = filtroCategoria.value;
     let lista = [];
     try {
-      // ARTICOLI
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
         const params = new URLSearchParams({ magazzino: magId, min_giacenza: '1' });
         if (filtroLung) params.append('lunghezza', filtroLung);
@@ -604,7 +674,6 @@
           });
         }
       }
-      // KIT
       if (tipo === 'TUTTI' || tipo === 'KIT') {
         const res = await apiFetch('/api/kit');
         let kits = (res.success ? res.data : (Array.isArray(res) ? res : [])).filter(k => k.magazzino == magId);
@@ -646,6 +715,7 @@
         }
       }
       oggetti = lista;
+      sortOggetti();
       popolaTabella();
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
       lunghezzaList.innerHTML = '';
@@ -714,6 +784,7 @@
             destinazioneId: obj.destinazioneId
           };
         });
+        sortOggetti();
         popolaTabella();
       } else throw new Error(res.message);
     } catch(err) { showMessage('Errore carico: ' + err.message, 'error'); }
@@ -984,6 +1055,7 @@
     document.body.style.cursor = 'wait';
     try { if (radioMagazzino.checked) await caricaOggettiDaMagazzino(); else await caricaOggettiInCarico(); }
     finally { document.body.style.cursor = 'default'; }
+    updateSortArrows();
   }
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
 
@@ -1005,6 +1077,7 @@
     tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
     toggleSource();
     changeDensity();
+    attachSortHandlers();
   }
 
   window.onload = async () => {
