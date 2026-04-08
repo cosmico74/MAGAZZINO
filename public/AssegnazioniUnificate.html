@@ -659,10 +659,12 @@
   async function caricaMagazzini() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      // Aggiungi l'opzione "Tutti" come prima voce, valore vuoto
+      magazzinoSelect.innerHTML = '<option value="">Tutti</option>';
       magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
       if (defaultMag) magazzinoSelect.value = defaultMag.id;
+      else if (magazzini.length) magazzinoSelect.value = magazzini[0].id;
     } catch(err) { showMessage('Errore magazzini', 'error'); }
   }
   async function caricaCategorie() {
@@ -689,15 +691,17 @@
 
   // ========== OGGETTI DAL MAGAZZINO ==========
   async function caricaOggettiDaMagazzino() {
-    const magId = magazzinoSelect.value;
-    if (!magId) { oggetti = []; popolaTabella(); return; }
+    const magId = magazzinoSelect.value; // può essere vuoto (Tutti)
     const tipo = tipoOggettoMagazzino.value;
     const filtroLung = filtroLunghezza.value.trim();
     const filtroCat = filtroCategoria.value;
     let lista = [];
     try {
+      // ---- ARTICOLI ----
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
-        const params = new URLSearchParams({ magazzino: magId, min_giacenza: '1' });
+        const params = new URLSearchParams();
+        params.append('min_giacenza', '1');
+        if (magId) params.append('magazzino', magId);
         if (filtroLung) params.append('lunghezza', filtroLung);
         if (filtroCat) params.append('categoria', filtroCat);
         const res = await apiFetch(`/api/articoli?${params}`);
@@ -705,6 +709,9 @@
         for (let a of articoli) {
           let sigle = [];
           try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
+          // Ottieni nome magazzino
+          const magObj = magazzini.find(m => m.id == a.magazzino);
+          const magNome = magObj ? magObj.nome : 'Magazzino';
           lista.push({
             id: a.id, tipo: 'ARTICOLO',
             codice: a.codice_modello || a.codice,
@@ -714,14 +721,17 @@
             totale: a.quantita_totale,
             impegnato: a.quantita_in_kit,
             giacenza: a.quantita_totale - a.quantita_in_kit,
-            destinatarioNome: 'Magazzino',
-            sigleDisponibili: sigle
+            destinatarioNome: magNome,   // nome del magazzino reale
+            sigleDisponibili: sigle,
+            magazzinoId: a.magazzino
           });
         }
       }
+      // ---- KIT ----
       if (tipo === 'TUTTI' || tipo === 'KIT') {
         const res = await apiFetch('/api/kit');
-        let kits = (res.success ? res.data : (Array.isArray(res) ? res : [])).filter(k => k.magazzino == magId);
+        let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
+        if (magId) kits = kits.filter(k => k.magazzino == magId);
         for (let k of kits) {
           let siglaSci = null, lunghezzaSci = null, catSci = null, sigleDisp = [];
           if (k.dettagli) {
@@ -745,6 +755,8 @@
           let qAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
           let descr = k.descrizione;
           if (descr && descr.startsWith('Kit: ')) descr = descr.substring(5);
+          const magObj = magazzini.find(m => m.id == k.magazzino);
+          const magNome = magObj ? magObj.nome : 'Magazzino';
           lista.push({
             id: k.id, tipo: 'KIT',
             codice: k.codice_kit,
@@ -754,14 +766,16 @@
             totale: k.quantita + qAssegnata,
             impegnato: qAssegnata,
             giacenza: k.quantita,
-            destinatarioNome: 'Magazzino',
-            sigleDisponibili: sigleDisp
+            destinatarioNome: magNome,
+            sigleDisponibili: sigleDisp,
+            magazzinoId: k.magazzino
           });
         }
       }
       oggetti = lista;
       sortOggetti();
       popolaTabella();
+      // Popola datalist lunghezze
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
       lunghezzaList.innerHTML = '';
       lunghezze.forEach(l => { let opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
