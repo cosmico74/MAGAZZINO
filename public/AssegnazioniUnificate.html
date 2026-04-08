@@ -983,25 +983,26 @@
 
   // ========== SETUP ==========
   function setup() {
-    const isAdmin = currentUser.ruolo === 'admin';
-    if (isAdmin) {
-      sourceTipo.disabled = false;
-      sourceId.disabled = false;
-      caricaSorgentiAdmin();
-      sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
-      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
-    } else {
-      sourceTipo.disabled = true;
-      sourceId.disabled = true;
-      // Per utente non admin, imposta automaticamente il suo soggetto di riferimento
-      if (currentUser.riferimento_id) {
-        sourceTipo.value = currentUser.ruolo.toUpperCase();
-        sourceId.value = currentUser.riferimento_id;
-        caricaSorgentiAdmin(); // per popolare il select (anche se disabilitato)
-      } else {
-        showMessage('Utente senza soggetto associato', 'error');
-      }
-    }
+  const isAdmin = currentUser.ruolo === 'admin';
+  if (isAdmin) {
+    sourceTipo.disabled = false;
+    sourceId.disabled = false;
+    // Carica tutti i soggetti per tipo (come prima)
+    caricaSorgentiAdmin();
+    sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
+    sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+  } else {
+    // Non admin: abilita i select ma popola solo i soggetti visibili
+    sourceTipo.disabled = true;   // il tipo è fisso (ruolo dell'utente)
+    sourceId.disabled = false;
+    // Imposta il tipo al ruolo dell'utente
+    sourceTipo.value = currentUser.ruolo.toUpperCase();
+    // Carica i soggetti visibili
+    caricaSorgentiVisibili();
+    sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+  }
+  // ... resto invariato
+}
     // Eventi per cambio vista
     viewCompleto.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     viewAssegnazioni.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
@@ -1016,6 +1017,20 @@
     changeDensity();
     attachSortHandlers();
   }
+  
+async function caricaSorgentiVisibili() {
+  try {
+    const data = await apiFetch('/api/soggetti/visibili');
+    sourceId.innerHTML = '<option value="">Seleziona...</option>';
+    data.forEach(item => {
+      let testo = item.tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+      if (item.livello) testo += ` (liv. ${item.livello})`;
+      sourceId.appendChild(new Option(testo, item.id));
+    });
+    if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+    if (radioCarico.checked) await caricaOggettiInCarico();
+  } catch(err) { showMessage('Errore caricamento soggetti visibili', 'error'); }
+}
 
   // ========== MODALI (stesse implementazioni della versione originale, qui solo stub) ==========
   async function apriModalAssegnazione(obj) { /* ... */ }
@@ -1037,6 +1052,8 @@
     await caricaCategorie();
     setup();
   };
+
+  
 </script>
 </body>
 </html>

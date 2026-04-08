@@ -291,4 +291,73 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/soggetti/visibili
+router.get('/visibili', verifyToken, async (req, res) => {
+  try {
+    const [userRows] = await db.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
+    if (userRows.length === 0) return res.status(404).json({ error: 'Utente non trovato' });
+    const user = userRows[0];
+    const ruolo = user.ruolo;
+    let livello = null;
+    let mioId = null;
+
+    if (user.riferimento_id) {
+      const [sog] = await db.query('SELECT id, livello FROM soggetti WHERE id = ?', [user.riferimento_id]);
+      if (sog.length) {
+        mioId = sog[0].id;
+        livello = sog[0].livello;
+      }
+    }
+
+    // Admin vede tutti
+    if (ruolo === 'admin') {
+      const [rows] = await db.query('SELECT id, tipo, nome, cognome, livello FROM soggetti ORDER BY tipo, nome');
+      return res.json(rows);
+    }
+
+    // Per i non-admin, costruiamo la lista dei soggetti visibili
+    let query = `
+      SELECT s.id, s.tipo, s.nome, s.cognome, s.livello
+      FROM soggetti s
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (ruolo === 'promoter') {
+      // Il promoter vede:
+      // - se stesso
+      // - i soggetti che ha come referente (tabella soggetti_referenti dove referente_id = suo id)
+      // - i soggetti di livello inferiore al suo (se livello è 1, vede livelli 2 e 3; se livello 2 vede livello 3; se livello 3 vede nessuno)
+      // - i referenti dei suoi referenti? (includiReferenced già gestito separatamente)
+      // Per semplicità, mostriamo tutti i soggetti che sono referenziati direttamente da lui,
+      // più quelli di livello inferiore (se il suo livello è più alto).
+      query += ` AND (
+        s.id = ? 
+        OR EXISTS (SELECT 1 FROM soggetti_referenti WHERE referente_id = ? AND soggetto_id = s.id)
+      `;
+      params.push(mioId, mioId);
+      if (livello !== null && livello > 1) {
+        // Mostra soggetti con livello maggiore del suo (es. livello 2 vede 3, livello 1 vede 2 e 3)
+        query += ` OR s.livello > ?`;
+        params.push(livello);
+      } else if (livello === 1) {
+        // Livello 1 vede anche i livelli 2 e 3
+        query += ` OR s.livello IN (2,3)`;
+      }
+      query += ` )`;
+    } else {
+      // Per agente, negozio, cliente: vedono solo se stessi (ma di solito hanno solo un soggetto)
+      query += ` AND s.id = ?`;
+      params.push(mioId);
+    }
+
+    query += ` ORDER BY s.tipo, s.nome, s.cognome`;
+    const [rows] = await db.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET /soggetti/visibili:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
