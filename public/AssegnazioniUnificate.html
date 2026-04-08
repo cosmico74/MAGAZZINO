@@ -349,23 +349,22 @@
         </select>
       </div>
     </div>
-    <div class="filters">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label>Lunghezza</label>
-          <input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta">
-          <datalist id="lunghezzaList"></datalist>
-        </div>
-        <div class="filter-group">
-          <label>Categoria</label>
-          <select id="filtroCategoria">
-            <option value="">Tutte</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
-          <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
-        </div>
+    <!-- Filtri con stesso stile -->
+    <div class="source-selection">
+      <div class="form-group">
+        <label>Lunghezza</label>
+        <input type="text" id="filtroLunghezza" list="lunghezzaList" placeholder="Esatta">
+        <datalist id="lunghezzaList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="filtroCategoria">
+          <option value="">Tutte</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: flex-end;">
+        <button class="btn" onclick="applicaFiltriMagazzino()">🔍 Filtra</button>
+        <button class="btn btn-secondary" onclick="resetFiltriMagazzino()">🔄 Reset</button>
       </div>
     </div>
   </div>
