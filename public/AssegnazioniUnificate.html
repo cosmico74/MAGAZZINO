@@ -104,7 +104,6 @@
     }
     th, td {
       border-bottom: 1px solid #e2e8f0;
-      padding: 10px 12px;
       text-align: left;
       vertical-align: middle;
     }
@@ -230,6 +229,25 @@
       gap: 8px;
       margin-top: 8px;
     }
+
+    /* Densità righe */
+    .density-small th, .density-small td { padding: 2px 6px; font-size: 0.7rem; }
+    .density-medium th, .density-medium td { padding: 8px 10px; font-size: 0.8rem; }
+    .density-large th, .density-large td { padding: 12px 14px; font-size: 0.95rem; }
+
+    /* Stampa */
+    @media print {
+      body { background: white; padding: 0; margin: 0; }
+      .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
+      .no-print { display: none !important; }
+      .print-header { display: block !important; text-align: center; margin-bottom: 20px; }
+      .print-header img { height: 50px; }
+      .print-header .print-date { font-size: 12px; color: #666; }
+      .table-wrapper { overflow-x: visible; }
+      table { page-break-inside: avoid; }
+    }
+    .print-header { display: none; }
+    .control-bar { display: flex; justify-content: flex-end; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -238,9 +256,9 @@
     <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;"></div>
     <div style="display: flex; gap: 10px; align-items: center;">
       <span id="loginInfo" class="login-info"></span>
-      <button class="btn btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
-      <button class="btn btn-secondary" onclick="logout()">🚪 Logout</button>
-      <button class="btn btn-secondary" onclick="caricaOggetti()">🔄 Ricarica</button>
+      <button class="btn btn-secondary no-print" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+      <button class="btn btn-secondary no-print" onclick="logout()">🚪 Logout</button>
+      <button class="btn btn-secondary no-print" onclick="caricaOggetti()">🔄 Ricarica</button>
     </div>
   </div>
 
@@ -248,7 +266,7 @@
   <div id="messageArea"></div>
 
   <!-- Scelta sorgente -->
-  <div class="source-selector">
+  <div class="source-selector no-print">
     <div class="source-option">
       <input type="radio" name="source" id="sourceCarico" value="carico" checked>
       <label for="sourceCarico">📦 In carico (da soggetto)</label>
@@ -260,7 +278,7 @@
   </div>
 
   <!-- Sezione per "In carico" (soggetto) -->
-  <div id="caricoSection" class="source-selection">
+  <div id="caricoSection" class="source-selection no-print">
     <div class="form-group">
       <label>Sorgente (soggetto)</label>
       <select id="sourceTipo">
@@ -280,7 +298,7 @@
   </div>
 
   <!-- Sezione per "Dal magazzino" (con filtri) -->
-  <div id="magazzinoSection" style="display: none;">
+  <div id="magazzinoSection" style="display: none;" class="no-print">
     <div class="source-selection">
       <div class="form-group">
         <label>Magazzino</label>
@@ -316,11 +334,34 @@
     </div>
   </div>
 
+  <!-- Toolbar: densità, stampa, export -->
+  <div class="control-bar no-print">
+    <div class="density-selector">
+      <span>📏 Densità righe:</span>
+      <select id="densitySelect" onchange="changeDensity()">
+        <option value="small">Piccola</option>
+        <option value="medium" selected>Media</option>
+        <option value="large">Grande</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary" onclick="stampaTabella()">🖨️ Stampa</button>
+    <button class="btn btn-success" onclick="esportaExcel()">📎 Esporta Excel</button>
+  </div>
+
+  <!-- Intestazione per la stampa -->
+  <div class="print-header">
+    <img src="/images/kastle-logo.png" alt="Kastle" style="height: 60px;">
+    <div class="print-date">Data: <span id="printDate"></span></div>
+    <hr>
+  </div>
+
   <!-- Tabella oggetti -->
-  <div class="table-wrapper">
+  <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaOggetti">
       <thead id="tabellaHeader">
-         <th>Codice / Descrizione</th>
+         <th>Codice</th>
+         <th>Descrizione</th>
+         <th>Lunghezza</th>
          <th>Sigla</th>
          <th>Quantità totale</th>
          <th>Quantità impegnata</th>
@@ -328,7 +369,7 @@
          <th>Assegnato a</th>
          <th style="width:80px">Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="7" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="9" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 </div>
@@ -455,6 +496,50 @@
   const filtroCategoria = document.getElementById('filtroCategoria');
   const lunghezzaList = document.getElementById('lunghezzaList');
 
+  // ========== DENSITÀ, STAMPA, EXPORT ==========
+  function changeDensity() {
+    const val = document.getElementById('densitySelect').value;
+    const wrapper = document.getElementById('tableWrapper');
+    wrapper.classList.remove('density-small', 'density-medium', 'density-large');
+    wrapper.classList.add(`density-${val}`);
+  }
+
+  function stampaTabella() {
+    // Imposta la data nella stampa
+    document.getElementById('printDate').innerText = new Date().toLocaleString();
+    window.print();
+  }
+
+  function esportaExcel() {
+    // Esporta la tabella corrente in CSV
+    const table = document.getElementById('tabellaOggetti');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    for (let row of rows) {
+      let rowData = [];
+      let cells = row.querySelectorAll('th, td');
+      for (let cell of cells) {
+        // Rimuovi eventuali icone HTML e ottieni testo pulito
+        let text = cell.innerText.trim();
+        // Se la cella contiene un'icona di modifica (✏️) la escludiamo dalla colonna Azioni
+        if (cell.classList && cell.classList.contains('icon-sigle')) text = '🏷️';
+        // Se è l'ultima colonna (Azioni) e contiene solo "✏️", la escludiamo
+        if (text === '✏️') text = '';
+        rowData.push(text);
+      }
+      csv.push(rowData.join(','));
+    }
+    const blob = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'report_assegnazioni.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaMagazzini() {
     try {
@@ -518,15 +603,15 @@
           lista.push({
             id: a.id,
             tipo: 'ARTICOLO',
-            codice: a.codice,
+            codice: a.codice_modello || a.codice, // codice_modello se presente, altrimenti codice
             descrizione: a.descrizione,
+            lunghezza: a.lunghezza || '',
+            sigla: siglaCorrente,
             totale: totale,
             impegnato: impegnato,
             giacenza: giacenza,
-            sigla: siglaCorrente,
-            sigleDisponibili: sigle,
             destinatarioNome: 'Magazzino',
-            lunghezza: a.lunghezza,
+            sigleDisponibili: sigle,
             categoria: a.categoria_id
           });
         }
@@ -561,33 +646,33 @@
           if (filtroLung && lunghezzaSci != filtroLung) continue;
           if (filtroCat && categoriaSci != filtroCat) continue;
           
-          // LOGICA CORRETTA PER I KIT IN MAGAZZINO
-          // k.quantita è la giacenza residua (ciò che è ancora in magazzino)
-          // k.assegnato_a.quantita è la quantità già assegnata (non presente in magazzino)
           let quantitaAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
-          const totale = k.quantita + quantitaAssegnata;   // quantità originale creata
-          const impegnato = quantitaAssegnata;             // quantità già uscita
-          const giacenza = k.quantita;                     // ciò che resta in magazzino
-          
+          const totale = k.quantita + quantitaAssegnata;
+          const impegnato = quantitaAssegnata;
+          const giacenza = k.quantita;
+          // Descrizione senza prefisso "Kit: "
+          let descrizionePulita = k.descrizione;
+          if (descrizionePulita && descrizionePulita.startsWith('Kit: ')) {
+            descrizionePulita = descrizionePulita.substring(5);
+          }
           lista.push({
             id: k.id,
             tipo: 'KIT',
             codice: k.codice_kit,
-            descrizione: k.descrizione,
+            descrizione: descrizionePulita,
+            lunghezza: lunghezzaSci || '',
+            sigla: siglaSci,
             totale: totale,
             impegnato: impegnato,
             giacenza: giacenza,
-            sigla: siglaSci,
-            sigleDisponibili: sigleDisponibili,
             destinatarioNome: 'Magazzino',
-            lunghezza: lunghezzaSci,
+            sigleDisponibili: sigleDisponibili,
             categoria: categoriaSci
           });
         }
       }
       oggetti = lista;
       popolaTabella();
-      // Popola datalist lunghezze
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
       lunghezzaList.innerHTML = '';
       lunghezze.forEach(l => { const opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
@@ -636,18 +721,24 @@
             const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
             if (found) siglaCorrente = found.sigla;
           } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
+          // Per i kit, pulisci la descrizione
+          let descrizionePulita = obj.descrizione || '';
+          if (obj.tipo === 'KIT' && descrizionePulita.startsWith('Kit: ')) {
+            descrizionePulita = descrizionePulita.substring(5);
+          }
           return {
             id: obj.ID,
             tipo: obj.tipo,
-            codice: obj.codice,
-            descrizione: obj.descrizione,
+            codice: obj.tipo === 'ARTICOLO' ? (obj.codice_modello || obj.codice) : obj.codice,
+            descrizione: descrizionePulita,
+            lunghezza: obj.LUNGHEZZA || '',
+            sigla: siglaCorrente,
             totale: obj.quantita,
             impegnato: 0,
             giacenza: obj.quantita,
-            sigla: siglaCorrente,
+            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
             sigleDisponibili: obj.sigleDisponibili || [],
             siglaId: obj.siglaId || null,
-            destinatarioNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
             tipoAssegnazione: obj.tipoAssegnazione,
             destinazioneTipo: obj.destinazioneTipo,
             destinazioneId: obj.destinazioneId
@@ -674,19 +765,28 @@
 
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
-    if (!oggetti.length) { tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
+    if (!oggetti.length) { tbody.innerHTML = '<td colspan="9" class="text-center">Nessun oggetto disponibile<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
-      let displayText = `${obj.codice || ''} - ${obj.descrizione || ''}`;
-      row.insertCell(0).innerText = displayText;
-      row.insertCell(1).innerText = obj.sigla || '-';
-      row.insertCell(2).innerText = obj.totale ?? '-';
-      row.insertCell(3).innerText = obj.impegnato ?? '-';
-      row.insertCell(4).innerText = obj.giacenza ?? '-';
-      let assegnatoANome = obj.destinatarioNome || 'Magazzino';
-      row.insertCell(5).innerText = assegnatoANome;
-      const cellAzioni = row.insertCell(6);
+      // Colonna Codice
+      row.insertCell(0).innerText = obj.codice || '-';
+      // Colonna Descrizione
+      row.insertCell(1).innerText = obj.descrizione || '-';
+      // Colonna Lunghezza
+      row.insertCell(2).innerText = obj.lunghezza || '-';
+      // Colonna Sigla
+      row.insertCell(3).innerText = obj.sigla || '-';
+      // Colonna Quantità totale
+      row.insertCell(4).innerText = obj.totale ?? '-';
+      // Colonna Quantità impegnata
+      row.insertCell(5).innerText = obj.impegnato ?? '-';
+      // Colonna Giacenza
+      row.insertCell(6).innerText = obj.giacenza ?? '-';
+      // Colonna Assegnato a
+      row.insertCell(7).innerText = obj.destinatarioNome || 'Magazzino';
+      // Colonna Azioni
+      const cellAzioni = row.insertCell(8);
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.className = 'btn btn-secondary btn-sm';
@@ -1072,6 +1172,7 @@
     magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
     tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaOggetti(); });
     toggleSource();
+    changeDensity(); // applica densità iniziale
   }
 
   window.onload = async () => {
