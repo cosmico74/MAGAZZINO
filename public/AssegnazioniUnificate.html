@@ -619,7 +619,7 @@
   function formatDate(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString.split('T')[0]; // fallback
+    if (isNaN(date.getTime())) return dateString.split('T')[0];
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -638,7 +638,6 @@
       const cloneTable = originalTable.cloneNode(true);
       const tbody = cloneTable.querySelector('tbody');
       const rows = tbody.querySelectorAll('tr');
-      // Per ogni riga, sostituisci la prima cella (indice 0) con la data di assegnazione
       rows.forEach((row, idx) => {
         if (idx < oggetti.length) {
           const obj = oggetti[idx];
@@ -656,8 +655,19 @@
           <title>Stampa Assegnazioni</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            table { 
+              width: 100%; 
+              table-layout: auto; 
+              border-collapse: collapse; 
+            }
+            th, td { 
+              border: 1px solid #ccc; 
+              padding: 6px 8px; 
+              text-align: left; 
+              vertical-align: top;
+              white-space: normal;
+              word-break: break-word;
+            }
             th { background: #f2f2f2; }
             .print-footer-right { text-align: right; margin-top: 20px; font-size: 10px; color: #666; }
             .logo { text-align: center; margin-bottom: 15px; }
@@ -753,7 +763,6 @@
     const filtroCat = filtroCategoria.value;
     let lista = [];
     try {
-      // ARTICOLI
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
         const params = new URLSearchParams();
         params.append('min_giacenza', '1');
@@ -783,7 +792,6 @@
           });
         }
       }
-      // KIT
       if (tipo === 'TUTTI' || tipo === 'KIT') {
         const res = await apiFetch('/api/kit');
         let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
@@ -882,7 +890,6 @@
           } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
           let descr = obj.descrizione || '';
           if (obj.tipo === 'KIT' && descr.startsWith('Kit: ')) descr = descr.substring(5);
-          // Recupera la data di assegnazione (supponiamo arrivi dal backend come "data_assegnazione")
           let dataAssegnazione = obj.data_assegnazione || obj.assegnato_il || null;
           return {
             id: obj.ID,
