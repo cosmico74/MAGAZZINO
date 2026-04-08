@@ -414,8 +414,8 @@
   <!-- Tabella -->
   <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaOggetti">
-      <thead>
-         <th data-sort="codice">Codice <span class="sort-arrow"></span></th>
+      <thead id="tabellaHeader">
+         <th id="colonnaPrimaria">Codice <span class="sort-arrow"></span></th>
          <th data-sort="descrizione">Descrizione <span class="sort-arrow"></span></th>
          <th data-sort="lunghezza">Lunghezza <span class="sort-arrow"></span></th>
          <th data-sort="sigla">Sigla <span class="sort-arrow"></span></th>
@@ -437,66 +437,10 @@
 </div>
 
 <!-- MODALE ASSEGNAZIONE (dal magazzino) -->
-<div id="assignModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>📤 Assegna a soggetto</h3>
-      <span class="close" onclick="chiudiAssignModal()">&times;</span>
-    </div>
-    <div class="modal-body" id="assignModalContent"></div>
-    <div class="modal-footer">
-      <button class="btn btn-success" id="assignConfirmBtn">Assegna</button>
-      <button class="btn btn-secondary" onclick="chiudiAssignModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE MODIFICA SINGOLA (per oggetti in carico) -->
-<div id="editAssignmentModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>✏️ Modifica Assegnazione</h3>
-      <span class="close" onclick="chiudiEditModal()">&times;</span>
-    </div>
-    <div class="modal-body" id="editAssignmentContent"></div>
-    <div class="modal-footer">
-      <button class="btn btn-success" id="saveEditBtn">💾 Salva modifiche</button>
-      <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE CONFERMA RIASSEGNAZIONE -->
-<div id="confirmRiassegnaModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>⚠️ Conferma riassegnazione</h3>
-      <span class="close" onclick="chiudiConfirmModal()">&times;</span>
-    </div>
-    <div class="modal-body">
-      <p id="confirmMsg"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-warning" id="confirmOkBtn">Sì, trasferisci</button>
-      <button class="btn btn-secondary" onclick="chiudiConfirmModal()">Annulla</button>
-    </div>
-  </div>
-</div>
-
-<div id="errorModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>⚠️ Errore</h3>
-      <span class="close" onclick="chiudiErrorModal()">&times;</span>
-    </div>
-    <div class="modal-body">
-      <p id="errorMsg"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
-    </div>
-  </div>
-</div>
+<div id="assignModal" class="modal">...</div>
+<div id="editAssignmentModal" class="modal">...</div>
+<div id="confirmRiassegnaModal" class="modal">...</div>
+<div id="errorModal" class="modal">...</div>
 
 <script>
   // ========== UTILITY ==========
@@ -607,15 +551,7 @@
     });
   }
 
-  // ========== DENSITÀ, STAMPA, EXPORT ==========
-  function changeDensity() {
-    const val = document.getElementById('densitySelect').value;
-    const wrapper = document.getElementById('tableWrapper');
-    wrapper.classList.remove('density-small', 'density-medium', 'density-large');
-    wrapper.classList.add(`density-${val}`);
-  }
-
-  // Funzione per formattare la data in DD-MM-YYYY
+  // ========== FORMATTAZIONE DATA ==========
   function formatDate(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -626,88 +562,44 @@
     return `${day}-${month}-${year}`;
   }
 
-async function stampaTabella() {
-  const now = new Date().toLocaleString();
-  document.getElementById('printDate').innerText = now;
-  const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
-  document.getElementById('printUser').innerText = userDisplay ? `Utente: ${userDisplay}` : '';
-
-  // Se siamo in modalità "In carico", cloniamo la tabella e sostituiamo la prima colonna con la data di assegnazione
-  if (radioCarico.checked) {
-    const originalTable = document.getElementById('tabellaOggetti');
-    const cloneTable = originalTable.cloneNode(true);
-    const tbody = cloneTable.querySelector('tbody');
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach((row, idx) => {
-      if (idx < oggetti.length) {
-        const obj = oggetti[idx];
-        // Formatta la data nel formato DD-MM-YYYY
-        let dataAssegnazione = 'N/D';
-        if (obj.dataAssegnazione) {
-          const date = new Date(obj.dataAssegnazione);
-          if (!isNaN(date.getTime())) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            dataAssegnazione = `${day}-${month}-${year}`;
-          } else {
-            dataAssegnazione = obj.dataAssegnazione.split('T')[0] || 'N/D';
-          }
-        }
-        const firstCell = row.cells[0];
-        if (firstCell) firstCell.innerText = dataAssegnazione;
+  // ========== RECUPERA DATA ASSEGNAZIONE ==========
+  async function getDataAssegnazione(tipoOggetto, oggettoId, destinazioneTipo, destinazioneId) {
+    try {
+      const params = new URLSearchParams({
+        tipo: 'USCITA',
+        tipo_oggetto: tipoOggetto,
+        id_articolo_kit: oggettoId,
+        a_magazzino: `${destinazioneTipo}-${destinazioneId}`
+      });
+      const res = await apiFetch(`/api/movimenti?${params.toString()}`);
+      if (res.success && res.data.length > 0) {
+        return res.data[0].data; // il più recente (ordinato per data DESC)
       }
-    });
-    // Crea un nuovo documento per la stampa con il clone
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Stampa Assegnazioni</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 10px; font-size: 10px; }
-          table { 
-            width: 100%; 
-            table-layout: auto; 
-            border-collapse: collapse; 
-          }
-          th, td { 
-            border: 1px solid #ccc; 
-            padding: 4px 6px; 
-            text-align: left; 
-            vertical-align: top;
-            white-space: nowrap;
-          }
-          th { background: #f2f2f2; }
-          .print-footer-right { text-align: right; margin-top: 15px; font-size: 8px; color: #666; }
-          .logo { text-align: center; margin-bottom: 10px; }
-          .logo img { height: 25px; }
-          h2 { font-size: 1.2rem; margin: 5px 0; }
-          @media print {
-            body { margin: 0; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
-        <h2>📦 Assegnazioni e Rientri - In carico</h2>
-        ${cloneTable.outerHTML}
-        <div class="print-footer-right">Data: ${now}<br>Utente: ${userDisplay}</div>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-    printWindow.close();
-  } else {
-    // Per la modalità magazzino, usiamo la stampa normale del browser
+      return null;
+    } catch(e) {
+      console.warn(e);
+      return null;
+    }
+  }
+
+  // ========== DENSITÀ, STAMPA, EXPORT ==========
+  function changeDensity() {
+    const val = document.getElementById('densitySelect').value;
+    const wrapper = document.getElementById('tableWrapper');
+    wrapper.classList.remove('density-small', 'density-medium', 'density-large');
+    wrapper.classList.add(`density-${val}`);
+  }
+
+  async function stampaTabella() {
+    const now = new Date().toLocaleString();
+    document.getElementById('printDate').innerText = now;
+    const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
+    document.getElementById('printUser').innerText = userDisplay ? `Utente: ${userDisplay}` : '';
+    // Usa la stampa normale del browser (la tabella ha già i contenuti corretti)
     window.print();
   }
-}
 
-function esportaExcel() {
+  function esportaExcel() {
     const table = document.getElementById('tabellaOggetti');
     const rows = table.querySelectorAll('tr');
     let csv = [];
@@ -893,7 +785,8 @@ function esportaExcel() {
             }
           }
         }
-        oggetti = tutti.map(obj => {
+        // Mappa base
+        let mapped = tutti.map(obj => {
           let siglaCorrente = null;
           if (obj.siglaId && obj.sigleDisponibili) {
             const found = obj.sigleDisponibili.find(s => s.id == obj.siglaId);
@@ -901,7 +794,6 @@ function esportaExcel() {
           } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
           let descr = obj.descrizione || '';
           if (obj.tipo === 'KIT' && descr.startsWith('Kit: ')) descr = descr.substring(5);
-          let dataAssegnazione = obj.data_assegnazione || obj.assegnato_il || null;
           return {
             id: obj.ID,
             tipo: obj.tipo,
@@ -917,9 +809,18 @@ function esportaExcel() {
             siglaId: obj.siglaId || null,
             destinazioneTipo: obj.destinazioneTipo,
             destinazioneId: obj.destinazioneId,
-            dataAssegnazione: dataAssegnazione
+            dataAssegnazione: null
           };
         });
+        // Recupera data per ogni oggetto
+        const promises = mapped.map(async (obj) => {
+          if (obj.destinazioneTipo && obj.destinazioneId) {
+            const data = await getDataAssegnazione(obj.tipo, obj.id, obj.destinazioneTipo, obj.destinazioneId);
+            obj.dataAssegnazione = data;
+          }
+          return obj;
+        });
+        oggetti = await Promise.all(promises);
         sortOggetti();
         popolaTabella();
       } else throw new Error(res.message);
@@ -941,11 +842,25 @@ function esportaExcel() {
 
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
+    const isCarico = radioCarico.checked;
+    // Cambia l'intestazione della prima colonna in base alla modalità
+    const colonnaPrimaria = document.getElementById('colonnaPrimaria');
+    if (colonnaPrimaria) {
+      colonnaPrimaria.innerText = isCarico ? 'Data assegnaz.' : 'Codice';
+      colonnaPrimaria.appendChild(document.createElement('span')).className = 'sort-arrow';
+      colonnaPrimaria.querySelector('.sort-arrow').innerHTML = (sortColumn === (isCarico ? 'dataAssegnazione' : 'codice')) ? (sortAsc ? ' ↑' : ' ↓') : '';
+    }
     if (!oggetti.length) { tbody.innerHTML = '<td colspan="9">Nessun oggetto<\/td>'; return; }
     tbody.innerHTML = '';
     oggetti.forEach((obj, idx) => {
       const row = tbody.insertRow();
-      row.insertCell(0).innerText = obj.codice || '-';
+      // Prima colonna: in modalità carico mostra la data, altrimenti il codice
+      if (isCarico) {
+        const dataStr = obj.dataAssegnazione ? formatDate(obj.dataAssegnazione) : 'N/D';
+        row.insertCell(0).innerText = dataStr;
+      } else {
+        row.insertCell(0).innerText = obj.codice || '-';
+      }
       row.insertCell(1).innerText = obj.descrizione || '-';
       row.insertCell(2).innerText = obj.lunghezza || '-';
       row.insertCell(3).innerText = obj.sigla || '-';
@@ -960,6 +875,17 @@ function esportaExcel() {
       else btn.onclick = () => apriModificaSingola(obj);
       row.insertCell(8).appendChild(btn);
     });
+    // Aggiorna le frecce di ordinamento per la colonna speciale
+    if (colonnaPrimaria) {
+      const arrowSpan = colonnaPrimaria.querySelector('.sort-arrow');
+      if (isCarico) {
+        if (sortColumn === 'dataAssegnazione') arrowSpan.innerHTML = sortAsc ? ' ↑' : ' ↓';
+        else arrowSpan.innerHTML = '';
+      } else {
+        if (sortColumn === 'codice') arrowSpan.innerHTML = sortAsc ? ' ↑' : ' ↓';
+        else arrowSpan.innerHTML = '';
+      }
+    }
   }
 
   // ========== MODALE ASSEGNAZIONE (dal magazzino) ==========
