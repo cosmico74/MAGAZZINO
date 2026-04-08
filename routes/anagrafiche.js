@@ -68,7 +68,7 @@ router.get('/marche', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/anagrafiche/menu – restituisce i menu filtrati per ruolo e livello
+// GET /api/anagrafiche/menu
 router.get('/menu', verifyToken, async (req, res) => {
   try {
     const [userRows] = await pool.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
@@ -80,13 +80,19 @@ router.get('/menu', verifyToken, async (req, res) => {
     let livello = null;
     if (user.riferimento_id) {
       const [sog] = await pool.query('SELECT livello FROM soggetti WHERE id = ?', [user.riferimento_id]);
-      if (sog.length) livello = sog[0].livello;
+      if (sog.length) {
+        livello = parseInt(sog[0].livello, 10); // 👈 converti a numero
+      }
     } else if (ruolo === 'promoter') {
-      // Se è promoter ma senza riferimento, assegna livello 1 per default (o 0 per non vedere nulla)
-      livello = 1;  // oppure 0 se vuoi che non veda nulla finché non viene associato
+      // Se è promoter ma senza riferimento, assegna livello 1 per default
+      livello = 1;
     }
 
-    const [menuRows] = await pool.query('SELECT settore_id AS id, titolo, descrizione, icona, url, ordine, ruoli, livelli FROM menu_items ORDER BY ordine');
+    const [menuRows] = await pool.query(`
+      SELECT settore_id AS id, titolo, descrizione, icona, url, ordine, ruoli, livelli
+      FROM menu_items
+      ORDER BY ordine
+    `);
 
     const allowed = menuRows.filter(item => {
       if (!item.ruoli) return false;
@@ -95,8 +101,8 @@ router.get('/menu', verifyToken, async (req, res) => {
 
       // Filtro per livello (solo per promoter)
       if (ruolo === 'promoter' && item.livelli && item.livelli.trim() !== '') {
-        const livelliAmmessi = item.livelli.split(',').map(l => parseInt(l.trim()));
-        // Se l'utente non ha livello (null) o il suo livello non è tra quelli ammessi, escludi
+        const livelliAmmessi = item.livelli.split(',').map(l => parseInt(l.trim(), 10));
+        // Se l'utente non ha livello o il suo livello non è tra quelli ammessi, escludi
         if (livello === null || !livelliAmmessi.includes(livello)) {
           return false;
         }
@@ -119,7 +125,6 @@ router.get('/menu', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 // GET /api/anagrafiche/menu-items – per la gestione (admin)
 router.get('/menu-items', verifyToken, async (req, res) => {
   try {

@@ -103,6 +103,13 @@
       margin: 20px auto;
       max-width: 500px;
     }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      background: white;
+      border-radius: 16px;
+      color: #1a73e8;
+    }
   </style>
 </head>
 <body>
@@ -144,12 +151,29 @@ async function loadAndShowMenu() {
     return;
   }
   const user = JSON.parse(userStr);
+  // Mostra un indicatore di caricamento
+  document.getElementById('app').innerHTML = `<div class="loading">⏳ Caricamento menu...</div>`;
   try {
     const menuItems = await apiCall('/api/anagrafiche/menu', 'GET');
+    if (!Array.isArray(menuItems)) {
+      throw new Error('Risposta non valida dal server');
+    }
+    if (menuItems.length === 0) {
+      document.getElementById('app').innerHTML = `
+        <div class="error-message">
+          ⚠️ Nessuna funzionalità disponibile per il tuo ruolo.<br>
+          Contatta l'amministratore per abilitare i permessi.
+        </div>`;
+      return;
+    }
     showMenu(user, menuItems);
   } catch (err) {
     console.error('Errore menu:', err);
-    document.getElementById('app').innerHTML = `<div class="error-message">❌ Impossibile caricare il menu: ${err.message}</div>`;
+    document.getElementById('app').innerHTML = `
+      <div class="error-message">
+        ❌ Errore nel caricamento del menu: ${err.message}<br>
+        Riprova più tardi o contatta l'assistenza.
+      </div>`;
   }
 }
 
@@ -159,33 +183,33 @@ function showMenu(user, menuItems) {
   else if (user.ruolo === 'agente') livelloText = ' (Agente)';
 
   let html = `
-    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo">
-        <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+    <div class="container">
+      <div class="header">
+        <div class="logo">
+          <img src="/images/kastle-logo.png" alt="Kastle" style="height: 40px;">
+        </div>
+        <h1>🏭 Gestione Magazzino</h1>
+        <div class="user-info">
+          <span class="user-badge">👤 ${user.nome_visualizzato || user.username} (${user.ruolo}${livelloText})</span>
+          <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+        </div>
       </div>
-      <h1>🏭 Gestione Magazzino</h1>
-      <div class="user-info">
-        <span class="user-badge">👤 ${user.nome_visualizzato || user.username} (${user.ruolo}${livelloText})</span>
-        <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+      <div class="menu-grid">
+  `;
+  menuItems.forEach(item => {
+    html += `
+      <div class="menu-item" onclick="window.location.href='${item.url}'">
+        <div class="menu-icon">${item.icona}</div>
+        <div class="menu-title">${item.titolo}</div>
+        <div class="menu-desc">${item.descrizione}</div>
       </div>
+    `;
+  });
+  html += `
+      </div>
+      <div class="footer">Sistema di gestione magazzino</div>
     </div>
   `;
-  if (menuItems.length === 0) {
-    html += `<div style="text-align:center; padding:40px; background:white; border-radius:16px;">Nessuna funzionalità disponibile per il tuo ruolo.</div>`;
-  } else {
-    html += `<div class="menu-grid">`;
-    menuItems.forEach(item => {
-      html += `
-        <div class="menu-item" onclick="window.location.href='${item.url}'">
-          <div class="menu-icon">${item.icona}</div>
-          <div class="menu-title">${item.titolo}</div>
-          <div class="menu-desc">${item.descrizione}</div>
-        </div>
-      `;
-    });
-    html += `</div>`;
-  }
-  html += `<div class="footer">Sistema di gestione magazzino</div>`;
   document.getElementById('app').innerHTML = html;
 }
 
