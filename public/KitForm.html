@@ -43,36 +43,36 @@
       background: white;
       border-radius: 16px 16px 0 0;
       box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-      padding: 2px 20px 20px 20px;
+      padding: 6px 20px 15px 20px; /* ridotto padding top */
       overflow-y: auto;
     }
-    h2 { margin: 5px 0 8px 0; font-size: 1.3rem; border-left: 5px solid #1a73e8; padding-left: 12px; }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    h3 { font-size: 1.1rem; margin: 8px 0 5px; }
-    .form-row { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-end; }
-    .form-group { flex: 1; margin-bottom: 6px; }
-    label { display: block; font-weight: 600; margin-bottom: 2px; font-size: 0.7rem; }
-    input, select, textarea { width: 100%; padding: 4px 6px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.75rem; }
+    h2 { margin: 3px 0 6px 0; font-size: 1.2rem; border-left: 4px solid #1a73e8; padding-left: 10px; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    h3 { font-size: 1rem; margin: 5px 0 3px; }
+    .form-row { display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-end; }
+    .form-group { flex: 1; margin-bottom: 4px; }
+    label { display: block; font-weight: 600; margin-bottom: 2px; font-size: 0.65rem; }
+    input, select, textarea { width: 100%; padding: 3px 5px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.7rem; }
     .btn {
       background: #1a73e8; color: white; border: none; padding: 3px 8px; border-radius: 4px;
-      cursor: pointer; font-size: 0.7rem;
+      cursor: pointer; font-size: 0.65rem;
     }
     .btn:hover { background: #0f5bb5; }
     .btn-danger { background: #dc3545; }
     .btn-success { background: #28a745; }
-    .filter-section { background: #f8f9fa; border-radius: 10px; padding: 6px 10px; margin: 5px 0; }
-    .filter-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 5px; }
-    .table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 180px; }
+    .filter-section { background: #f8f9fa; border-radius: 8px; padding: 4px 8px; margin: 4px 0; }
+    .filter-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 3px; }
+    .table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 6px; min-height: 180px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
     th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; }
     th { background: #f8f9fa; position: sticky; top: 0; cursor: pointer; }
-    .action-buttons { display: flex; gap: 4px; justify-content: center; }
-    .message { padding: 6px; margin-bottom: 8px; border-radius: 6px; font-size: 0.75rem; }
+    .action-buttons { display: flex; gap: 3px; justify-content: center; }
+    .message { padding: 4px; margin-bottom: 6px; border-radius: 6px; font-size: 0.7rem; }
     .success { background: #d4edda; color: #155724; }
     .error { background: #f8d7da; color: #721c24; }
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #e2e8f0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .info-note { font-size: 0.65rem; color: #6c757d; text-align: right; }
+    .info-note { font-size: 0.6rem; color: #6c757d; text-align: right; }
     .modal {
       display: none;
       position: fixed;
@@ -90,40 +90,62 @@
       max-width: 1400px;
       max-height: 90vh;
       overflow-y: auto;
-      padding: 20px;
+      padding: 15px;
     }
     .modal-buttons {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 8px;
+      margin-top: 12px;
     }
     .checkbox-column { width: 30px; text-align: center; }
-    .batch-toolbar { margin: 10px 0; display: flex; gap: 10px; justify-content: flex-end; }
+    .batch-toolbar {
+      margin: 6px 0;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .density-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: auto;
+      font-size: 0.65rem;
+    }
+    .density-selector select {
+      padding: 2px 4px;
+      font-size: 0.65rem;
+    }
     .kit-esaurito { opacity: 0.6; background-color: #f9f9f9; }
-    .sigle-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-    .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 6px; font-size: 0.75rem; }
+    .sigle-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 4px; font-size: 0.7rem; }
     .sigle-table th { background: #e9ecef; }
 
     /* Densità righe (per tabella kit) */
-    .density-small th, .density-small td { padding: 2px 5px; font-size: 0.65rem; }
+    .density-small th, .density-small td { padding: 2px 4px; font-size: 0.6rem; }
     .density-medium th, .density-medium td { padding: 4px 6px; font-size: 0.7rem; }
-    .density-large th, .density-large td { padding: 8px 10px; font-size: 0.85rem; }
+    .density-large th, .density-large td { padding: 6px 8px; font-size: 0.8rem; }
 
-    /* Stampa - nasconde elementi non necessari */
+    /* Stampa - nasconde elementi non necessari, stile pulito */
     @media print {
-      .no-print { display: none !important; }
-      .compact-bar, .batch-toolbar, .filter-section, .header-bar .btn, .btn-secondary, .btn, .modal { display: none !important; }
+      .no-print, .compact-bar, .filter-section, .batch-toolbar, .btn, .modal, .header-bar .btn, .btn-secondary, #selectAllCheckbox, .checkbox-column, .action-buttons, .btn-danger, .btn-success {
+        display: none !important;
+      }
       body { background: white; padding: 0; margin: 0; }
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
       .table-wrapper { overflow: visible; }
       table { page-break-inside: avoid; }
       th, td { border: 1px solid #ccc; }
+      /* Mostra solo la tabella */
+      h2 { font-size: 1rem; margin: 5px 0; }
+      .logo img { display: none; }
     }
   </style>
 </head>
 <body>
-<div class="compact-bar">
+<div class="compact-bar no-print">
   <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle" style="height: 20px;"></div>
   <div style="display: flex; gap: 6px;">
     <button class="btn-secondary" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
@@ -153,15 +175,15 @@
       <thead><th>Sigla</th><th>Attacco</th><th>Skistopper</th><th>Quantità</th><th></th></thead>
       <tbody id="sigleTbody"></tbody>
     </table>
-    <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:5px;">➕ Aggiungi sigla</button>
+    <button type="button" class="btn" onclick="aggiungiRigaSigla()" style="margin-top:4px;">➕ Aggiungi sigla</button>
 
-    <div class="form-group" style="margin-top:10px;">
+    <div class="form-group" style="margin-top:8px;">
       <button type="button" class="btn" id="saveKitBtn" onclick="salvaKit()">💾 Salva Kit</button>
     </div>
   </form>
 
   <!-- FILTRI -->
-  <div class="filter-section">
+  <div class="filter-section no-print">
     <div class="filter-row">
       <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
       <div class="filter-group"><label>Settore</label><select id="filtroSettore"><option value="">Tutti</option></select></div>
@@ -171,9 +193,9 @@
     </div>
   </div>
 
-  <!-- Toolbar: densità, stampa, export -->
+  <!-- Toolbar compatta: densità, stampa, export e pulsanti azioni -->
   <div class="batch-toolbar no-print">
-    <div class="density-selector" style="display: flex; align-items: center; gap: 8px; margin-right: auto;">
+    <div class="density-selector">
       <span>📏 Densità:</span>
       <select id="densitySelect" onchange="changeDensity()">
         <option value="small">Piccola</option>
@@ -183,15 +205,15 @@
     </div>
     <button class="btn btn-secondary" onclick="stampaTabella()">🖨️ Stampa</button>
     <button class="btn btn-success" onclick="esportaExcel()">📎 Esporta Excel</button>
-    <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra in magazzino</button>
-    <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci ad altro soggetto</button>
-    <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna a soggetto</button>
+    <button class="btn" id="btnRientraMagazzino" onclick="rientraSelezionati()">📦 Rientra</button>
+    <button class="btn" id="btnTrasferisci" onclick="apriModalTrasferimento()">🔄 Trasferisci</button>
+    <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna</button>
   </div>
 
   <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaKit">
       <thead>
-         <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></th>
+         <th style="width:30px"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="no-print"></th>
          <th data-sort="id">ID</th><th data-sort="codice">Codice Kit</th><th data-sort="descrizione">Descrizione</th>
          <th data-sort="magazzino_nome">Magazzino</th><th data-sort="quantita">Quantità</th>
          <th data-sort="assegnato_nome">Assegnato a</th><th>Sigle/Attacchi</th><th>Azioni</th>
@@ -201,7 +223,7 @@
   </div>
 </div>
 
-<!-- MODALE TRASFERIMENTO (tra soggetti) - SENZA PULSANTE AGGIORNA -->
+<!-- MODALE TRASFERIMENTO (tra soggetti) -->
 <div id="modalTrasferimento" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
@@ -222,7 +244,7 @@
   </div>
 </div>
 
-<!-- MODALE ASSEGNAZIONE DA MAGAZZINO - SENZA PULSANTE AGGIORNA -->
+<!-- MODALE ASSEGNAZIONE DA MAGAZZINO -->
 <div id="modalAssegnazione" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>📤 Assegna kit a soggetto esterno</h3>
@@ -319,11 +341,9 @@
     wrapper.classList.remove('density-small', 'density-medium', 'density-large');
     wrapper.classList.add(`density-${val}`);
   }
-
   function stampaTabella() {
     window.print();
   }
-
   function esportaExcel() {
     const table = document.getElementById('tabellaKit');
     const rows = table.querySelectorAll('tr');
@@ -332,13 +352,9 @@
       let rowData = [];
       let cells = row.querySelectorAll('th, td');
       for (let cell of cells) {
+        // Salta checkbox (prima colonna) e azioni (ultima colonna)
+        if (cell.cellIndex === 0 || cell.cellIndex === cells.length - 1) continue;
         let text = cell.innerText.trim();
-        // Escludi la colonna delle checkbox (prima colonna) e la colonna azioni (ultima colonna)
-        // Individuiamo l'indice: la checkbox è la prima colonna, le azioni l'ultima.
-        // In esportazione, saltiamo la checkbox e l'ultima colonna (azioni)
-        if (cell.cellIndex === 0 || cell.cellIndex === cells.length - 1) {
-          continue;
-        }
         rowData.push(text);
       }
       if (rowData.length > 0) csv.push(rowData.join(','));
@@ -433,7 +449,6 @@
       await refreshFilterDatalists();
       await caricaKit();
 
-      // Event listeners per auto-aggiornamento destinazioni nei modali
       document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
       destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
     } catch(err) {
@@ -718,7 +733,7 @@
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
     if (!kitFiltrati.length) {
-      tbody.innerHTML = '<td colspan="9">Nessun kit trovato</td>';
+      tbody.innerHTML = '<td colspan="9">Nessun kit trovato<\/td>';
       return;
     }
     kitFiltrati.forEach(k => {
@@ -1483,7 +1498,7 @@
     await caricaAnagrafiche();
     attachFilterEvents();
     resetForm();
-    changeDensity(); // applica densità iniziale
+    changeDensity();
   };
 </script>
 </body>
