@@ -641,7 +641,19 @@ async function stampaTabella() {
     rows.forEach((row, idx) => {
       if (idx < oggetti.length) {
         const obj = oggetti[idx];
-        const dataAssegnazione = obj.dataAssegnazione ? formatDate(obj.dataAssegnazione) : 'N/D';
+        // Formatta la data nel formato DD-MM-YYYY
+        let dataAssegnazione = 'N/D';
+        if (obj.dataAssegnazione) {
+          const date = new Date(obj.dataAssegnazione);
+          if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            dataAssegnazione = `${day}-${month}-${year}`;
+          } else {
+            dataAssegnazione = obj.dataAssegnazione.split('T')[0] || 'N/D';
+          }
+        }
         const firstCell = row.cells[0];
         if (firstCell) firstCell.innerText = dataAssegnazione;
       }
@@ -694,7 +706,8 @@ async function stampaTabella() {
     window.print();
   }
 }
-  function esportaExcel() {
+
+function esportaExcel() {
     const table = document.getElementById('tabellaOggetti');
     const rows = table.querySelectorAll('tr');
     let csv = [];
