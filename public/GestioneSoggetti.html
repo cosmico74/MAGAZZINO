@@ -104,7 +104,7 @@
     <table id="tabellaSoggetti">
       <thead>
          <th>ID</th><th>Tipo</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th>
-         <th>Attivo</th><th>Livello</th><th>Referenti</th><th>Utente associato</th><th>Azioni</th>
+         <th>Attivo</th><th>Livello</th><th>Referenti</th><th>Magazzini</th><th>Utente associato</th><th>Azioni</th>
       </thead>
       <tbody></tbody>
     表格
@@ -127,6 +127,10 @@
     <div class="form-group">
       <label>Referenti (soggetti che possono vedere questo soggetto)</label>
       <div id="referentiCheckbox" class="checkbox-group"></div>
+    </div>
+    <div class="form-group">
+      <label>Magazzini associati (a quali magazzini può accedere)</label>
+      <div id="magazziniCheckbox" class="checkbox-group"></div>
     </div>
     <div class="form-group"><label>Attivo</label><select id="attivo"><option value="SI">SI</option><option value="NO">NO</option></select></div>
     <div class="form-group" id="livelloGroup">
@@ -196,8 +200,17 @@
 
   let currentUser = null;
   let soggetti = [];
+  let magazzini = [];
 
-  // ========== CARICAMENTO SOGGETTI ==========
+  // ========== CARICAMENTO SOGGETTI E MAGAZZINI ==========
+  async function caricaMagazzini() {
+    try {
+      magazzini = await apiFetch('/api/anagrafiche/magazzini');
+    } catch (err) {
+      console.error('Errore caricamento magazzini:', err);
+    }
+  }
+
   async function caricaSoggetti() {
     try {
       const data = await apiFetch('/api/soggetti');
@@ -226,6 +239,11 @@
         const ref = soggetti.find(r => r.id == refId);
         return ref ? `${ref.nome || ''} ${ref.cognome || ''}`.trim() : '';
       }).filter(n => n).join(', ') : '-';
+      // Trova i nomi dei magazzini associati
+      const magazziniNomi = s.magazziniAssociati && Array.isArray(s.magazziniAssociati) ? s.magazziniAssociati.map(magId => {
+        const mag = magazzini.find(m => m.id == magId);
+        return mag ? mag.nome : '';
+      }).filter(n => n).join(', ') : '-';
       const row = tbody.insertRow();
       row.insertCell(0).innerText = s.id;
       row.insertCell(1).innerText = s.tipo;
@@ -236,8 +254,9 @@
       row.insertCell(6).innerText = s.attivo === 1 ? 'SI' : 'NO';
       row.insertCell(7).innerText = s.livello || '';
       row.insertCell(8).innerText = referentiNomi;
-      row.insertCell(9).innerText = s.utenteAssociato ? s.utenteAssociato.username : '-';
-      const actions = row.insertCell(10);
+      row.insertCell(9).innerText = magazziniNomi;
+      row.insertCell(10).innerText = s.utenteAssociato ? s.utenteAssociato.username : '-';
+      const actions = row.insertCell(11);
       actions.innerHTML = `<button class="btn btn-small" onclick="modificaSoggetto(${s.id})">✏️</button>
                            <button class="btn btn-small btn-danger" onclick="eliminaSoggetto(${s.id})">🗑️</button>`;
     }
@@ -280,7 +299,9 @@
     document.getElementById('utenteAssociato').value = '';
     togglePasswordField();
     await caricaSoggetti(); // aggiorna lista per i referenti
+    await caricaMagazzini(); // aggiorna lista magazzini
     popolaReferentiCheckbox([]);
+    popolaMagazziniCheckbox([]);
     document.getElementById('modalSoggetto').style.display = 'flex';
   }
 
@@ -305,7 +326,6 @@
       await caricaUtentiLiberi();
       const selectUtente = document.getElementById('utenteAssociato');
       if (s.utenteAssociato) {
-        // Aggiungi opzione se non esiste (utente già associato)
         let optionExists = false;
         for (let i = 0; i < selectUtente.options.length; i++) {
           if (selectUtente.options[i].value == s.utenteAssociato.id) {
@@ -322,7 +342,9 @@
       }
       document.getElementById('passwordGroup').style.display = 'none';
       await caricaSoggetti(); // aggiorna lista referenti
+      await caricaMagazzini(); // aggiorna lista magazzini
       popolaReferentiCheckbox(s.referenti || []);
+      popolaMagazziniCheckbox(s.magazziniAssociati || []);
       document.getElementById('modalSoggetto').style.display = 'flex';
     } catch (err) {
       showMessage('Errore caricamento soggetto: ' + err.message, 'error');
@@ -347,6 +369,21 @@
     }
   }
 
+  function popolaMagazziniCheckbox(currentMagazziniIds = []) {
+    const container = document.getElementById('magazziniCheckbox');
+    container.innerHTML = '';
+    for (const m of magazzini) {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = m.id;
+      cb.checked = currentMagazziniIds.includes(m.id);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(` ${m.nome}`));
+      container.appendChild(label);
+    }
+  }
+
   function togglePasswordField() {
     const tipo = document.getElementById('tipo').value;
     const utenteSelezionato = document.getElementById('utenteAssociato').value;
@@ -360,7 +397,9 @@
     const referenti = Array.from(document.querySelectorAll('#referentiCheckbox input:checked'))
       .map(cb => parseInt(cb.value))
       .filter(v => !isNaN(v));
-    // Converti l'array di referenti in una stringa separata da virgole
+    const magazziniAssociati = Array.from(document.querySelectorAll('#magazziniCheckbox input:checked'))
+      .map(cb => parseInt(cb.value))
+      .filter(v => !isNaN(v));
     const referenteString = referenti.join(',');
 
     const dati = {
@@ -373,7 +412,8 @@
       citta: document.getElementById('citta').value,
       cap: document.getElementById('cap').value,
       regione: document.getElementById('regione').value,
-      referente: referenteString,   // <-- campo corretto
+      referente: referenteString,
+      magazziniAssociati: magazziniAssociati,
       attivo: document.getElementById('attivo').value === 'SI' ? 1 : 0,
       livello: parseInt(document.getElementById('livello').value) || null,
       note: document.getElementById('note').value,
@@ -441,6 +481,7 @@
     document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome || currentUser.username} (${currentUser.ruolo})`;
     document.getElementById('loginInfo').style.display = 'inline-flex';
     document.getElementById('logoutBtn').style.display = 'inline-block';
+    await caricaMagazzini();
     await caricaSoggetti();
     document.getElementById('filtroTipo').addEventListener('change', applicaFiltri);
     document.getElementById('filtroTesto').addEventListener('input', applicaFiltri);
