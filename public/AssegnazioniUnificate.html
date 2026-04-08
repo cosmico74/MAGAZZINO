@@ -197,26 +197,20 @@
       body { background: white; padding: 0; margin: 0; }
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
       .no-print { display: none !important; }
-      /* Nasconde l'info utente (login) */
       .login-info { display: none !important; }
-      /* Nasconde i pulsanti menu, logout, ricarica */
       .header-bar .btn-secondary { display: none !important; }
-      /* Mostra solo logo e titolo */
       .header-bar .logo { display: block !important; }
       .header-bar { justify-content: center; }
       .table-wrapper { overflow: visible; max-height: none; }
       table { page-break-inside: avoid; width: 100%; }
       th, td { border: 1px solid #ccc; }
       th { position: static; }
-      /* Logo più piccolo e titolo più grande in stampa */
       .logo img { height: 20px !important; }
       h2 { font-size: 1.8rem !important; }
-      /* Nasconde la colonna Azioni (ultima colonna) */
       #tabellaOggetti th:last-child,
       #tabellaOggetti td:last-child {
         display: none;
       }
-      /* Footer personalizzato in basso a destra */
       .print-footer-right {
         display: block !important;
         position: fixed;
@@ -226,7 +220,6 @@
         color: #666;
         text-align: right;
       }
-      /* Rimuove eventuali header/footer generati dal browser */
       header, footer { display: none !important; }
     }
     .print-footer-right { display: none; }
@@ -622,12 +615,15 @@
     wrapper.classList.add(`density-${val}`);
   }
 
-  // Funzione per formattare la data (YYYY-MM-DD)
+  // Funzione per formattare la data in DD-MM-YYYY
   function formatDate(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString.split('T')[0]; // fallback
-    return date.toISOString().split('T')[0];
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
   }
 
   async function stampaTabella() {
