@@ -626,76 +626,74 @@
     return `${day}-${month}-${year}`;
   }
 
-  async function stampaTabella() {
-    const now = new Date().toLocaleString();
-    document.getElementById('printDate').innerText = now;
-    const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
-    document.getElementById('printUser').innerText = userDisplay ? `Utente: ${userDisplay}` : '';
+async function stampaTabella() {
+  const now = new Date().toLocaleString();
+  document.getElementById('printDate').innerText = now;
+  const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
+  document.getElementById('printUser').innerText = userDisplay ? `Utente: ${userDisplay}` : '';
 
-    // Se siamo in modalità "In carico", cloniamo la tabella e sostituiamo la prima colonna con la data di assegnazione
-    if (radioCarico.checked) {
-      const originalTable = document.getElementById('tabellaOggetti');
-      const cloneTable = originalTable.cloneNode(true);
-      const tbody = cloneTable.querySelector('tbody');
-      const rows = tbody.querySelectorAll('tr');
-      rows.forEach((row, idx) => {
-        if (idx < oggetti.length) {
-          const obj = oggetti[idx];
-          const dataAssegnazione = obj.dataAssegnazione ? formatDate(obj.dataAssegnazione) : 'N/D';
-          const firstCell = row.cells[0];
-          if (firstCell) firstCell.innerText = dataAssegnazione;
-        }
-      });
-      // Crea un nuovo documento per la stampa con il clone
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Stampa Assegnazioni</title>
-          <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
-            table { 
-              width: 100%; 
-              table-layout: auto; 
-              border-collapse: collapse; 
-            }
-            th, td { 
-              border: 1px solid #ccc; 
-              padding: 6px 8px; 
-              text-align: left; 
-              vertical-align: top;
-              white-space: normal;
-              word-break: break-word;
-            }
-            th { background: #f2f2f2; }
-            .print-footer-right { text-align: right; margin-top: 20px; font-size: 10px; color: #666; }
-            .logo { text-align: center; margin-bottom: 15px; }
-            .logo img { height: 30px; }
-            h2 { font-size: 1.4rem; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
-          <h2>📦 Assegnazioni e Rientri - In carico</h2>
-          ${cloneTable.outerHTML}
-          <div class="print-footer-right">Data: ${now}<br>Utente: ${userDisplay}</div>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
-    } else {
-      // Per la modalità magazzino, usiamo la stampa normale del browser
-      window.print();
-    }
+  // Se siamo in modalità "In carico", cloniamo la tabella e sostituiamo la prima colonna con la data di assegnazione
+  if (radioCarico.checked) {
+    const originalTable = document.getElementById('tabellaOggetti');
+    const cloneTable = originalTable.cloneNode(true);
+    const tbody = cloneTable.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach((row, idx) => {
+      if (idx < oggetti.length) {
+        const obj = oggetti[idx];
+        const dataAssegnazione = obj.dataAssegnazione ? formatDate(obj.dataAssegnazione) : 'N/D';
+        const firstCell = row.cells[0];
+        if (firstCell) firstCell.innerText = dataAssegnazione;
+      }
+    });
+    // Crea un nuovo documento per la stampa con il clone
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Stampa Assegnazioni</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 10px; font-size: 10px; }
+          table { 
+            width: 100%; 
+            table-layout: auto; 
+            border-collapse: collapse; 
+          }
+          th, td { 
+            border: 1px solid #ccc; 
+            padding: 4px 6px; 
+            text-align: left; 
+            vertical-align: top;
+            white-space: nowrap;
+          }
+          th { background: #f2f2f2; }
+          .print-footer-right { text-align: right; margin-top: 15px; font-size: 8px; color: #666; }
+          .logo { text-align: center; margin-bottom: 10px; }
+          .logo img { height: 25px; }
+          h2 { font-size: 1.2rem; margin: 5px 0; }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
+        <h2>📦 Assegnazioni e Rientri - In carico</h2>
+        ${cloneTable.outerHTML}
+        <div class="print-footer-right">Data: ${now}<br>Utente: ${userDisplay}</div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+  } else {
+    // Per la modalità magazzino, usiamo la stampa normale del browser
+    window.print();
   }
-
+}
   function esportaExcel() {
     const table = document.getElementById('tabellaOggetti');
     const rows = table.querySelectorAll('tr');
