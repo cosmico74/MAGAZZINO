@@ -71,7 +71,7 @@
     .btn-secondary { background: #6c757d; }
     .btn-sm { padding: 2px 6px; font-size: 0.65rem; }
 
-    /* Barra superiore compatta (menu, logout, ricarica) */
+    /* Barra superiore compatta (logo, menu, logout, ricarica) */
     .header-bar {
       display: flex;
       justify-content: space-between;
@@ -188,11 +188,22 @@
     .density-medium th, .density-medium td { padding: 5px 7px; font-size: 0.75rem; }
     .density-large th, .density-large td { padding: 8px 10px; font-size: 0.85rem; }
 
-    /* Stampa */
+    /* Stampa - rimuove intestazioni e piè di pagina del browser */
     @media print {
+      @page {
+        margin: 0.5cm;
+        size: auto;
+      }
       body { background: white; padding: 0; margin: 0; }
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
       .no-print { display: none !important; }
+      /* Nasconde l'info utente (login) */
+      .login-info { display: none !important; }
+      /* Nasconde i pulsanti menu, logout, ricarica */
+      .header-bar .btn-secondary { display: none !important; }
+      /* Mostra solo logo e titolo */
+      .header-bar .logo { display: block !important; }
+      .header-bar { justify-content: center; }
       .table-wrapper { overflow: visible; max-height: none; }
       table { page-break-inside: avoid; width: 100%; }
       th, td { border: 1px solid #ccc; }
@@ -200,16 +211,18 @@
       /* Logo più piccolo e titolo più grande in stampa */
       .logo img { height: 20px !important; }
       h2 { font-size: 1.8rem !important; }
-      /* Footer con data e utente in basso a destra */
+      /* Footer personalizzato in basso a destra */
       .print-footer-right {
         display: block !important;
         position: fixed;
-        bottom: 10px;
-        right: 10px;
+        bottom: 5px;
+        right: 5px;
         font-size: 8px;
         color: #666;
         text-align: right;
       }
+      /* Rimuove eventuali header/footer generati dal browser */
+      header, footer { display: none !important; }
     }
     .print-footer-right { display: none; }
 
