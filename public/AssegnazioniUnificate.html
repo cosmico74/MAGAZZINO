@@ -621,14 +621,75 @@
     wrapper.classList.remove('density-small', 'density-medium', 'density-large');
     wrapper.classList.add(`density-${val}`);
   }
-  function stampaTabella() {
-    // Imposta data e utente nel footer di stampa
+
+  // Funzione per formattare la data (YYYY-MM-DD)
+  function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString.split('T')[0]; // fallback
+    return date.toISOString().split('T')[0];
+  }
+
+  async function stampaTabella() {
     const now = new Date().toLocaleString();
     document.getElementById('printDate').innerText = now;
     const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
     document.getElementById('printUser').innerText = userDisplay ? `Utente: ${userDisplay}` : '';
-    window.print();
+
+    // Se siamo in modalità "In carico", cloniamo la tabella e sostituiamo la prima colonna con la data di assegnazione
+    if (radioCarico.checked) {
+      const originalTable = document.getElementById('tabellaOggetti');
+      const cloneTable = originalTable.cloneNode(true);
+      const tbody = cloneTable.querySelector('tbody');
+      const rows = tbody.querySelectorAll('tr');
+      // Per ogni riga, sostituisci la prima cella (indice 0) con la data di assegnazione
+      rows.forEach((row, idx) => {
+        if (idx < oggetti.length) {
+          const obj = oggetti[idx];
+          const dataAssegnazione = obj.dataAssegnazione ? formatDate(obj.dataAssegnazione) : 'N/D';
+          const firstCell = row.cells[0];
+          if (firstCell) firstCell.innerText = dataAssegnazione;
+        }
+      });
+      // Crea un nuovo documento per la stampa con il clone
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Stampa Assegnazioni</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            th { background: #f2f2f2; }
+            .print-footer-right { text-align: right; margin-top: 20px; font-size: 10px; color: #666; }
+            .logo { text-align: center; margin-bottom: 15px; }
+            .logo img { height: 30px; }
+            h2 { font-size: 1.4rem; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
+          <h2>📦 Assegnazioni e Rientri - In carico</h2>
+          ${cloneTable.outerHTML}
+          <div class="print-footer-right">Data: ${now}<br>Utente: ${userDisplay}</div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+      printWindow.close();
+    } else {
+      // Per la modalità magazzino, usiamo la stampa normale del browser
+      window.print();
+    }
   }
+
   function esportaExcel() {
     const table = document.getElementById('tabellaOggetti');
     const rows = table.querySelectorAll('tr');
@@ -659,7 +720,6 @@
   async function caricaMagazzini() {
     try {
       magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      // Aggiungi l'opzione "Tutti" come prima voce, valore vuoto
       magazzinoSelect.innerHTML = '<option value="">Tutti</option>';
       magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
       const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
@@ -691,13 +751,13 @@
 
   // ========== OGGETTI DAL MAGAZZINO ==========
   async function caricaOggettiDaMagazzino() {
-    const magId = magazzinoSelect.value; // può essere vuoto (Tutti)
+    const magId = magazzinoSelect.value;
     const tipo = tipoOggettoMagazzino.value;
     const filtroLung = filtroLunghezza.value.trim();
     const filtroCat = filtroCategoria.value;
     let lista = [];
     try {
-      // ---- ARTICOLI ----
+      // ARTICOLI
       if (tipo === 'TUTTI' || tipo === 'ARTICOLO') {
         const params = new URLSearchParams();
         params.append('min_giacenza', '1');
@@ -709,7 +769,6 @@
         for (let a of articoli) {
           let sigle = [];
           try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
-          // Ottieni nome magazzino
           const magObj = magazzini.find(m => m.id == a.magazzino);
           const magNome = magObj ? magObj.nome : 'Magazzino';
           lista.push({
@@ -721,13 +780,14 @@
             totale: a.quantita_totale,
             impegnato: a.quantita_in_kit,
             giacenza: a.quantita_totale - a.quantita_in_kit,
-            destinatarioNome: magNome,   // nome del magazzino reale
+            destinatarioNome: magNome,
             sigleDisponibili: sigle,
-            magazzinoId: a.magazzino
+            magazzinoId: a.magazzino,
+            dataAssegnazione: null
           });
         }
       }
-      // ---- KIT ----
+      // KIT
       if (tipo === 'TUTTI' || tipo === 'KIT') {
         const res = await apiFetch('/api/kit');
         let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
@@ -768,14 +828,14 @@
             giacenza: k.quantita,
             destinatarioNome: magNome,
             sigleDisponibili: sigleDisp,
-            magazzinoId: k.magazzino
+            magazzinoId: k.magazzino,
+            dataAssegnazione: null
           });
         }
       }
       oggetti = lista;
       sortOggetti();
       popolaTabella();
-      // Popola datalist lunghezze
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
       lunghezzaList.innerHTML = '';
       lunghezze.forEach(l => { let opt = document.createElement('option'); opt.value = l; lunghezzaList.appendChild(opt); });
@@ -826,6 +886,8 @@
           } else if (obj.SIGLA_CORRENTE) siglaCorrente = obj.SIGLA_CORRENTE;
           let descr = obj.descrizione || '';
           if (obj.tipo === 'KIT' && descr.startsWith('Kit: ')) descr = descr.substring(5);
+          // Recupera la data di assegnazione (supponiamo arrivi dal backend come "data_assegnazione")
+          let dataAssegnazione = obj.data_assegnazione || obj.assegnato_il || null;
           return {
             id: obj.ID,
             tipo: obj.tipo,
@@ -840,7 +902,8 @@
             sigleDisponibili: obj.sigleDisponibili || [],
             siglaId: obj.siglaId || null,
             destinazioneTipo: obj.destinazioneTipo,
-            destinazioneId: obj.destinazioneId
+            destinazioneId: obj.destinazioneId,
+            dataAssegnazione: dataAssegnazione
           };
         });
         sortOggetti();
