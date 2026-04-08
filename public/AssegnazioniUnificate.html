@@ -418,11 +418,67 @@
   </div>
 </div>
 
-<!-- Modali (stessi identici alla versione originale) -->
-<div id="assignModal" class="modal">...</div>
-<div id="editAssignmentModal" class="modal">...</div>
-<div id="confirmRiassegnaModal" class="modal">...</div>
-<div id="errorModal" class="modal">...</div>
+<!-- MODALE ASSEGNAZIONE (dal magazzino) -->
+<div id="assignModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Assegna a soggetto</h3>
+      <span class="close" onclick="chiudiAssignModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="assignModalContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="assignConfirmBtn">Assegna</button>
+      <button class="btn btn-secondary" onclick="chiudiAssignModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA SINGOLA (per oggetti in carico) -->
+<div id="editAssignmentModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Modifica Assegnazione</h3>
+      <span class="close" onclick="chiudiEditModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="editAssignmentContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="saveEditBtn">💾 Salva modifiche</button>
+      <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CONFERMA RIASSEGNAZIONE -->
+<div id="confirmRiassegnaModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚠️ Conferma riassegnazione</h3>
+      <span class="close" onclick="chiudiConfirmModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-warning" id="confirmOkBtn">Sì, trasferisci</button>
+      <button class="btn btn-secondary" onclick="chiudiConfirmModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<div id="errorModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚠️ Errore</h3>
+      <span class="close" onclick="chiudiErrorModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p id="errorMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
 
 <script>
   // ========== UTILITY ==========
@@ -482,9 +538,6 @@
   const filtroLunghezza = document.getElementById('filtroLunghezza');
   const filtroCategoria = document.getElementById('filtroCategoria');
   const lunghezzaList = document.getElementById('lunghezzaList');
-
-  // ========== FORMATTAZIONE DATA (non usata qui, ma lasciata) ==========
-  function formatDate(dateString) { return dateString ? new Date(dateString).toLocaleDateString() : ''; }
 
   // ========== SORTING ==========
   function sortOggetti() {
@@ -829,7 +882,8 @@
       if (currentUser.riferimento_id) {
         sourceTipo.value = currentUser.ruolo.toUpperCase();
         sourceId.value = currentUser.riferimento_id;
-        caricaSorgentiAdmin(); // popola il select (anche se disabilitato)
+        // Carica i dati subito
+        caricaOggettiInCarico();
       } else {
         showMessage('Utente senza soggetto associato', 'error');
       }
@@ -843,7 +897,7 @@
     attachSortHandlers();
   }
 
-  // ========== MODALI (implementazioni complete, le stesse della versione originale) ==========
+  // ========== MODALI (stesse implementazioni della versione originale) ==========
   async function apriModalAssegnazione(obj) {
     currentAssignObj = obj;
     const modalBody = document.getElementById('assignModalContent');
