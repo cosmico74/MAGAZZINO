@@ -1,3 +1,342 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+const { verifyToken } = require('../auth');
+const bcrypt = require('bcrypt');
+
+// ========== HELPER PER SINCRONIZZARE I REFERENTI ==========
+async function syncSoggettiReferenti(connection, soggettoId, referenteStr) {
+  await connection.query('DELETE FROM soggetti_referenti WHERE soggetto_id = ?', [soggettoId]);
+  if (referenteStr && referenteStr.trim() !== '') {
+    const referentiIds = referenteStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    for (const refId of referentiIds) {
+      await connection.query(
+        'INSERT INTO soggetti_referenti (soggetto_id, referente_id) VALUES (?, ?)',
+        [soggettoId, refId]
+      );
+    }
+  }
+}
+
+// ========== HELPER PER SINCRONIZZARE I MAGAZZINI ASSOCIATI ==========
+async function syncSoggettiMagazzini(connection, soggettoId, magazziniIds) {
+  await connection.query('DELETE FROM soggetti_magazzini WHERE soggetto_id = ?', [soggettoId]);
+  if (magazziniIds && magazziniIds.length) {
+    for (const magId of magazziniIds) {
+      await connection.query(
+        'INSERT INTO soggetti_magazzini (soggetto_id, magazzino_id) VALUES (?, ?)',
+        [soggettoId, magId]
+      );
+    }
+  }
+}
+
+// ========== GET soggetti per tipo (per dropdown) ==========
+router.get('/tipo/:tipo', verifyToken, async (req, res) => {
+  const { tipo } = req.params;
+  const validi = ['PROMOTER', 'NEGOZIO', 'CLIENTE', 'AGENTE'];
+  if (!validi.includes(tipo)) {
+    return res.status(400).json({ error: 'Tipo non valido' });
+  }
+  try {
+    const [rows] = await db.query(
+      'SELECT id, tipo, nome, cognome, email, telefono FROM soggetti WHERE tipo = ? ORDER BY nome, cognome',
+      [tipo]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore in /soggetti/tipo:', err);
+    res.status(500).json({ error: 'Errore database' });
+  }
+});
+
+// ========== GET soggetti visibili all'utente corrente ==========
+router.get('/visibili', verifyToken, async (req, res) => {
+  try {
+    const [userRows] = await db.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
+    if (userRows.length === 0) return res.status(404).json({ error: 'Utente non trovato' });
+    const user = userRows[0];
+    const ruolo = user.ruolo;
+    let livello = null;
+    let mioId = null;
+
+    if (user.riferimento_id) {
+      const [sog] = await db.query('SELECT id, livello FROM soggetti WHERE id = ?', [user.riferimento_id]);
+      if (sog.length) {
+        mioId = sog[0].id;
+        livello = sog[0].livello;
+      }
+    }
+
+    // Admin vede tutti
+    if (ruolo === 'admin') {
+      const [rows] = await db.query('SELECT id, tipo, nome, cognome, livello FROM soggetti ORDER BY tipo, nome');
+      return res.json(rows);
+    }
+
+    // Per i non-admin, costruiamo la lista dei soggetti visibili
+    let query = `
+      SELECT s.id, s.tipo, s.nome, s.cognome, s.livello
+      FROM soggetti s
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (ruolo === 'promoter') {
+      query += ` AND (
+        s.id = ? 
+        OR EXISTS (SELECT 1 FROM soggetti_referenti WHERE referente_id = ? AND soggetto_id = s.id)
+      `;
+      params.push(mioId, mioId);
+      if (livello !== null && livello > 1) {
+        query += ` OR s.livello > ?`;
+        params.push(livello);
+      } else if (livello === 1) {
+        query += ` OR s.livello IN (2,3)`;
+      }
+      query += ` )`;
+    } else {
+      // Per agente, negozio, cliente: vedono solo se stessi
+      query += ` AND s.id = ?`;
+      params.push(mioId);
+    }
+
+    query += ` ORDER BY s.tipo, s.nome, s.cognome`;
+    const [rows] = await db.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET /soggetti/visibili:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== GET tutti i soggetti (con utente associato, referenti, magazzini) ==========
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo
+      FROM soggetti s
+      LEFT JOIN utenti u ON u.riferimento_id = s.id
+      ORDER BY s.tipo, s.nome, s.cognome
+    `);
+    
+    const soggettiConReferenti = [];
+    for (const row of rows) {
+      const [refRows] = await db.query(
+        'SELECT referente_id FROM soggetti_referenti WHERE soggetto_id = ?',
+        [row.id]
+      );
+      const referentiIds = refRows.map(r => r.referente_id);
+      const [magRows] = await db.query(
+        'SELECT magazzino_id FROM soggetti_magazzini WHERE soggetto_id = ?',
+        [row.id]
+      );
+      const magazziniIds = magRows.map(r => r.magazzino_id);
+      
+      const { utente_id, utente_username, utente_ruolo, ...soggetto } = row;
+      if (utente_id) {
+        soggetto.utenteAssociato = {
+          id: utente_id,
+          username: utente_username,
+          ruolo: utente_ruolo
+        };
+      }
+      soggetto.referenti = referentiIds;
+      soggetto.magazziniAssociati = magazziniIds;
+      soggettiConReferenti.push(soggetto);
+    }
+    res.json(soggettiConReferenti);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore database' });
+  }
+});
+
+// ========== GET singolo soggetto (con utente associato, referenti, magazzini) ==========
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT s.*, u.id AS utente_id, u.username AS utente_username, u.ruolo AS utente_ruolo
+      FROM soggetti s
+      LEFT JOIN utenti u ON u.riferimento_id = s.id
+      WHERE s.id = ?
+    `, [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Soggetto non trovato' });
+    const row = rows[0];
+    
+    const [refRows] = await db.query(
+      'SELECT referente_id FROM soggetti_referenti WHERE soggetto_id = ?',
+      [req.params.id]
+    );
+    const referentiIds = refRows.map(r => r.referente_id);
+    
+    const [magRows] = await db.query(
+      'SELECT magazzino_id FROM soggetti_magazzini WHERE soggetto_id = ?',
+      [req.params.id]
+    );
+    const magazziniIds = magRows.map(r => r.magazzino_id);
+    
+    const { utente_id, utente_username, utente_ruolo, ...soggetto } = row;
+    if (utente_id) {
+      soggetto.utenteAssociato = { id: utente_id, username: utente_username, ruolo: utente_ruolo };
+    }
+    soggetto.referenti = referentiIds;
+    soggetto.magazziniAssociati = magazziniIds;
+    res.json(soggetto);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore database' });
+  }
+});
+
+// ========== POST crea nuovo soggetto ==========
+router.post('/', verifyToken, async (req, res) => {
+  const { 
+    tipo, nome, cognome, email, telefono, indirizzo, citta, cap, regione,
+    referente, note, attivo, livello, utenteAssociato, nuovaPassword,
+    magazziniAssociati 
+  } = req.body;
+  
+  if (!tipo || !nome) {
+    return res.status(400).json({ error: 'Tipo e nome sono obbligatori' });
+  }
+  
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  try {
+    let referenteStr = null;
+    if (referente) {
+      if (Array.isArray(referente)) {
+        referenteStr = referente.join(',');
+      } else if (typeof referente === 'string') {
+        referenteStr = referente;
+      }
+    }
+    
+    const [result] = await connection.query(
+      `INSERT INTO soggetti (tipo, nome, cognome, email, telefono, indirizzo, citta, cap, regione, referente, note, attivo, livello)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tipo, nome, cognome || null, email || null, telefono || null, indirizzo || null, citta || null, cap || null, regione || null, referenteStr, note || null, attivo !== undefined ? attivo : 1, livello || null]
+    );
+    const soggettoId = result.insertId;
+
+    await syncSoggettiReferenti(connection, soggettoId, referenteStr);
+    await syncSoggettiMagazzini(connection, soggettoId, magazziniAssociati || []);
+    
+    let utenteCreato = null;
+    
+    if (utenteAssociato) {
+      const [userExists] = await connection.query(
+        'SELECT id FROM utenti WHERE id = ? AND (riferimento_id IS NULL OR riferimento_id = ?)',
+        [utenteAssociato, soggettoId]
+      );
+      if (userExists.length === 0) {
+        throw new Error('Utente selezionato non valido o già associato a un altro soggetto');
+      }
+      await connection.query('UPDATE utenti SET riferimento_id = ? WHERE id = ?', [soggettoId, utenteAssociato]);
+    } else if (tipo === 'PROMOTER') {
+      const username = email ? email.split('@')[0] : (nome + (cognome ? cognome : '')).toLowerCase().replace(/\s/g, '');
+      const password = nuovaPassword && nuovaPassword.trim() ? nuovaPassword.trim() : Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const nomeVisualizzato = `${nome} ${cognome || ''}`.trim();
+      const [userResult] = await connection.query(
+        `INSERT INTO utenti (username, password_hash, ruolo, riferimento_id, nome_visualizzato, email)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [username, hashedPassword, 'promoter', soggettoId, nomeVisualizzato, email || null]
+      );
+      utenteCreato = { username, password, id: userResult.insertId };
+    }
+    
+    await connection.commit();
+    res.json({ success: true, id: soggettoId, utenteCreato });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Errore POST /soggetti:', err);
+    res.status(500).json({ error: err.message || 'Errore database' });
+  } finally {
+    connection.release();
+  }
+});
+
+// ========== PUT aggiorna soggetto ==========
+router.put('/:id', verifyToken, async (req, res) => {
+  const { 
+    tipo, nome, cognome, email, telefono, indirizzo, citta, cap, regione,
+    referente, note, attivo, livello, utenteAssociato,
+    magazziniAssociati 
+  } = req.body;
+  
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  try {
+    let referenteStr = null;
+    if (referente) {
+      if (Array.isArray(referente)) {
+        referenteStr = referente.join(',');
+      } else if (typeof referente === 'string') {
+        referenteStr = referente;
+      }
+    }
+    
+    await connection.query(
+      `UPDATE soggetti SET
+        tipo = ?, nome = ?, cognome = ?, email = ?, telefono = ?, indirizzo = ?, citta = ?, cap = ?, regione = ?,
+        referente = ?, note = ?, attivo = ?, livello = ?
+       WHERE id = ?`,
+      [tipo, nome, cognome || null, email || null, telefono || null, indirizzo || null, citta || null, cap || null, regione || null,
+       referenteStr, note || null, attivo, livello || null, req.params.id]
+    );
+    
+    await syncSoggettiReferenti(connection, req.params.id, referenteStr);
+    await syncSoggettiMagazzini(connection, req.params.id, magazziniAssociati || []);
+    
+    if (utenteAssociato) {
+      await connection.query('UPDATE utenti SET riferimento_id = NULL WHERE riferimento_id = ?', [req.params.id]);
+      const [userExists] = await connection.query(
+        'SELECT id FROM utenti WHERE id = ? AND (riferimento_id IS NULL OR riferimento_id = ?)',
+        [utenteAssociato, req.params.id]
+      );
+      if (userExists.length === 0) {
+        throw new Error('Utente selezionato non valido o già associato a un altro soggetto');
+      }
+      await connection.query('UPDATE utenti SET riferimento_id = ? WHERE id = ?', [req.params.id, utenteAssociato]);
+    } else {
+      await connection.query('UPDATE utenti SET riferimento_id = NULL WHERE riferimento_id = ?', [req.params.id]);
+    }
+    
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Errore PUT /soggetti:', err);
+    res.status(500).json({ error: err.message || 'Errore database' });
+  } finally {
+    connection.release();
+  }
+});
+
+// ========== DELETE soggetto ==========
+router.delete('/:id', verifyToken, async (req, res) => {
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  try {
+    await connection.query('UPDATE utenti SET riferimento_id = NULL WHERE riferimento_id = ?', [req.params.id]);
+    await connection.query('DELETE FROM soggetti_referenti WHERE soggetto_id = ? OR referente_id = ?', [req.params.id, req.params.id]);
+    await connection.query('DELETE FROM soggetti_magazzini WHERE soggetto_id = ?', [req.params.id]);
+    const [result] = await connection.query('DELETE FROM soggetti WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) throw new Error('Soggetto non trovato');
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await connection.rollback();
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+module.exports = router;
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -355,7 +694,7 @@
     </div>
   </div>
 
-  <!-- Sezione "In carico" (originale, con radio per tipo vista) -->
+  <!-- Sezione "In carico" -->
   <div id="caricoSection" class="source-selection no-print">
     <div class="form-group">
       <label>Sorgente (soggetto)</label>
@@ -384,7 +723,7 @@
     </div>
   </div>
 
-  <!-- Sezione "Dal magazzino" (invariata) -->
+  <!-- Sezione "Dal magazzino" -->
   <div id="magazzinoSection" style="display: none;" class="no-print">
     <div class="source-selection">
       <div class="form-group">
@@ -419,7 +758,7 @@
     </div>
   </div>
 
-  <!-- Filtri per la modalità "In carico" (visibili solo in carico) -->
+  <!-- Filtri per la modalità "In carico" -->
   <div id="caricoFiltri" class="filter-bar no-print" style="display: none;">
     <div class="filter-group">
       <label>Magazzino</label>
@@ -466,22 +805,107 @@
   </div>
 </div>
 
-<!-- Modali (stessi identici alla versione originale, qui omessi per brevità, ma nel file finale vanno inclusi) -->
-<div id="assignModal" class="modal">...</div>
-<div id="editAssignmentModal" class="modal">...</div>
-<div id="confirmRiassegnaModal" class="modal">...</div>
-<div id="errorModal" class="modal">...</div>
+<!-- MODALE ASSEGNAZIONE (dal magazzino) -->
+<div id="assignModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Assegna a soggetto</h3>
+      <span class="close" onclick="chiudiAssignModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="assignModalContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="assignConfirmBtn">Assegna</button>
+      <button class="btn btn-secondary" onclick="chiudiAssignModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE MODIFICA SINGOLA (per oggetti in carico) -->
+<div id="editAssignmentModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Modifica Assegnazione</h3>
+      <span class="close" onclick="chiudiEditModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="editAssignmentContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="saveEditBtn">💾 Salva modifiche</button>
+      <button class="btn btn-secondary" onclick="chiudiEditModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CONFERMA RIASSEGNAZIONE -->
+<div id="confirmRiassegnaModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚠️ Conferma riassegnazione</h3>
+      <span class="close" onclick="chiudiConfirmModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-warning" id="confirmOkBtn">Sì, trasferisci</button>
+      <button class="btn btn-secondary" onclick="chiudiConfirmModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<div id="errorModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚠️ Errore</h3>
+      <span class="close" onclick="chiudiErrorModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p id="errorMsg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="chiudiErrorModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
 
 <script>
-  // ========== UTILITY (invariata) ==========
-  function getAuthHeader() { /* ... */ }
-  async function apiFetch(endpoint, options = {}) { /* ... */ }
-  function showMessage(msg, type) { /* ... */ }
-  function showErrorModal(msg) { /* ... */ }
-  function chiudiErrorModal() { /* ... */ }
-  function chiudiAssignModal() { /* ... */ }
-  function chiudiEditModal() { /* ... */ }
-  function chiudiConfirmModal() { /* ... */ }
+  // ========== UTILITY ==========
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = 'Login.html'; return {}; }
+    return { 'Authorization': 'Bearer ' + token };
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'Login.html';
+      throw new Error('Sessione scaduta');
+    }
+    if (!response.ok) {
+      let errorMsg = `Errore ${response.status}`;
+      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  }
+
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  function showErrorModal(msg) {
+    document.getElementById('errorMsg').innerHTML = msg;
+    document.getElementById('errorModal').style.display = 'flex';
+  }
+  function chiudiErrorModal() { document.getElementById('errorModal').style.display = 'none'; }
+  function chiudiAssignModal() { document.getElementById('assignModal').style.display = 'none'; currentAssignObj = null; }
+  function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
+  function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
 
   let currentUser = null;
   let magazzini = [], categorie = [];
@@ -633,7 +1057,14 @@
     URL.revokeObjectURL(url);
   }
 
-  // ========== OGGETTI IN CARICO (ORIGINALE CON REFERENTI) ==========
+  // ========== OGGETTI IN CARICO ==========
+  async function getNomeSoggetto(tipo, id) {
+    try {
+      const res = await apiFetch(`/api/soggetti/${id}`);
+      return tipo === 'PROMOTER' ? `${res.nome} ${res.cognome || ''}`.trim() : res.nome;
+    } catch(e) { return `${tipo} ${id}`; }
+  }
+
   async function caricaOggettiInCarico() {
     const tipo = sourceTipo.value;
     const id = sourceId.value;
@@ -662,6 +1093,8 @@
             obj.lunghezza = obj.LUNGHEZZA || '';
           }
           obj.destinatario = obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino'));
+          // Aggiungi magazzinoId se presente (per filtro)
+          obj.magazzinoId = obj.MAGAZZINO_ID || null;
         }
         items = items.map(obj => ({
           id: obj.ID,
@@ -672,7 +1105,8 @@
           sigla: obj.sigla || '',
           totale: obj.quantita,
           destinatario: obj.destinatario,
-          data: null
+          data: null,
+          magazzinoId: obj.magazzinoId
         }));
       } else {
         // Modalità "Assegnazioni" = oggetti inviati dal soggetto (movimenti USCITA)
@@ -701,7 +1135,8 @@
                 sigla: art.sigla || '',
                 totale: mov.quantita,
                 data: mov.data,
-                destinatario: ''
+                destinatario: '',
+                magazzinoId: art.magazzino
               };
             } else {
               const kit = await apiFetch(`/api/kit/${mov.id_articolo_kit}`);
@@ -726,7 +1161,8 @@
                 sigla: sigla,
                 totale: mov.quantita,
                 data: mov.data,
-                destinatario: ''
+                destinatario: '',
+                magazzinoId: kit.magazzino
               };
             }
             mappa.set(key, dettaglio);
@@ -770,13 +1206,6 @@
       oggetti = []; oggettiOriginali = [];
       popolaTabella();
     }
-  }
-
-  async function getNomeSoggetto(tipo, id) {
-    try {
-      const res = await apiFetch(`/api/soggetti/${id}`);
-      return tipo === 'PROMOTER' ? `${res.nome} ${res.cognome || ''}`.trim() : res.nome;
-    } catch(e) { return `${tipo} ${id}`; }
   }
 
   // ========== FILTRI PER MODALITÀ IN CARICO ==========
@@ -829,7 +1258,8 @@
             sigla: sigle.length ? sigle[0].sigla : null,
             totale: a.quantita_totale,
             destinatario: magNome,
-            data: null
+            data: null,
+            magazzinoId: a.magazzino
           });
         }
       }
@@ -867,11 +1297,13 @@
             sigla: siglaSci,
             totale: k.quantita,
             destinatario: magNome,
-            data: null
+            data: null,
+            magazzinoId: k.magazzino
           });
         }
       }
       oggetti = lista;
+      oggettiOriginali = lista;
       sortOggetti();
       popolaTabella();
       const lunghezze = [...new Set(lista.map(o => o.lunghezza).filter(v => v))];
@@ -913,6 +1345,57 @@
     updateSortArrows();
   }
 
+  // ========== CARICAMENTO ANAGRAFICHE E SOGGETTI ==========
+  async function caricaMagazzini() {
+    try {
+      magazzini = await apiFetch('/api/anagrafiche/magazzini');
+      magazzinoSelect.innerHTML = '<option value="">Tutti</option>';
+      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) magazzinoSelect.value = defaultMag.id;
+      // Popola anche il filtro per la modalità carico
+      caricoFiltroMagazzino.innerHTML = '<option value="">Tutti</option>';
+      magazzini.forEach(m => caricoFiltroMagazzino.appendChild(new Option(m.nome, m.id)));
+    } catch(err) { showMessage('Errore magazzini', 'error'); }
+  }
+
+  async function caricaCategorie() {
+    try {
+      const res = await apiFetch('/api/anagrafiche/categorie');
+      categorie = res || [];
+      filtroCategoria.innerHTML = '<option value="">Tutte</option>';
+      categorie.forEach(c => filtroCategoria.appendChild(new Option(c.nome, c.id)));
+    } catch(err) { console.error(err); }
+  }
+
+  async function caricaSorgentiVisibili() {
+    try {
+      const data = await apiFetch('/api/soggetti/visibili');
+      sourceId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = item.tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        if (item.livello) testo += ` (liv. ${item.livello})`;
+        sourceId.appendChild(new Option(testo, item.id));
+      });
+      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      if (radioCarico.checked) await caricaOggettiInCarico();
+    } catch(err) { showMessage('Errore caricamento soggetti visibili', 'error'); }
+  }
+
+  async function caricaSorgentiAdmin() {
+    const tipo = sourceTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      sourceId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        sourceId.appendChild(new Option(testo, item.id));
+      });
+      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      if (radioCarico.checked) await caricaOggettiInCarico();
+    } catch(err) { showMessage('Errore sorgenti', 'error'); }
+  }
+
   // ========== GESTIONE UI ==========
   function toggleSource() {
     const isMagazzino = radioMagazzino.checked;
@@ -939,43 +1422,6 @@
     }
   }
 
-  // ========== CARICAMENTO ANAGRAFICHE ==========
-  async function caricaMagazzini() {
-    try {
-      magazzini = await apiFetch('/api/anagrafiche/magazzini');
-      magazzinoSelect.innerHTML = '<option value="">Tutti</option>';
-      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
-      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
-      if (defaultMag) magazzinoSelect.value = defaultMag.id;
-      // Popola anche il filtro per la modalità carico
-      caricoFiltroMagazzino.innerHTML = '<option value="">Tutti</option>';
-      magazzini.forEach(m => caricoFiltroMagazzino.appendChild(new Option(m.nome, m.id)));
-    } catch(err) { showMessage('Errore magazzini', 'error'); }
-  }
-
-  async function caricaCategorie() {
-    try {
-      const res = await apiFetch('/api/anagrafiche/categorie');
-      categorie = res || [];
-      filtroCategoria.innerHTML = '<option value="">Tutte</option>';
-      categorie.forEach(c => filtroCategoria.appendChild(new Option(c.nome, c.id)));
-    } catch(err) { console.error(err); }
-  }
-
-  async function caricaSorgentiAdmin() {
-    const tipo = sourceTipo.value;
-    try {
-      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
-      sourceId.innerHTML = '<option value="">Seleziona...</option>';
-      data.forEach(item => {
-        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-        sourceId.appendChild(new Option(testo, item.id));
-      });
-      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-      if (radioCarico.checked) await caricaOggettiInCarico();
-    } catch(err) { showMessage('Errore sorgenti', 'error'); }
-  }
-
   function applicaFiltriMagazzino() { if (radioMagazzino.checked) caricaOggettiDaMagazzino(); }
   function resetFiltriMagazzino() { filtroLunghezza.value = ''; filtroCategoria.value = ''; if (radioMagazzino.checked) caricaOggettiDaMagazzino(); }
 
@@ -983,27 +1429,20 @@
 
   // ========== SETUP ==========
   function setup() {
-  const isAdmin = currentUser.ruolo === 'admin';
-  if (isAdmin) {
-    sourceTipo.disabled = false;
-    sourceId.disabled = false;
-    // Carica tutti i soggetti per tipo (come prima)
-    caricaSorgentiAdmin();
-    sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
-    sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
-  } else {
-    // Non admin: abilita i select ma popola solo i soggetti visibili
-    sourceTipo.disabled = true;   // il tipo è fisso (ruolo dell'utente)
-    sourceId.disabled = false;
-    // Imposta il tipo al ruolo dell'utente
-    sourceTipo.value = currentUser.ruolo.toUpperCase();
-    // Carica i soggetti visibili
-    caricaSorgentiVisibili();
-    sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
-  }
-  // ... resto invariato
-
-    // Eventi per cambio vista
+    const isAdmin = currentUser.ruolo === 'admin';
+    if (isAdmin) {
+      sourceTipo.disabled = false;
+      sourceId.disabled = false;
+      caricaSorgentiAdmin();
+      sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
+      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+    } else {
+      sourceTipo.disabled = true;
+      sourceId.disabled = false;
+      sourceTipo.value = currentUser.ruolo.toUpperCase();
+      caricaSorgentiVisibili();
+      sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
+    }
     viewCompleto.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     viewAssegnazioni.addEventListener('change', () => { if (radioCarico.checked) caricaOggettiInCarico(); });
     caricoFiltroMagazzino.addEventListener('change', () => { if (radioCarico.checked) applicaFiltriCarico(); });
@@ -1017,28 +1456,235 @@
     changeDensity();
     attachSortHandlers();
   }
-  
-async function caricaSorgentiVisibili() {
-  try {
-    const data = await apiFetch('/api/soggetti/visibili');
-    sourceId.innerHTML = '<option value="">Seleziona...</option>';
-    data.forEach(item => {
-      let testo = item.tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
-      if (item.livello) testo += ` (liv. ${item.livello})`;
-      sourceId.appendChild(new Option(testo, item.id));
-    });
-    if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
-    if (radioCarico.checked) await caricaOggettiInCarico();
-  } catch(err) { showMessage('Errore caricamento soggetti visibili', 'error'); }
-}
 
-  // ========== MODALI (stesse implementazioni della versione originale, qui solo stub) ==========
-  async function apriModalAssegnazione(obj) { /* ... */ }
-  async function confermaAssegnazione() { /* ... */ }
-  async function apriModificaSingola(obj) { /* ... */ }
-  async function salvaModificaSingola() { /* ... */ }
-  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo, excludeSubjectId) { return null; }
-  function escapeHtml(str) { return str ? str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;') : ''; }
+  // ========== MODALI (implementazioni complete) ==========
+  async function apriModalAssegnazione(obj) {
+    currentAssignObj = obj;
+    const modalBody = document.getElementById('assignModalContent');
+    let siglaHtml = '<option value="">Nessuna sigla</option>';
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      for (const s of obj.sigleDisponibili) {
+        let text = s.sigla;
+        if (s.durezza) text += ` (${s.durezza})`;
+        if (s.lunghezza) text += ` - ${s.lunghezza}cm`;
+        siglaHtml += `<option value="${s.id}">${text}</option>`;
+      }
+    } else {
+      siglaHtml = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group"><label>📦 Oggetto</label><input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control"></div>
+      <div class="form-group"><label>📊 Giacenza disponibile</label><input type="number" value="${obj.totale}" disabled class="form-control"></div>
+      <div class="form-group"><label>🔢 Quantità da assegnare</label><input type="number" id="assignQta" min="1" max="${obj.totale}" value="1" class="form-control"></div>
+      <div class="form-group"><label>🏷️ Sigla</label><select id="assignSiglaId" class="form-control">${siglaHtml}</select></div>
+      <div class="form-group"><label>🎯 Destinazione</label><select id="assignDestTipo" class="form-control"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select><select id="assignDestId" class="form-control" style="margin-top:8px;"></select></div>
+      <div class="form-group"><label>📝 Note</label><input type="text" id="assignNote" class="form-control"></div>
+    `;
+    const destTipoSelect = document.getElementById('assignDestTipo');
+    const destIdSelect = document.getElementById('assignDestId');
+    const caricaDestinazioni = async () => {
+      const tipo = destTipoSelect.value;
+      if (!tipo) return;
+      try {
+        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+        data.forEach(item => {
+          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+          destIdSelect.appendChild(new Option(testo, item.id));
+        });
+      } catch(err) { showMessage('Errore destinazioni', 'error'); }
+    };
+    destTipoSelect.addEventListener('change', caricaDestinazioni);
+    await caricaDestinazioni();
+    document.getElementById('assignModal').style.display = 'flex';
+    document.getElementById('assignConfirmBtn').onclick = () => confermaAssegnazione();
+  }
+
+  async function confermaAssegnazione() {
+    const obj = currentAssignObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('assignQta').value);
+    const siglaId = document.getElementById('assignSiglaId').value;
+    const destTipo = document.getElementById('assignDestTipo').value;
+    const destId = document.getElementById('assignDestId').value;
+    const note = document.getElementById('assignNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.totale) { showErrorModal('Quantità non valida'); return; }
+    if (!destTipo || !destId) { showErrorModal('Seleziona una destinazione'); return; }
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) { showErrorModal('Seleziona un magazzino di partenza'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destTipo,
+      destinazioneId: parseInt(destId),
+      note: note,
+      oggetti: [{
+        tipoOggetto: obj.tipo,
+        oggettoId: obj.id,
+        siglaId: siglaId ? parseInt(siglaId) : null,
+        quantita: qta
+      }]
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Assegnazione effettuata', 'success');
+        chiudiAssignModal();
+        await caricaOggettiDaMagazzino();
+      } else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
+
+  async function apriModificaSingola(obj) {
+    if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
+      // Recupera sigle per questo oggetto
+      if (obj.tipo === 'ARTICOLO') {
+        try { obj.sigleDisponibili = await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { obj.sigleDisponibili = []; }
+      } else {
+        try {
+          const kit = await apiFetch(`/api/kit/${obj.id}`);
+          const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+          if (sciDetail && sciDetail.articolo_id) {
+            obj.sigleDisponibili = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
+          } else { obj.sigleDisponibili = []; }
+        } catch(e) { obj.sigleDisponibili = []; }
+      }
+    }
+    currentEditObj = { ...obj, selectedSiglaId: obj.siglaId || null };
+    const modalBody = document.getElementById('editAssignmentContent');
+    let siglaOptions = '<option value="">Nessuna sigla</option>';
+    let hasOnlyOne = false;
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
+      for (const s of obj.sigleDisponibili) {
+        let optionText = s.sigla;
+        if (s.durezza) optionText += ` (${s.durezza})`;
+        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+        let assegnatoA = null;
+        if (obj.destinatario !== 'Magazzino' && s.id) {
+          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+        }
+        if (assegnatoA) optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
+        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
+      }
+    } else {
+      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group"><label>📦 Oggetto</label><input type="text" value="${escapeHtml(obj.codice)} - ${escapeHtml(obj.descrizione)}" disabled class="form-control"></div>
+      <div class="form-group"><label>📊 Quantità disponibile</label><input type="number" value="${obj.totale}" disabled class="form-control"></div>
+      <div class="form-group"><label>🔢 Quantità da trasferire/rientrare</label><input type="number" id="editQta" min="1" max="${obj.totale}" value="1" class="form-control"></div>
+      <div class="form-group"><label>🏷️ Sigla</label><select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select><div id="siglaWarning" class="warning-badge" style="display: none;"></div></div>
+      <div class="form-group"><label>🎯 Nuova destinazione</label><select id="editDestTipo" class="form-control"><option value="MAGAZZINO">🏭 Magazzino</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select><div id="destinazioneContainer" style="margin-top:8px;"></div></div>
+      <div class="form-group"><label>📝 Note</label><input type="text" id="editNote" class="form-control"></div>
+    `;
+    const destTipoSelect = document.getElementById('editDestTipo');
+    const destinazioneContainer = document.getElementById('destinazioneContainer');
+    const aggiornaCampoDestinazione = async () => {
+      const tipo = destTipoSelect.value;
+      destinazioneContainer.innerHTML = '';
+      if (tipo === 'MAGAZZINO') {
+        const selectMagazzino = document.createElement('select');
+        selectMagazzino.id = 'editDestId';
+        selectMagazzino.className = 'form-control';
+        selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
+        magazzini.forEach(m => selectMagazzino.appendChild(new Option(m.nome, m.id)));
+        destinazioneContainer.appendChild(selectMagazzino);
+      } else if (tipo && tipo !== 'MAGAZZINO') {
+        try {
+          const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+          const selectSoggetto = document.createElement('select');
+          selectSoggetto.id = 'editDestId';
+          selectSoggetto.className = 'form-control';
+          selectSoggetto.innerHTML = '<option value="">Seleziona...</option>';
+          data.forEach(item => {
+            let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+            selectSoggetto.appendChild(new Option(testo, item.id));
+          });
+          destinazioneContainer.appendChild(selectSoggetto);
+        } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+      }
+    };
+    destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
+    await aggiornaCampoDestinazione();
+    const siglaSelect = document.getElementById('editSiglaId');
+    const warningDiv = document.getElementById('siglaWarning');
+    siglaSelect.addEventListener('change', async () => {
+      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
+      const assignedData = selectedOpt.getAttribute('data-assigned-to');
+      if (assignedData && assignedData !== 'null' && obj.destinatario !== 'Magazzino') {
+        const assigned = JSON.parse(assignedData);
+        warningDiv.style.display = 'flex';
+        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
+      } else {
+        warningDiv.style.display = 'none';
+      }
+    });
+    document.getElementById('editAssignmentModal').style.display = 'flex';
+    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
+  }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+
+  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo, excludeSubjectId) {
+    if (!siglaId) return null;
+    try {
+      const params = new URLSearchParams({ tipo_oggetto: tipoOggetto, oggetto_id: oggettoId, sigla_id: siglaId });
+      if (excludeSubjectTipo && excludeSubjectId) { params.append('escludi_tipo', excludeSubjectTipo); params.append('escludi_id', excludeSubjectId); }
+      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params}`);
+      return res.success ? res.assegnato_a : null;
+    } catch(e) { return null; }
+  }
+
+  async function salvaModificaSingola() {
+    const obj = currentEditObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('editQta').value);
+    const siglaId = document.getElementById('editSiglaId').value;
+    const destTipo = document.getElementById('editDestTipo').value;
+    const destIdElement = document.getElementById('editDestId');
+    const destId = destIdElement ? destIdElement.value : null;
+    const note = document.getElementById('editNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.totale) { showErrorModal('Quantità non valida'); return; }
+    const magazzinoTransito = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
+    if (destTipo === 'MAGAZZINO') {
+      if (!destId) { showErrorModal('Seleziona magazzino'); return; }
+      const payload = { magazzinoId: parseInt(destId), note, oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta, daTipo: obj.destinazioneTipo, daId: obj.destinazioneId }] };
+      try {
+        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) { showMessage('Rientro effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+        else showErrorModal(res.message);
+      } catch(err) { showErrorModal(err.message); }
+      return;
+    }
+    if (!destId) { showErrorModal('Seleziona destinazione'); return; }
+    const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
+    const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
+    if (siglaId) {
+      const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
+      if (assegnatoA) {
+        pendingAction = { payload: { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoTransito), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note }, from: assegnatoA.nome };
+        document.getElementById('confirmMsg').innerHTML = `La sigla è già assegnata a <strong>${assegnatoA.nome}</strong>. Trasferire?`;
+        document.getElementById('confirmRiassegnaModal').style.display = 'flex';
+        document.getElementById('confirmOkBtn').onclick = async () => {
+          chiudiConfirmModal();
+          try {
+            const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(pendingAction.payload) });
+            if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+            else showErrorModal(res.message);
+          } catch(err) { showErrorModal(err.message); }
+          pendingAction = null;
+        };
+        return;
+      }
+    }
+    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoTransito), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note };
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+      else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
@@ -1052,8 +1698,6 @@ async function caricaSorgentiVisibili() {
     await caricaCategorie();
     setup();
   };
-
-  
 </script>
 </body>
 </html>
