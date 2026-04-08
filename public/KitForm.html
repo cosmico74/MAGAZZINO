@@ -125,12 +125,10 @@
     .sigle-table th, .sigle-table td { border: 1px solid #ddd; padding: 4px; font-size: 0.7rem; }
     .sigle-table th { background: #e9ecef; }
 
-    /* Densità righe */
     .density-small th, .density-small td { padding: 2px 4px; font-size: 0.6rem; }
     .density-medium th, .density-medium td { padding: 4px 6px; font-size: 0.7rem; }
     .density-large th, .density-large td { padding: 6px 8px; font-size: 0.8rem; }
 
-    /* Stampa - intestazione personalizzata */
     @media print {
       .no-print, .compact-bar, .filter-section, .batch-toolbar, .btn, .modal, .header-bar .btn, .btn-secondary, #selectAllCheckbox, .checkbox-column, .action-buttons, .btn-danger, .btn-success {
         display: none !important;
@@ -140,7 +138,8 @@
       .table-wrapper { overflow: visible; }
       table { page-break-inside: avoid; }
       th, td { border: 1px solid #ccc; }
-      h2 { display: none; } /* nasconde il titolo normale, mostriamo quello nell'intestazione */
+      h2 { font-size: 1rem; margin: 5px 0; }
+      .logo img { display: none; }
       .print-header {
         display: block !important;
         text-align: center;
@@ -152,7 +151,6 @@
       .print-header h2 { display: block; font-size: 1.2rem; margin: 5px 0; border-left: none; }
     }
     .print-header { display: none; }
-
     .inline-buttons {
       display: flex;
       gap: 10px;
@@ -199,7 +197,6 @@
     </div>
   </form>
 
-  <!-- FILTRI -->
   <div class="filter-section no-print">
     <div class="filter-row">
       <div class="filter-group"><label>Magazzino</label><select id="filtroMagazzino"><option value="">Tutti</option></select></div>
@@ -210,7 +207,6 @@
     </div>
   </div>
 
-  <!-- Toolbar compatta -->
   <div class="batch-toolbar no-print">
     <div class="density-selector">
       <span>📏 Densità:</span>
@@ -227,7 +223,6 @@
     <button class="btn btn-success" id="btnAssegnaDaMagazzino" onclick="apriModalAssegnazione()">📤 Assegna</button>
   </div>
 
-  <!-- Intestazione per la stampa (visibile solo in stampa) -->
   <div class="print-header">
     <img src="/images/kastle-logo.png" alt="Kastle">
     <h2>📦 Composizione Kit</h2>
@@ -250,7 +245,6 @@
   </div>
 </div>
 
-<!-- MODALE TRASFERIMENTO (tra soggetti) -->
 <div id="modalTrasferimento" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>🔄 Trasferisci kit selezionati</h3>
@@ -271,7 +265,6 @@
   </div>
 </div>
 
-<!-- MODALE ASSEGNAZIONE DA MAGAZZINO -->
 <div id="modalAssegnazione" class="modal">
   <div class="modal-content" style="max-width:800px;">
     <h3>📤 Assegna kit a soggetto esterno</h3>
@@ -294,7 +287,6 @@
   </div>
 </div>
 
-<!-- MODALE MODIFICA KIT -->
 <div id="modalEditKit" class="modal">
   <div class="modal-content">
     <h3>✏️ Modifica Kit</h3>
@@ -319,7 +311,6 @@
   </div>
 </div>
 
-<!-- MODALE NUOVA SIGLA -->
 <div id="modalNuovaSigla" class="modal">
   <div class="modal-content" style="max-width:400px;">
     <h3>➕ Nuova Sigla</h3>
@@ -361,6 +352,42 @@
     window.location.href = 'Login.html';
   }
 
+  // ========== GLOBALI ==========
+  let currentUser = null;
+  let magazzini = [], settori = [], marche = [], allSoggetti = [];
+  let allKits = [], kitFiltrati = [];
+  let articoliSci = [], articoliAttacchi = [], articoliSkistopper = [];
+  let categoryIds = { sci: null, attacchi: null, skistopper: null };
+  let sortColumn = 'id', sortAsc = true;
+  let currentEditId = null;
+  let currentEditSciId = null;
+  let currentEditSigleDisponibili = [];
+  let currentAssignedSigle = new Set();
+  window.attacchiDisponibili = [];
+  window.skistoppersDisponibili = [];
+  let sigleUsateInKit = []; // sigle già utilizzate in altri kit
+
+  const filtroMag = document.getElementById('filtroMagazzino');
+  const filtroSet = document.getElementById('filtroSettore');
+  const filtroMar = document.getElementById('filtroMarca');
+  const filtroDesc = document.getElementById('filtroDescrizione');
+  const filtroSigla = document.getElementById('filtroSigla');
+  const kitMagazzinoSelect = document.getElementById('kitMagazzino');
+  const editKitMagazzino = document.getElementById('editKitMagazzino');
+  const transferMagazzinoSelect = document.getElementById('transferMagazzino');
+  const destinatarioTipoSelect = document.getElementById('destinatarioTipo');
+  const destinatarioIdSelect = document.getElementById('destinatarioId');
+
+  async function caricaSigleUsate() {
+    try {
+      const data = await apiFetch('/api/kit/sigle-usate');
+      sigleUsateInKit = Array.isArray(data) ? data : [];
+    } catch(err) {
+      console.warn('Errore caricamento sigle usate:', err);
+      sigleUsateInKit = [];
+    }
+  }
+
   // ========== DENSITÀ, STAMPA, EXPORT ==========
   function changeDensity() {
     const val = document.getElementById('densitySelect').value;
@@ -369,7 +396,6 @@
     wrapper.classList.add(`density-${val}`);
   }
   function stampaTabella() {
-    // Imposta data e utente nell'intestazione di stampa
     const now = new Date().toLocaleString();
     document.getElementById('printDate').innerText = now;
     const userDisplay = currentUser?.nome_visualizzato || currentUser?.username || '';
@@ -400,31 +426,6 @@
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
-
-  // ========== GLOBALI ==========
-  let currentUser = null;
-  let magazzini = [], settori = [], marche = [], allSoggetti = [];
-  let allKits = [], kitFiltrati = [];
-  let articoliSci = [], articoliAttacchi = [], articoliSkistopper = [];
-  let categoryIds = { sci: null, attacchi: null, skistopper: null };
-  let sortColumn = 'id', sortAsc = true;
-  let currentEditId = null;
-  let currentEditSciId = null;
-  let currentEditSigleDisponibili = [];
-  let currentAssignedSigle = new Set();
-  window.attacchiDisponibili = [];
-  window.skistoppersDisponibili = [];
-
-  const filtroMag = document.getElementById('filtroMagazzino');
-  const filtroSet = document.getElementById('filtroSettore');
-  const filtroMar = document.getElementById('filtroMarca');
-  const filtroDesc = document.getElementById('filtroDescrizione');
-  const filtroSigla = document.getElementById('filtroSigla');
-  const kitMagazzinoSelect = document.getElementById('kitMagazzino');
-  const editKitMagazzino = document.getElementById('editKitMagazzino');
-  const transferMagazzinoSelect = document.getElementById('transferMagazzino');
-  const destinatarioTipoSelect = document.getElementById('destinatarioTipo');
-  const destinatarioIdSelect = document.getElementById('destinatarioId');
 
   // ========== CARICAMENTO ANAGRAFICHE ==========
   async function caricaAnagrafiche() {
@@ -479,6 +480,7 @@
       await caricaArticoliSci();
       await refreshFilterDatalists();
       await caricaKit();
+      await caricaSigleUsate();
 
       document.getElementById('assegnaDestTipo').addEventListener('change', caricaDestinazioniAssegnazione);
       destinatarioTipoSelect.addEventListener('change', caricaDestinazioniTrasferimento);
@@ -614,20 +616,21 @@
   async function aggiornaTutteLeRigheSigle(articoloId) {
     if (!articoloId) return;
     const sigle = await apiFetch(`/api/articoli/${articoloId}/sigle`);
+    const sigleDisponibili = sigle.filter(s => !sigleUsateInKit.includes(s.id));
     const righe = document.querySelectorAll('#sigleTbody tr');
     for (let row of righe) {
       const siglaSelect = row.cells[0].querySelector('select');
       if (siglaSelect) {
         const currentVal = siglaSelect.value;
         siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
-        sigle.forEach(s => {
+        sigleDisponibili.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
           opt.text = s.sigla + (s.durezza ? ` - ${s.durezza}` : '');
           if (currentVal && currentVal == s.id) opt.selected = true;
           siglaSelect.appendChild(opt);
         });
-        if (sigle.length === 1) siglaSelect.value = sigle[0].id;
+        if (sigleDisponibili.length === 1) siglaSelect.value = sigleDisponibili[0].id;
       }
     }
   }
@@ -731,6 +734,7 @@
         showMessage(result.message, 'success');
         resetForm();
         await caricaKit();
+        await caricaSigleUsate();
       } else {
         showMessage(result.message, 'error');
       }
@@ -760,7 +764,6 @@
     }
   }
 
-  // MODIFICATA: colonna "Sigla" invece di "Sigle/Attacchi", mostra solo la sigla dello sci
   function popolaTabellaKit() {
     const tbody = document.querySelector('#tabellaKit tbody');
     tbody.innerHTML = '';
@@ -792,7 +795,6 @@
       row.insertCell(4).innerText = mag;
       row.insertCell(5).innerText = qTot;
       row.insertCell(6).innerText = isAssigned ? k.assegnato_a.nome : 'Magazzino';
-      // Colonna Sigla: estrae la sigla dello sci dal dettaglio
       let siglaKit = '-';
       if (k.dettagli && k.dettagli.length) {
         const sciDetail = k.dettagli.find(d => d.tipo_articolo === 'SCI');
@@ -943,6 +945,7 @@
         showMessage('Kit assegnati con successo', 'success');
         chiudiModalAssegnazione();
         await caricaKit();
+        await caricaSigleUsate();
       } else {
         showMessage(res.message, 'error');
       }
@@ -1021,6 +1024,7 @@
         showMessage('Trasferimento completato', 'success');
         chiudiModalTrasferimento();
         await caricaKit();
+        await caricaSigleUsate();
       } else {
         showMessage(res.message, 'error');
       }
@@ -1054,6 +1058,7 @@
         showMessage(result.message, 'success');
         document.getElementById('selectAllCheckbox').checked = false;
         await caricaKit();
+        await caricaSigleUsate();
       } else { showMessage(result.message, 'error'); }
     } catch (err) { showMessage('Errore: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '📦 Rientra in magazzino'; }
@@ -1118,8 +1123,10 @@
     window.skistoppersDisponibili = skistoppers;
   }
 
-  function getSigleDisponibili(sigleUsate) {
-    return currentEditSigleDisponibili.filter(s => !sigleUsate.includes(s.id));
+  function getSigleDisponibili(sigleUsate, currentSiglaId = null) {
+    return currentEditSigleDisponibili.filter(s => 
+      !sigleUsate.includes(s.id) || (currentSiglaId && s.id == currentSiglaId)
+    );
   }
 
   function aggiornaSelectSigleInTutteRighe() {
@@ -1139,7 +1146,8 @@
       if (!select || select.disabled) continue;
       const currentVal = select.value ? parseInt(select.value) : null;
       const altreSigle = sigleSelezionate.filter(id => id !== currentVal);
-      const disponibili = getSigleDisponibili(altreSigle);
+      const tutteUsate = [...new Set([...sigleUsateInKit, ...altreSigle])];
+      const disponibili = getSigleDisponibili(tutteUsate, currentVal);
       const currentOption = Array.from(select.options).find(opt => opt.value == currentVal);
       select.innerHTML = '<option value="">Seleziona sigla</option>';
       disponibili.forEach(s => {
@@ -1180,12 +1188,14 @@
       });
       showMessage('Sigla aggiunta con successo!', 'success');
       await ricaricaSigleDisponibili();
+      await caricaSigleUsate(); // aggiorna anche le sigle usate
       const siglaSelect = pendingSiglaRow.select;
       const righeEsistenti = Array.from(document.querySelectorAll('#editSigleTbody tr')).map(r => {
         const sel = r.cells[0].querySelector('select');
         return sel && sel.value && !sel.disabled ? parseInt(sel.value) : null;
       }).filter(id => id && !isNaN(id));
-      const nuoveOpzioni = getSigleDisponibili(righeEsistenti);
+      const tutteUsate = [...new Set([...sigleUsateInKit, ...righeEsistenti])];
+      const nuoveOpzioni = getSigleDisponibili(tutteUsate, null);
       siglaSelect.innerHTML = '<option value="">Seleziona sigla</option>';
       nuoveOpzioni.forEach(s => {
         const opt = document.createElement('option');
@@ -1217,7 +1227,8 @@
         righeEsistenti.push(parseInt(select.value));
       }
     }
-    const sigleDisponibili = getSigleDisponibili(righeEsistenti);
+    const tutteUsate = [...new Set([...sigleUsateInKit, ...righeEsistenti])];
+    const sigleDisponibili = getSigleDisponibili(tutteUsate, prefill?.sigla_id);
     const row = tbody.insertRow();
     const tdSigla = row.insertCell(0);
     const containerSigla = document.createElement('div');
@@ -1423,6 +1434,7 @@
         showMessage('Kit aggiornato con successo', 'success');
         chiudiModaleKit();
         await caricaKit();
+        await caricaSigleUsate();
       } else {
         showMessage(result.message, 'error');
       }
@@ -1445,6 +1457,7 @@
       if (result.success) {
         showMessage('Kit eliminato', 'success');
         await caricaKit();
+        await caricaSigleUsate();
       } else {
         showMessage(result.message, 'error');
       }
