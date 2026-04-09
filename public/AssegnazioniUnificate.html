@@ -419,7 +419,7 @@
   </div>
 </div>
 
-<!-- MODALI -->
+<!-- MODALI (contenuto minimo ma funzionante) -->
 <div id="assignModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -819,14 +819,13 @@
     }
   }
 
-  // ========== POPOLA TABELLA (VELOCE) ==========
+  // ========== POPOLA TABELLA (VELOCE CON DOCUMENTFRAGMENT) ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) {
       tbody.innerHTML = '<td colspan="8" class="text-center">Nessun oggetto disponibile<\/td>';
       return;
     }
-    // Usa DocumentFragment per ridurre i reflow
     const fragment = document.createDocumentFragment();
     oggetti.forEach((obj, idx) => {
       const row = document.createElement('tr');
@@ -937,12 +936,232 @@
   }
 
   // ========== MODALI (FUNZIONI COMPLETE, INVARIATE) ==========
-  async function apriModalAssegnazione(obj) { /* ... come prima ... */ }
-  async function confermaAssegnazione() { /* ... */ }
-  async function apriModificaSingola(obj) { /* ... */ }
-  async function salvaModificaSingola() { /* ... */ }
-  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo, excludeSubjectId) { return null; }
-  function escapeHtml(str) { return str ? str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;') : ''; }
+  async function apriModalAssegnazione(obj) {
+    currentAssignObj = obj;
+    const modalBody = document.getElementById('assignModalContent');
+    let siglaHtml = '<option value="">Nessuna sigla</option>';
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      for (const s of obj.sigleDisponibili) {
+        let text = s.sigla;
+        if (s.durezza) text += ` (${s.durezza})`;
+        if (s.lunghezza) text += ` - ${s.lunghezza}cm`;
+        siglaHtml += `<option value="${s.id}">${text}</option>`;
+      }
+    } else {
+      siglaHtml = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group"><label>📦 Oggetto</label><input type="text" value="${escapeHtml(obj.codice_sigla)}" disabled class="form-control"></div>
+      <div class="form-group"><label>📊 Giacenza disponibile</label><input type="number" value="${obj.giacenza}" disabled class="form-control"></div>
+      <div class="form-group"><label>🔢 Quantità da assegnare</label><input type="number" id="assignQta" min="1" max="${obj.giacenza}" value="1" class="form-control"></div>
+      <div class="form-group"><label>🏷️ Sigla</label><select id="assignSiglaId" class="form-control">${siglaHtml}</select></div>
+      <div class="form-group"><label>🎯 Destinazione</label><select id="assignDestTipo" class="form-control"><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select><select id="assignDestId" class="form-control" style="margin-top:8px;"></select></div>
+      <div class="form-group"><label>📝 Note</label><input type="text" id="assignNote" class="form-control"></div>
+    `;
+    const destTipoSelect = document.getElementById('assignDestTipo');
+    const destIdSelect = document.getElementById('assignDestId');
+    const caricaDestinazioni = async () => {
+      const tipo = destTipoSelect.value;
+      if (!tipo) return;
+      try {
+        const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+        destIdSelect.innerHTML = '<option value="">Seleziona...</option>';
+        data.forEach(item => {
+          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+          destIdSelect.appendChild(new Option(testo, item.id));
+        });
+      } catch(err) { showMessage('Errore destinazioni', 'error'); }
+    };
+    destTipoSelect.addEventListener('change', caricaDestinazioni);
+    await caricaDestinazioni();
+    document.getElementById('assignModal').style.display = 'flex';
+    document.getElementById('assignConfirmBtn').onclick = () => confermaAssegnazione();
+  }
+
+  async function confermaAssegnazione() {
+    const obj = currentAssignObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('assignQta').value);
+    const siglaId = document.getElementById('assignSiglaId').value;
+    const destTipo = document.getElementById('assignDestTipo').value;
+    const destId = document.getElementById('assignDestId').value;
+    const note = document.getElementById('assignNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
+    if (!destTipo || !destId) { showErrorModal('Seleziona una destinazione'); return; }
+    const magazzinoId = magazzinoSelect.value;
+    if (!magazzinoId) { showErrorModal('Seleziona un magazzino di partenza'); return; }
+    const payload = {
+      magazzinoId: parseInt(magazzinoId),
+      destinazioneTipo: destTipo,
+      destinazioneId: parseInt(destId),
+      note: note,
+      oggetti: [{
+        tipoOggetto: obj.tipo,
+        oggettoId: obj.id,
+        siglaId: siglaId ? parseInt(siglaId) : null,
+        quantita: qta
+      }]
+    };
+    try {
+      const res = await apiFetch('/api/assegnazioni/uscita/batch', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Assegnazione effettuata', 'success');
+        chiudiAssignModal();
+        await caricaOggettiDaMagazzino();
+      } else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
+
+  async function apriModificaSingola(obj) {
+    if (!obj.sigleDisponibili || obj.sigleDisponibili.length === 0) {
+      if (obj.tipo === 'ARTICOLO') {
+        try { obj.sigleDisponibili = await apiFetch(`/api/articoli/${obj.id}/sigle`); } catch(e) { obj.sigleDisponibili = []; }
+      } else {
+        try {
+          const kit = await apiFetch(`/api/kit/${obj.id}`);
+          const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+          if (sciDetail && sciDetail.articolo_id) {
+            obj.sigleDisponibili = await apiFetch(`/api/articoli/${sciDetail.articolo_id}/sigle`);
+          } else { obj.sigleDisponibili = []; }
+        } catch(e) { obj.sigleDisponibili = []; }
+      }
+    }
+    currentEditObj = { ...obj, selectedSiglaId: obj.siglaId || null };
+    const modalBody = document.getElementById('editAssignmentContent');
+    let siglaOptions = '<option value="">Nessuna sigla</option>';
+    let hasOnlyOne = false;
+    if (obj.sigleDisponibili && obj.sigleDisponibili.length) {
+      if (obj.sigleDisponibili.length === 1) hasOnlyOne = true;
+      for (const s of obj.sigleDisponibili) {
+        let optionText = s.sigla;
+        if (s.durezza) optionText += ` (${s.durezza})`;
+        if (s.lunghezza) optionText += ` - ${s.lunghezza}cm`;
+        let assegnatoA = null;
+        if (obj.destinatario !== 'Magazzino' && s.id) {
+          assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, s.id, obj.destinazioneTipo, obj.destinazioneId);
+        }
+        if (assegnatoA) optionText += ` ⚠️ (già assegnata a ${assegnatoA.nome})`;
+        const selectedAttr = (currentEditObj.selectedSiglaId == s.id) ? 'selected' : '';
+        siglaOptions += `<option value="${s.id}" data-assigned-to='${JSON.stringify(assegnatoA)}' ${selectedAttr}>${optionText}</option>`;
+      }
+    } else {
+      siglaOptions = '<option value="">Nessuna sigla disponibile</option>';
+    }
+    modalBody.innerHTML = `
+      <div class="form-group"><label>📦 Oggetto</label><input type="text" value="${escapeHtml(obj.codice_sigla)}" disabled class="form-control"></div>
+      <div class="form-group"><label>📊 Quantità disponibile</label><input type="number" value="${obj.giacenza}" disabled class="form-control"></div>
+      <div class="form-group"><label>🔢 Quantità da trasferire/rientrare</label><input type="number" id="editQta" min="1" max="${obj.giacenza}" value="1" class="form-control"></div>
+      <div class="form-group"><label>🏷️ Sigla</label><select id="editSiglaId" class="form-control" ${hasOnlyOne ? 'disabled' : ''}>${siglaOptions}</select><div id="siglaWarning" class="warning-badge" style="display: none;"></div></div>
+      <div class="form-group"><label>🎯 Nuova destinazione</label><select id="editDestTipo" class="form-control"><option value="MAGAZZINO">🏭 Magazzino</option><option value="PROMOTER">Promoter</option><option value="NEGOZIO">Negozio</option><option value="CLIENTE">Cliente</option><option value="AGENTE">Agente</option></select><div id="destinazioneContainer" style="margin-top:8px;"></div></div>
+      <div class="form-group"><label>📝 Note</label><input type="text" id="editNote" class="form-control"></div>
+    `;
+    const destTipoSelect = document.getElementById('editDestTipo');
+    const destinazioneContainer = document.getElementById('destinazioneContainer');
+    const aggiornaCampoDestinazione = async () => {
+      const tipo = destTipoSelect.value;
+      destinazioneContainer.innerHTML = '';
+      if (tipo === 'MAGAZZINO') {
+        const selectMagazzino = document.createElement('select');
+        selectMagazzino.id = 'editDestId';
+        selectMagazzino.className = 'form-control';
+        selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
+        magazzini.forEach(m => selectMagazzino.appendChild(new Option(m.nome, m.id)));
+        destinazioneContainer.appendChild(selectMagazzino);
+      } else if (tipo && tipo !== 'MAGAZZINO') {
+        try {
+          const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+          const selectSoggetto = document.createElement('select');
+          selectSoggetto.id = 'editDestId';
+          selectSoggetto.className = 'form-control';
+          selectSoggetto.innerHTML = '<option value="">Seleziona...</option>';
+          data.forEach(item => {
+            let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+            selectSoggetto.appendChild(new Option(testo, item.id));
+          });
+          destinazioneContainer.appendChild(selectSoggetto);
+        } catch(err) { showMessage('Errore caricamento destinazioni', 'error'); }
+      }
+    };
+    destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
+    await aggiornaCampoDestinazione();
+    const siglaSelect = document.getElementById('editSiglaId');
+    const warningDiv = document.getElementById('siglaWarning');
+    siglaSelect.addEventListener('change', async () => {
+      const selectedOpt = siglaSelect.options[siglaSelect.selectedIndex];
+      const assignedData = selectedOpt.getAttribute('data-assigned-to');
+      if (assignedData && assignedData !== 'null' && obj.destinatario !== 'Magazzino') {
+        const assigned = JSON.parse(assignedData);
+        warningDiv.style.display = 'flex';
+        warningDiv.innerHTML = `⚠️ Questa sigla è già assegnata a <strong>${assigned.nome}</strong>. Se procedi, verrà trasferita da ${assigned.nome} al nuovo destinatario.`;
+      } else {
+        warningDiv.style.display = 'none';
+      }
+    });
+    document.getElementById('editAssignmentModal').style.display = 'flex';
+    document.getElementById('saveEditBtn').onclick = () => salvaModificaSingola();
+  }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+
+  async function verificaSiglaAssegnata(oggettoId, tipoOggetto, siglaId, excludeSubjectTipo, excludeSubjectId) {
+    if (!siglaId) return null;
+    try {
+      const params = new URLSearchParams({ tipo_oggetto: tipoOggetto, oggetto_id: oggettoId, sigla_id: siglaId });
+      if (excludeSubjectTipo && excludeSubjectId) { params.append('escludi_tipo', excludeSubjectTipo); params.append('escludi_id', excludeSubjectId); }
+      const res = await apiFetch(`/api/assegnazioni/verifica-sigla?${params}`);
+      return res.success ? res.assegnato_a : null;
+    } catch(e) { return null; }
+  }
+
+  async function salvaModificaSingola() {
+    const obj = currentEditObj;
+    if (!obj) return;
+    const qta = parseInt(document.getElementById('editQta').value);
+    const siglaId = document.getElementById('editSiglaId').value;
+    const destTipo = document.getElementById('editDestTipo').value;
+    const destIdElement = document.getElementById('editDestId');
+    const destId = destIdElement ? destIdElement.value : null;
+    const note = document.getElementById('editNote').value;
+    if (isNaN(qta) || qta < 1 || qta > obj.giacenza) { showErrorModal('Quantità non valida'); return; }
+    const magazzinoTransito = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
+    if (destTipo === 'MAGAZZINO') {
+      if (!destId) { showErrorModal('Seleziona magazzino'); return; }
+      const payload = { magazzinoId: parseInt(destId), note, oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta, daTipo: obj.destinazioneTipo, daId: obj.destinazioneId }] };
+      try {
+        const res = await apiFetch('/api/assegnazioni/rientro/batch', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) { showMessage('Rientro effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+        else showErrorModal(res.message);
+      } catch(err) { showErrorModal(err.message); }
+      return;
+    }
+    if (!destId) { showErrorModal('Seleziona destinazione'); return; }
+    const daTipo = obj.destinazioneTipo || (currentUser.ruolo === 'admin' ? sourceTipo.value : currentUser.ruolo.toUpperCase());
+    const daId = obj.destinazioneId || (currentUser.ruolo === 'admin' ? parseInt(sourceId.value) : currentUser.riferimento_id);
+    if (siglaId) {
+      const assegnatoA = await verificaSiglaAssegnata(obj.id, obj.tipo, siglaId, daTipo, daId);
+      if (assegnatoA) {
+        pendingAction = { payload: { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoTransito), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note }, from: assegnatoA.nome };
+        document.getElementById('confirmMsg').innerHTML = `La sigla è già assegnata a <strong>${assegnatoA.nome}</strong>. Trasferire?`;
+        document.getElementById('confirmRiassegnaModal').style.display = 'flex';
+        document.getElementById('confirmOkBtn').onclick = async () => {
+          chiudiConfirmModal();
+          try {
+            const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(pendingAction.payload) });
+            if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+            else showErrorModal(res.message);
+          } catch(err) { showErrorModal(err.message); }
+          pendingAction = null;
+        };
+        return;
+      }
+    }
+    const payload = { daTipo, daId, aTipo: destTipo, aId: parseInt(destId), magazzinoId: parseInt(magazzinoTransito), oggetti: [{ tipoOggetto: obj.tipo, oggettoId: obj.id, siglaId: siglaId ? parseInt(siglaId) : null, quantita: qta }], note };
+    try {
+      const res = await apiFetch('/api/assegnazioni/trasferimento', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) { showMessage('Trasferimento effettuato', 'success'); chiudiEditModal(); await caricaOggettiInCarico(); }
+      else showErrorModal(res.message);
+    } catch(err) { showErrorModal(err.message); }
+  }
 
   window.onload = async () => {
     const token = localStorage.getItem('token');
