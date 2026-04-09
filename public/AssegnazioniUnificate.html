@@ -751,114 +751,26 @@
   }
 
   // ========== OGGETTI ASSEGNATI (catena completa) ==========
-  async function getOggettiAssegnati(tipo, id) {
-    // Recupera tutti i movimenti in cui il soggetto è il mittente (da_magazzino)
-    const params = new URLSearchParams({
-      da_magazzino: `${tipo}-${id}`,
-      _order: 'DESC',
-      _limit: '1000'
-    });
-    const res = await apiFetch(`/api/movimenti?${params.toString()}`);
-    if (!res.success) throw new Error(res.message);
-    let movimenti = res.data || [];
-    // Filtra sia USCITA che RIENTRO (perché i trasferimenti possono essere registrati come RIENTRO con nota)
-    movimenti = movimenti.filter(m => m.tipo === 'USCITA' || (m.tipo === 'RIENTRO' && m.note && m.note.includes('Trasferimento a')));
-
-    const risultati = [];
-    for (const mov of movimenti) {
-      // Segui la catena fino a trovare un destinatario che non sia MAGAZZINO
-      let currentMov = mov;
-      let destinatarioFinale = null;
-      let dataFinale = currentMov.data;
-      let oggettoId = currentMov.id_articolo_kit;
-      let tipoOggetto = currentMov.tipo_oggetto;
-      let quantita = currentMov.quantita;
-
-      while (currentMov && currentMov.a_magazzino && currentMov.a_magazzino.startsWith('MAGAZZINO-')) {
-        const magId = parseInt(currentMov.a_magazzino.split('-')[1]);
-        // Cerca il movimento successivo (uscita dal magazzino verso un soggetto)
-        const params2 = new URLSearchParams({
-          tipo: 'USCITA',
-          da_magazzino: `MAGAZZINO-${magId}`,
-          id_articolo_kit: oggettoId,
-          tipo_oggetto: tipoOggetto,
-          _order: 'ASC',
-          _limit: '1'
-        });
-        const res2 = await apiFetch(`/api/movimenti?${params2.toString()}`);
-        if (res2.success && res2.data.length) {
-          currentMov = res2.data[0];
-          dataFinale = currentMov.data;
-        } else {
-          break;
-        }
-      }
-      if (currentMov && currentMov.a_magazzino && !currentMov.a_magazzino.startsWith('MAGAZZINO-')) {
-        const parts = currentMov.a_magazzino.split('-');
-        const destTipo = parts[0];
-        const destId = parseInt(parts[1]);
-        destinatarioFinale = await getNomeSoggetto(destTipo, destId);
-      }
-      if (!destinatarioFinale) {
-        // Se ancora non trovato, prova a estrarre dalla nota del movimento originale
-        if (mov.note) {
-          const match = mov.note.match(/Trasferimento a (.+)/i);
-          if (match) {
-            let destRaw = match[1].trim();
-            const parts = destRaw.split(' ');
-            if (parts.length === 2 && (parts[0].toUpperCase() === 'CLIENTE' || parts[0].toUpperCase() === 'PROMOTER' || parts[0].toUpperCase() === 'NEGOZIO')) {
-              const destTipo = parts[0].toUpperCase();
-              const destId = parseInt(parts[1]);
-              destinatarioFinale = await getNomeSoggetto(destTipo, destId);
-            } else {
-              destinatarioFinale = destRaw;
-            }
-          }
-        }
-      }
-      if (!destinatarioFinale) {
-        destinatarioFinale = 'Destinazione sconosciuta';
-      }
-
-      // Costruisci l'oggetto
-      let dettaglio = null;
-      if (tipoOggetto === 'ARTICOLO') {
-        const art = await apiFetch(`/api/articoli/${oggettoId}`);
-        let sigla = art.sigla || '';
-        let codiceSigla = art.codice_modello || art.codice;
-        if (sigla && sigla !== codiceSigla) codiceSigla += ` / ${sigla}`;
-        dettaglio = {
-          id: oggettoId,
-          tipo: 'ARTICOLO',
-          codice_sigla: codiceSigla,
-          descrizione: art.descrizione_completa,
-          lunghezza: art.lunghezza || '',
-          totale: quantita,
-          stato: 'Assegnato',
-          data: dataFinale,
-          destinatario: destinatarioFinale
-        };
-      } else {
-        const kit = await apiFetch(`/api/kit/${oggettoId}`);
-        const det = await getKitDetails(oggettoId);
-        let codiceSigla = kit.codice_kit;
-        if (det.sigla && det.sigla !== codiceSigla) codiceSigla += ` / ${det.sigla}`;
-        dettaglio = {
-          id: oggettoId,
-          tipo: 'KIT',
-          codice_sigla: codiceSigla,
-          descrizione: kit.descrizione,
-          lunghezza: det.lunghezza || '',
-          totale: quantita,
-          stato: 'Assegnato',
-          data: dataFinale,
-          destinatario: destinatarioFinale
-        };
-      }
-      risultati.push(dettaglio);
-    }
-    return risultati;
-  }
+async function getOggettiAssegnati(tipo, id) {
+  const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
+  return res.map(row => {
+    let codiceSigla = row.codice || '';
+    if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
+    return {
+      id: row.oggetto_id,
+      tipo: row.tipo_oggetto,
+      codice_sigla: codiceSigla,
+      descrizione: row.descrizione || '',
+      lunghezza: row.lunghezza || '',
+      totale: row.quantita,
+      stato: 'Assegnato',
+      data: row.data_assegnazione,
+      destinatario: row.destinatarioNome || (row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome||'Magazzino')),
+      sigleDisponibili: [],
+      siglaId: row.sigla_id
+    };
+  });
+}
 
   // ========== CARICA OGGETTI UNIFICATI ==========
   async function caricaOggettiInCarico() {

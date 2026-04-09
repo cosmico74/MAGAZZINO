@@ -5,13 +5,19 @@ const pool = require('../db');
 const router = express.Router();
 
 // ========== HELPER: AGGIORNA SINTESI CARICO ==========
-async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione) {
+async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione, provenienzaTipo = null, provenienzaId = null, dataAssegnazione = null) {
   const query = `
-    INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE quantita = quantita + VALUES(quantita)
+    INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita, provenienza_tipo, provenienza_id, data_assegnazione)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      quantita = quantita + VALUES(quantita),
+      provenienza_tipo = IF(VALUES(quantita) > 0, VALUES(provenienza_tipo), provenienza_tipo),
+      provenienza_id = IF(VALUES(quantita) > 0, VALUES(provenienza_id), provenienza_id),
+      data_assegnazione = IF(VALUES(quantita) > 0, VALUES(data_assegnazione), data_assegnazione)
   `;
-  await connection.query(query, [destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione]);
+  await connection.query(query, [destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione, provenienzaTipo, provenienzaId, dataAssegnazione || new Date()]);
+  
+  // Se la quantità diventa 0, elimina la riga
   const [check] = await connection.query(
     `SELECT quantita FROM carico_sintesi 
      WHERE destinazione_tipo = ? AND destinazione_id = ? AND tipo_oggetto = ? AND oggetto_id = ? 
@@ -45,7 +51,8 @@ async function registraUscitaTransazionale(connection, params) {
      VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
     [`MAGAZZINO-${magazzinoId}`, `${destinazioneTipo}-${destinazioneId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
-  await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, +quantita);
+  // Aggiorna carico_sintesi con provenienza = magazzino
+  await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, +quantita, 'MAGAZZINO', magazzinoId, new Date());
 }
 
 async function registraRientroTransazionale(connection, params) {
@@ -60,6 +67,7 @@ async function registraRientroTransazionale(connection, params) {
      VALUES (NOW(), 'RIENTRO', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
     [`${daTipo}-${daId}`, `MAGAZZINO-${magazzinoId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
+  // Rimuove la quantità dal soggetto mittente
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
@@ -104,7 +112,6 @@ async function getSigleArticolo(articoloId) {
   }
 }
 
-// ========== RECUPERA SIGLE DISPONIBILI PER UN KIT ==========
 async function getSigleKit(kitId) {
   try {
     const [sciRow] = await pool.query(
@@ -130,6 +137,9 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
       cs.oggetto_id,
       cs.sigla_id,
       cs.quantita,
+      cs.data_assegnazione,
+      cs.provenienza_tipo,
+      cs.provenienza_id,
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.descrizione_completa
         WHEN cs.tipo_oggetto = 'KIT' THEN k.descrizione
@@ -138,14 +148,8 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
         WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
       END AS codice,
-      CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
-        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
-      END AS LUNGHEZZA,
-      CASE 
-        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
-        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
-      END AS DUREZZA,
+      a.lunghezza AS LUNGHEZZA,
+      a.durezza AS DUREZZA,
       (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
       a.settore AS SETTORE,
       a.marca AS MARCA,
@@ -192,6 +196,9 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
       destinazioneTipo: row.destinazione_tipo,
       destinazioneId: row.destinazione_id,
       destinatarioNome: destinatarioNome,
+      data_assegnazione: row.data_assegnazione,
+      provenienzaTipo: row.provenienza_tipo,
+      provenienzaId: row.provenienza_id,
       sigleDisponibili: sigleDisponibili
     });
   }
@@ -230,7 +237,7 @@ async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = nul
   return oggetti;
 }
 
-// ========== ROTTA PRINCIPALE ==========
+// ========== ROTTA PRINCIPALE (oggetti in carico) ==========
 router.post('/oggetti', verifyToken, async (req, res) => {
   try {
     const { magazzino, targetTipo, targetId, includeReferenced } = req.body;
@@ -307,6 +314,9 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
             destinatarioNome: destinatarioNome,
+            data_assegnazione: row.data_assegnazione,
+            provenienzaTipo: row.provenienza_tipo,
+            provenienzaId: row.provenienza_id,
             sigleDisponibili: sigleDisponibili
           });
         }
@@ -330,6 +340,47 @@ router.post('/oggetti', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Errore in /oggetti:', error);
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ========== NUOVO ENDPOINT: OGGETTI INVIATI (VELOCE) ==========
+router.get('/inviati', verifyToken, async (req, res) => {
+  try {
+    const { provenienza_tipo, provenienza_id } = req.query;
+    if (!provenienza_tipo || !provenienza_id) {
+      return res.status(400).json({ success: false, message: 'provenienza_tipo e provenienza_id richiesti' });
+    }
+    const [rows] = await pool.query(`
+      SELECT cs.*,
+             CASE 
+               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.descrizione_completa
+               WHEN cs.tipo_oggetto = 'KIT' THEN k.descrizione
+             END AS descrizione,
+             CASE 
+               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
+               WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
+             END AS codice,
+             a.lunghezza,
+             a.durezza,
+             (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS sigla,
+             s.nome AS destinatario_nome,
+             s.cognome AS destinatario_cognome
+      FROM carico_sintesi cs
+      LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
+      LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+      WHERE cs.provenienza_tipo = ? AND cs.provenienza_id = ?
+      ORDER BY cs.data_assegnazione DESC
+    `, [provenienza_tipo, provenienza_id]);
+    
+    const result = rows.map(row => ({
+      ...row,
+      destinatarioNome: row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome || 'Magazzino')
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -423,6 +474,7 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
     const [user] = await connection.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
     const operatore = user[0].username;
     for (const item of oggetti) {
+      // Rientro dal mittente (decrementa quantità e imposta provenienza? Non serve, perché la provenienza verrà sovrascritta dalla successiva uscita)
       await registraRientroTransazionale(connection, {
         daTipo,
         daId,
@@ -435,6 +487,7 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
         operatore,
         userId: req.userId
       });
+      // Uscita verso il nuovo destinatario, con provenienza = il soggetto che trasferisce
       await registraUscitaTransazionale(connection, {
         magazzinoId,
         tipoOggetto: item.tipoOggetto,
