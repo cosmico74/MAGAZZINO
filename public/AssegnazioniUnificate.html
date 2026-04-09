@@ -750,25 +750,33 @@
     });
   }
 
-  // ========== OGGETTI ASSEGNATI (con catena completa) ==========
+  // ========== OGGETTI ASSEGNATI (catena completa) ==========
   async function getOggettiAssegnati(tipo, id) {
-    // Movimenti USCITA diretti dal soggetto
-    const params = new URLSearchParams({ tipo: 'USCITA', da_magazzino: `${tipo}-${id}`, _order: 'DESC', _limit: '1000' });
+    // Recupera tutti i movimenti in cui il soggetto è il mittente (da_magazzino)
+    const params = new URLSearchParams({
+      da_magazzino: `${tipo}-${id}`,
+      _order: 'DESC',
+      _limit: '1000'
+    });
     const res = await apiFetch(`/api/movimenti?${params.toString()}`);
     if (!res.success) throw new Error(res.message);
-    const movimenti = res.data || [];
+    let movimenti = res.data || [];
+    // Filtra sia USCITA che RIENTRO (perché i trasferimenti possono essere registrati come RIENTRO con nota)
+    movimenti = movimenti.filter(m => m.tipo === 'USCITA' || (m.tipo === 'RIENTRO' && m.note && m.note.includes('Trasferimento a')));
+
     const risultati = [];
-
     for (const mov of movimenti) {
+      // Segui la catena fino a trovare un destinatario che non sia MAGAZZINO
+      let currentMov = mov;
       let destinatarioFinale = null;
-      let dataFinale = mov.data;
-      let oggettoId = mov.id_articolo_kit;
-      let tipoOggetto = mov.tipo_oggetto;
-      let quantita = mov.quantita;
+      let dataFinale = currentMov.data;
+      let oggettoId = currentMov.id_articolo_kit;
+      let tipoOggetto = currentMov.tipo_oggetto;
+      let quantita = currentMov.quantita;
 
-      // Se la destinazione è un magazzino, segui la catena
-      if (mov.a_magazzino && mov.a_magazzino.startsWith('MAGAZZINO-')) {
-        const magId = parseInt(mov.a_magazzino.split('-')[1]);
+      while (currentMov && currentMov.a_magazzino && currentMov.a_magazzino.startsWith('MAGAZZINO-')) {
+        const magId = parseInt(currentMov.a_magazzino.split('-')[1]);
+        // Cerca il movimento successivo (uscita dal magazzino verso un soggetto)
         const params2 = new URLSearchParams({
           tipo: 'USCITA',
           da_magazzino: `MAGAZZINO-${magId}`,
@@ -779,31 +787,37 @@
         });
         const res2 = await apiFetch(`/api/movimenti?${params2.toString()}`);
         if (res2.success && res2.data.length) {
-          const mov2 = res2.data[0];
-          if (mov2.a_magazzino && !mov2.a_magazzino.startsWith('MAGAZZINO-')) {
-            const parts = mov2.a_magazzino.split('-');
-            const destTipo = parts[0];
-            const destId = parseInt(parts[1]);
-            destinatarioFinale = await getNomeSoggetto(destTipo, destId);
-            dataFinale = mov2.data;
-          }
+          currentMov = res2.data[0];
+          dataFinale = currentMov.data;
+        } else {
+          break;
         }
-      } else if (mov.a_magazzino && !mov.a_magazzino.startsWith('MAGAZZINO-')) {
-        const parts = mov.a_magazzino.split('-');
+      }
+      if (currentMov && currentMov.a_magazzino && !currentMov.a_magazzino.startsWith('MAGAZZINO-')) {
+        const parts = currentMov.a_magazzino.split('-');
         const destTipo = parts[0];
         const destId = parseInt(parts[1]);
         destinatarioFinale = await getNomeSoggetto(destTipo, destId);
       }
-
       if (!destinatarioFinale) {
-        if (mov.a_magazzino && mov.a_magazzino.includes('-')) {
-          const parts = mov.a_magazzino.split('-');
-          const destTipo = parts[0];
-          const destId = parseInt(parts[1]);
-          destinatarioFinale = await getNomeSoggetto(destTipo, destId);
-        } else {
-          destinatarioFinale = mov.a_magazzino || 'Destinazione sconosciuta';
+        // Se ancora non trovato, prova a estrarre dalla nota del movimento originale
+        if (mov.note) {
+          const match = mov.note.match(/Trasferimento a (.+)/i);
+          if (match) {
+            let destRaw = match[1].trim();
+            const parts = destRaw.split(' ');
+            if (parts.length === 2 && (parts[0].toUpperCase() === 'CLIENTE' || parts[0].toUpperCase() === 'PROMOTER' || parts[0].toUpperCase() === 'NEGOZIO')) {
+              const destTipo = parts[0].toUpperCase();
+              const destId = parseInt(parts[1]);
+              destinatarioFinale = await getNomeSoggetto(destTipo, destId);
+            } else {
+              destinatarioFinale = destRaw;
+            }
+          }
         }
+      }
+      if (!destinatarioFinale) {
+        destinatarioFinale = 'Destinazione sconosciuta';
       }
 
       // Costruisci l'oggetto
