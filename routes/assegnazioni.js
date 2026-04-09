@@ -4,7 +4,7 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// ========== HELPER: AGGIORNA SINTESI CARICO ==========
+// ========== HELPER: AGGIORNA SINTESI CARICO (con provenienza e data) ==========
 async function aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, variazione, provenienzaTipo = null, provenienzaId = null, dataAssegnazione = null) {
   const query = `
     INSERT INTO carico_sintesi (destinazione_tipo, destinazione_id, tipo_oggetto, oggetto_id, sigla_id, quantita, provenienza_tipo, provenienza_id, data_assegnazione)
@@ -51,7 +51,7 @@ async function registraUscitaTransazionale(connection, params) {
      VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
     [`MAGAZZINO-${magazzinoId}`, `${destinazioneTipo}-${destinazioneId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
-  // Aggiorna carico_sintesi con provenienza = magazzino
+  // Aggiorna carico_sintesi con provenienza = MAGAZZINO
   await aggiornaSintesiCarico(connection, destinazioneTipo, destinazioneId, tipoOggetto, oggettoId, siglaId, +quantita, 'MAGAZZINO', magazzinoId, new Date());
 }
 
@@ -67,11 +67,11 @@ async function registraRientroTransazionale(connection, params) {
      VALUES (NOW(), 'RIENTRO', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
     [`${daTipo}-${daId}`, `MAGAZZINO-${magazzinoId}`, oggettoId, tipoOggetto, quantita, operatore, note, userId, siglaId || null]
   );
-  // Rimuove la quantità dal soggetto mittente
+  // Rientro: decrementa quantità dal soggetto mittente (non serve aggiornare provenienza)
   await aggiornaSintesiCarico(connection, daTipo, daId, tipoOggetto, oggettoId, siglaId, -quantita);
 }
 
-// ========== VERIFICA SE UNA SIGLA È GIÀ ASSEGNATA ==========
+// ========== VERIFICA SIGLA ==========
 router.get('/verifica-sigla', verifyToken, async (req, res) => {
   try {
     const { tipo_oggetto, oggetto_id, sigla_id, escludi_tipo, escludi_id } = req.query;
@@ -102,7 +102,7 @@ router.get('/verifica-sigla', verifyToken, async (req, res) => {
   }
 });
 
-// ========== RECUPERA SIGLE DISPONIBILI PER UN ARTICOLO ==========
+// ========== RECUPERA SIGLE ==========
 async function getSigleArticolo(articoloId) {
   try {
     const [rows] = await pool.query('SELECT id, sigla, durezza, lunghezza FROM sigle_articoli WHERE articolo_id = ? AND attivo = 1', [articoloId]);
@@ -137,9 +137,9 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
       cs.oggetto_id,
       cs.sigla_id,
       cs.quantita,
-      cs.data_assegnazione,
       cs.provenienza_tipo,
       cs.provenienza_id,
+      cs.data_assegnazione,
       CASE 
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.descrizione_completa
         WHEN cs.tipo_oggetto = 'KIT' THEN k.descrizione
@@ -148,13 +148,15 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
         WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
         WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
       END AS codice,
-      a.lunghezza AS LUNGHEZZA,
-      a.durezza AS DUREZZA,
+      CASE 
+        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.lunghezza
+        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT lunghezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
+      END AS LUNGHEZZA,
+      CASE 
+        WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.durezza
+        WHEN cs.tipo_oggetto = 'KIT' THEN (SELECT durezza FROM articoli WHERE articolo_id = (SELECT articolo_id FROM kit_dettaglio WHERE kit_id = k.id AND tipo_articolo = 'SCI' LIMIT 1))
+      END AS DUREZZA,
       (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS SIGLA_CORRENTE,
-      a.settore AS SETTORE,
-      a.marca AS MARCA,
-      a.codice_modello AS CODICE_MODELLO,
-      a.categoria AS CATEGORIA,
       sog.nome AS destinatario_nome,
       sog.cognome AS destinatario_cognome
     FROM carico_sintesi cs
@@ -189,17 +191,13 @@ async function getOggettiInCarico(destinazioneTipo, destinazioneId, magazzinoFil
       LUNGHEZZA: row.LUNGHEZZA || '',
       DUREZZA: row.DUREZZA || '',
       SIGLA_CORRENTE: row.SIGLA_CORRENTE || '',
-      SETTORE: row.SETTORE,
-      MARCA: row.MARCA,
-      CODICE_MODELLO: row.CODICE_MODELLO,
-      CATEGORIA: row.CATEGORIA,
       destinazioneTipo: row.destinazione_tipo,
       destinazioneId: row.destinazione_id,
       destinatarioNome: destinatarioNome,
-      data_assegnazione: row.data_assegnazione,
+      sigleDisponibili: sigleDisponibili,
       provenienzaTipo: row.provenienza_tipo,
       provenienzaId: row.provenienza_id,
-      sigleDisponibili: sigleDisponibili
+      dataAssegnazione: row.data_assegnazione
     });
   }
   return risultati;
@@ -216,7 +214,7 @@ async function getSoggettiReferenziati(soggettoId) {
   return result;
 }
 
-async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null, currentUserTipo = null, currentUserId = null) {
+async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = null) {
   let oggetti = await getOggettiInCarico(tipo, id, magazzinoFiltro);
   oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: tipo, destinazioneId: id, tipoAssegnazione: 'diretta', referenteDa: null }));
   
@@ -237,7 +235,7 @@ async function getOggettiPerSoggettoConReferenti(tipo, id, magazzinoFiltro = nul
   return oggetti;
 }
 
-// ========== ROTTA PRINCIPALE (oggetti in carico) ==========
+// ========== ROTTA OGGETTI (con referenti) ==========
 router.post('/oggetti', verifyToken, async (req, res) => {
   try {
     const { magazzino, targetTipo, targetId, includeReferenced } = req.body;
@@ -273,10 +271,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             sog.nome AS destinatario_nome,
             sog.cognome AS destinatario_cognome,
             a.lunghezza AS LUNGHEZZA,
-            a.durezza AS DUREZZA,
-            a.settore AS SETTORE,
-            a.marca AS MARCA,
-            a.codice_modello AS CODICE_MODELLO
+            a.durezza AS DUREZZA
           FROM carico_sintesi cs
           LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
           LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
@@ -308,16 +303,13 @@ router.post('/oggetti', verifyToken, async (req, res) => {
             LUNGHEZZA: row.LUNGHEZZA || '',
             DUREZZA: row.DUREZZA || '',
             SIGLA_CORRENTE: row.SIGLA_CORRENTE || '',
-            SETTORE: row.SETTORE,
-            MARCA: row.MARCA,
-            CODICE_MODELLO: row.CODICE_MODELLO,
             destinazioneTipo: row.destinazione_tipo,
             destinazioneId: row.destinazione_id,
             destinatarioNome: destinatarioNome,
-            data_assegnazione: row.data_assegnazione,
+            sigleDisponibili: sigleDisponibili,
             provenienzaTipo: row.provenienza_tipo,
             provenienzaId: row.provenienza_id,
-            sigleDisponibili: sigleDisponibili
+            dataAssegnazione: row.data_assegnazione
           });
         }
         return res.json({ success: true, oggetti: tutte });
@@ -331,7 +323,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
     const ruoloUtente = ruolo.toUpperCase();
     let oggetti = [];
     if (includeReferenced) {
-      oggetti = await getOggettiPerSoggettoConReferenti(ruoloUtente, userRiferimentoId, magazzino, ruoloUtente, userRiferimentoId);
+      oggetti = await getOggettiPerSoggettoConReferenti(ruoloUtente, userRiferimentoId, magazzino);
     } else {
       oggetti = await getOggettiInCarico(ruoloUtente, userRiferimentoId, magazzino);
       oggetti = oggetti.map(o => ({ ...o, destinazioneTipo: ruoloUtente, destinazioneId: userRiferimentoId, tipoAssegnazione: 'me', referenteDa: null }));
@@ -343,48 +335,7 @@ router.post('/oggetti', verifyToken, async (req, res) => {
   }
 });
 
-// ========== NUOVO ENDPOINT: OGGETTI INVIATI (VELOCE) ==========
-router.get('/inviati', verifyToken, async (req, res) => {
-  try {
-    const { provenienza_tipo, provenienza_id } = req.query;
-    if (!provenienza_tipo || !provenienza_id) {
-      return res.status(400).json({ success: false, message: 'provenienza_tipo e provenienza_id richiesti' });
-    }
-    const [rows] = await pool.query(`
-      SELECT cs.*,
-             CASE 
-               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.descrizione_completa
-               WHEN cs.tipo_oggetto = 'KIT' THEN k.descrizione
-             END AS descrizione,
-             CASE 
-               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
-               WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
-             END AS codice,
-             a.lunghezza,
-             a.durezza,
-             (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS sigla,
-             s.nome AS destinatario_nome,
-             s.cognome AS destinatario_cognome
-      FROM carico_sintesi cs
-      LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
-      LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
-      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
-      WHERE cs.provenienza_tipo = ? AND cs.provenienza_id = ?
-      ORDER BY cs.data_assegnazione DESC
-    `, [provenienza_tipo, provenienza_id]);
-    
-    const result = rows.map(row => ({
-      ...row,
-      destinatarioNome: row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome || 'Magazzino')
-    }));
-    res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ========== USCITE MULTIPLE ==========
+// ========== USCITA BATCH ==========
 router.post('/uscita/batch', verifyToken, async (req, res) => {
   const { magazzinoId, destinazioneTipo, destinazioneId, note, oggetti } = req.body;
   if (!destinazioneTipo || !destinazioneId || !oggetti || !oggetti.length) {
@@ -420,7 +371,7 @@ router.post('/uscita/batch', verifyToken, async (req, res) => {
   }
 });
 
-// ========== RIENTRI MULTIPLI ==========
+// ========== RIENTRO BATCH ==========
 router.post('/rientro/batch', verifyToken, async (req, res) => {
   const { magazzinoId, note, oggetti } = req.body;
   if (!magazzinoId || !oggetti || !oggetti.length) {
@@ -474,7 +425,7 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
     const [user] = await connection.query('SELECT * FROM utenti WHERE id = ?', [req.userId]);
     const operatore = user[0].username;
     for (const item of oggetti) {
-      // Rientro dal mittente (decrementa quantità e imposta provenienza? Non serve, perché la provenienza verrà sovrascritta dalla successiva uscita)
+      // Rimuovi dal mittente (rientro)
       await registraRientroTransazionale(connection, {
         daTipo,
         daId,
@@ -487,19 +438,14 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
         operatore,
         userId: req.userId
       });
-      // Uscita verso il nuovo destinatario, con provenienza = il soggetto che trasferisce
-      await registraUscitaTransazionale(connection, {
-        magazzinoId,
-        tipoOggetto: item.tipoOggetto,
-        oggettoId: item.oggettoId,
-        siglaId: item.siglaId || null,
-        quantita: item.quantita,
-        destinazioneTipo: aTipo,
-        destinazioneId: aId,
-        note: note || `Trasferimento da ${daTipo} ${daId}`,
-        operatore,
-        userId: req.userId
-      });
+      // Aggiungi al destinatario (uscita) – con provenienza = mittente
+      await aggiornaSintesiCarico(connection, aTipo, aId, item.tipoOggetto, item.oggettoId, item.siglaId || null, +item.quantita, daTipo, daId, new Date());
+      // Registra movimento USCITA dal magazzino al destinatario (per tracciabilità)
+      await connection.query(
+        `INSERT INTO movimenti (data, tipo, da_magazzino, a_magazzino, id_articolo_kit, tipo_oggetto, quantita, operatore, note, stato, promoter_mittente, sigla_id)
+         VALUES (NOW(), 'USCITA', ?, ?, ?, ?, ?, ?, ?, 'COMPLETATO', ?, ?)`,
+        [`MAGAZZINO-${magazzinoId}`, `${aTipo}-${aId}`, item.oggettoId, item.tipoOggetto, item.quantita, operatore, note || `Trasferimento da ${daTipo} ${daId}`, req.userId, item.siglaId || null]
+      );
     }
     await connection.commit();
     res.json({ success: true, message: `Trasferiti ${oggetti.length} oggetti` });
@@ -509,6 +455,47 @@ router.post('/trasferimento', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   } finally {
     connection.release();
+  }
+});
+
+// ========== NUOVO ENDPOINT PER OGGETTI INVIATI (VELOCE) ==========
+router.get('/inviati', verifyToken, async (req, res) => {
+  try {
+    const { provenienza_tipo, provenienza_id } = req.query;
+    if (!provenienza_tipo || !provenienza_id) {
+      return res.status(400).json({ error: 'provenienza_tipo e provenienza_id richiesti' });
+    }
+    const [rows] = await pool.query(`
+      SELECT cs.*,
+             CASE 
+               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.descrizione_completa
+               WHEN cs.tipo_oggetto = 'KIT' THEN k.descrizione
+             END AS descrizione,
+             CASE 
+               WHEN cs.tipo_oggetto = 'ARTICOLO' THEN a.codice
+               WHEN cs.tipo_oggetto = 'KIT' THEN k.codice_kit
+             END AS codice,
+             a.lunghezza,
+             a.durezza,
+             (SELECT sigla FROM sigle_articoli WHERE id = cs.sigla_id) AS sigla,
+             s.nome AS destinatario_nome,
+             s.cognome AS destinatario_cognome
+      FROM carico_sintesi cs
+      LEFT JOIN articoli a ON cs.tipo_oggetto = 'ARTICOLO' AND cs.oggetto_id = a.articolo_id
+      LEFT JOIN kit k ON cs.tipo_oggetto = 'KIT' AND cs.oggetto_id = k.id
+      LEFT JOIN soggetti s ON s.tipo = cs.destinazione_tipo AND s.id = cs.destinazione_id
+      WHERE cs.provenienza_tipo = ? AND cs.provenienza_id = ? AND cs.quantita > 0
+      ORDER BY cs.data_assegnazione DESC
+    `, [provenienza_tipo, provenienza_id]);
+    
+    const result = rows.map(row => ({
+      ...row,
+      destinatarioNome: row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome || 'Magazzino')
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
