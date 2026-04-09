@@ -171,7 +171,7 @@
     .density-medium th, .density-medium td { padding: 5px 7px; font-size: 0.75rem; }
     .density-large th, .density-large td { padding: 8px 10px; font-size: 0.85rem; }
 
-    /* Stampa */
+    /* Stampa: nascondi il codice kit (sigla sci) nella colonna "Codice / Sigla" */
     @media print {
       body { background: white; padding: 0; margin: 0; }
       .container { max-width: 100%; padding: 0; margin: 0; box-shadow: none; }
@@ -185,6 +185,10 @@
         font-size: 8px;
         margin-top: 15px;
         color: #666;
+      }
+      /* Nasconde il contenuto della cella "Codice / Sigla" per le righe kit */
+      .kit-row td:nth-child(3) {
+        visibility: hidden;
       }
     }
     .print-footer { display: none; }
@@ -281,9 +285,9 @@
       <div class="table-wrapper">
         <table id="tabellaRicevuti">
           <thead>
-             <th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th><th>Provenienza</th><th>Data arrivo</th>
+             <th>#</th><th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Durezza</th><th>Sigla</th><th>Quantità</th><th>Giacenza</th><th>Provenienza</th><th>Data arrivo</th>
           </thead>
-          <tbody id="ricevutiBody"><td colspan="10" class="text-center">Seleziona un soggetto</td></tbody>
+          <tbody id="ricevutiBody"><td colspan="11" class="text-center">Seleziona un soggetto</td></tbody>
         </table>
       </div>
     </div>
@@ -293,9 +297,9 @@
       <div class="table-wrapper">
         <table id="tabellaInviati">
           <thead>
-             <th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>
+             <th>#</th><th>Tipo</th><th>Codice / Sigla</th><th>Descrizione</th><th>Lunghezza</th><th>Quantità</th><th>Passaggi</th>
           </thead>
-          <tbody id="inviatiBody"><td colspan="6" class="text-center">Seleziona un soggetto</td></tbody>
+          <tbody id="inviatiBody"><td colspan="7" class="text-center">Seleziona un soggetto</td></tbody>
         </table>
       </div>
     </div>
@@ -335,6 +339,17 @@
     const div = document.getElementById('messageArea');
     div.innerHTML = `<div class="message ${type}">${msg}</div>`;
     setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  // Formatta data come DD-MM-YYYY
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
   }
 
   let currentUser = null;
@@ -397,7 +412,6 @@
             soggettoId.appendChild(new Option(testo, item.id));
             cacheSoggetti.set(`${tipo}|${item.id}`, testo);
           });
-          // Non chiamiamo caricaReport qui, aspettiamo che l'utente selezioni un soggetto
         } catch (err) { console.error(err); showMessage('Errore caricamento soggetti', 'error'); }
       });
       soggettoId.addEventListener('change', () => {
@@ -745,55 +759,65 @@
     document.getElementById('soggettoRicevutoNome').innerText = soggettoNome;
     const tbody = document.getElementById('ricevutiBody');
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun oggetto ricevuto / in carico (anche storico).</td>';
+      tbody.innerHTML = '<td colspan="11" class="text-center">Nessun oggetto ricevuto / in carico (anche storico).</td>';
       return;
     }
     tbody.innerHTML = '';
-    for (const item of oggetti) {
+    oggetti.forEach((item, idx) => {
+      const row = tbody.insertRow();
+      // Aggiungi classe kit-row se è un kit (per la stampa)
+      if (item.tipo === 'KIT') row.classList.add('kit-row');
+      
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : (item.LUNGHEZZA || '-');
       const giacenza = item.stato === 'in_carico' ? item.quantita : 0;
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = item.tipo === 'KIT' ? 'Kit' : 'Articolo';
-      row.insertCell(1).innerText = codiceMostrato;
-      row.insertCell(2).innerText = item.descrizione || '-';
-      row.insertCell(3).innerText = lunghezzaMostrata;
-      row.insertCell(4).innerText = item.DUREZZA || '-';
-      row.insertCell(5).innerText = item.SIGLA || '-';
-      row.insertCell(6).innerText = item.quantita;
-      row.insertCell(7).innerText = giacenza;
-      row.insertCell(8).innerText = item.provenienza || '-';
-      row.insertCell(9).innerText = item.dataArrivo ? new Date(item.dataArrivo).toLocaleString() : '-';
-    }
+      
+      row.insertCell(0).innerText = idx + 1;               // #
+      row.insertCell(1).innerText = item.tipo === 'KIT' ? 'Kit' : 'Articolo';
+      row.insertCell(2).innerText = codiceMostrato;
+      row.insertCell(3).innerText = item.descrizione || '-';
+      row.insertCell(4).innerText = lunghezzaMostrata;
+      row.insertCell(5).innerText = item.DUREZZA || '-';
+      row.insertCell(6).innerText = item.SIGLA || '-';
+      row.insertCell(7).innerText = item.quantita;
+      row.insertCell(8).innerText = giacenza;
+      row.insertCell(9).innerText = item.provenienza || '-';
+      row.insertCell(10).innerText = formatDate(item.dataArrivo);
+    });
   }
 
   function renderOggettiInviati(oggetti, soggettoNome) {
     document.getElementById('soggettoInviatiNome').innerText = soggettoNome;
     const tbody = document.getElementById('inviatiBody');
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="6" class="text-center">Nessun oggetto inviato da questo soggetto.</td>';
+      tbody.innerHTML = '<td colspan="7" class="text-center">Nessun oggetto inviato da questo soggetto.</td>';
       return;
     }
     tbody.innerHTML = '';
-    for (const item of oggetti) {
+    oggetti.forEach((item, idx) => {
+      const row = tbody.insertRow();
+      if (item.tipo === 'KIT') row.classList.add('kit-row');
+      
       const codiceMostrato = item.tipo === 'KIT' ? (item.siglaSci || '-') : (item.codice || '-');
       const lunghezzaMostrata = item.tipo === 'KIT' ? (item.lunghezzaSci || '-') : '';
-      const row = tbody.insertRow();
-      row.insertCell(0).innerText = item.tipo === 'KIT' ? 'Kit' : 'Articolo';
-      row.insertCell(1).innerText = codiceMostrato;
-      row.insertCell(2).innerText = item.descrizione || '-';
-      row.insertCell(3).innerText = lunghezzaMostrata;
-      row.insertCell(4).innerText = item.quantita;
-      const passaggiCell = row.insertCell(5);
+      
+      row.insertCell(0).innerText = idx + 1;
+      row.insertCell(1).innerText = item.tipo === 'KIT' ? 'Kit' : 'Articolo';
+      row.insertCell(2).innerText = codiceMostrato;
+      row.insertCell(3).innerText = item.descrizione || '-';
+      row.insertCell(4).innerText = lunghezzaMostrata;
+      row.insertCell(5).innerText = item.quantita;
+      
+      const passaggiCell = row.insertCell(6);
       let html = '';
       for (let i = 0; i < item.passaggi.length; i++) {
         const p = item.passaggi[i];
-        let testo = `➡️ ${p.destinatario} (${new Date(p.data).toLocaleDateString()})`;
+        let testo = `➡️ ${p.destinatario} (${formatDate(p.data)})`;
         if (p.secondoLivello) testo = `↳ ${testo}`;
         html += `${testo}<br>`;
       }
       passaggiCell.innerHTML = html || '-';
-    }
+    });
   }
 
   async function caricaReport() {
@@ -806,7 +830,7 @@
     }
     const soggettoNome = await getNomeSoggetto(tipoSogg, idSogg);
     let ricevuti = await getOggettiRicevuti(tipoSogg, idSogg);
-    // Applica filtri extra (oltre a quelli già usati nelle chiamate)
+    // Applica filtri extra
     if (filtroTipo.value) ricevuti = ricevuti.filter(o => o.tipo === filtroTipo.value);
     if (filtroDesc.value) ricevuti = ricevuti.filter(o => o.descrizione?.toLowerCase().includes(filtroDesc.value.toLowerCase()));
     if (filtroLung.value) ricevuti = ricevuti.filter(o => (o.lunghezzaSci || o.LUNGHEZZA) == filtroLung.value);
@@ -835,7 +859,6 @@
   }
 
   function esportaExcel() {
-    // Esporta entrambe le tabelle in un unico CSV (foglio separato)
     const ricevutiTable = document.getElementById('tabellaRicevuti');
     const inviatiTable = document.getElementById('tabellaInviati');
     let csv = [];
