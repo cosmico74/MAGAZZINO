@@ -746,8 +746,14 @@
         sigla = obj.SIGLA_CORRENTE || '';
         lunghezza = obj.LUNGHEZZA || '';
       }
-      let codiceSigla = obj.codice || '';
-      if (sigla && sigla !== codiceSigla) codiceSigla += ` / ${sigla}`;
+      // Per i kit, mostra SOLO la sigla dello sci (se presente), altrimenti il codice
+      let codiceSigla = '';
+      if (obj.tipo === 'KIT') {
+        codiceSigla = sigla || obj.codice || '';
+      } else {
+        codiceSigla = obj.codice || '';
+        if (sigla && sigla !== codiceSigla) codiceSigla += ` / ${sigla}`;
+      }
       return {
         id: obj.ID,
         tipo: obj.tipo,
@@ -757,7 +763,7 @@
         totale: obj.quantita,
         stato: 'In carico',
         destinatario: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
-        data: null,
+        data: obj.data_assegnazione || null,  // data da carico_sintesi
         sigleDisponibili: obj.sigleDisponibili || [],
         siglaId: obj.siglaId || null,
         destinazioneTipo: obj.destinazioneTipo,
@@ -767,12 +773,18 @@
     });
   }
 
-  // ========== OGGETTI ASSEGNATI (catena completa) ==========
+  // ========== OGGETTI ASSEGNATI (inviati ad altri) ==========
   async function getOggettiAssegnati(tipo, id) {
     const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
     return res.map(row => {
-      let codiceSigla = row.codice || '';
-      if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
+      // Per i kit, mostra SOLO la sigla dello sci (se presente), altrimenti il codice
+      let codiceSigla = '';
+      if (row.tipo_oggetto === 'KIT') {
+        codiceSigla = row.sigla || row.codice || '';
+      } else {
+        codiceSigla = row.codice || '';
+        if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
+      }
       return {
         id: row.oggetto_id,
         tipo: row.tipo_oggetto,
@@ -880,9 +892,8 @@
           if (descr && descr.startsWith('Kit: ')) descr = descr.substring(5);
           const magObj = magazzini.find(m => m.id == k.magazzino);
           const magNome = magObj ? magObj.nome : 'Magazzino';
-          let qAssegnata = k.assegnato_a ? k.assegnato_a.quantita : 0;
-          let codiceSigla = k.codice_kit;
-          if (sigla && sigla !== codiceSigla) codiceSigla += ` / ${sigla}`;
+          // Per i kit, mostra solo la sigla dello sci
+          let codiceSigla = sigla || k.codice_kit;
           lista.push({
             id: k.id, tipo: 'KIT',
             codice_sigla: codiceSigla,
@@ -924,17 +935,14 @@
       // Aggiungi classe per i kit (utile per la stampa)
       if (obj.tipo === 'KIT') row.classList.add('kit-row');
       
-      // Colonna # (progressivo)
-      row.insertCell(0).innerText = idx + 1;
-      // Colonna Codice / Sigla
-      row.insertCell(1).innerText = obj.codice_sigla || '-';
+      row.insertCell(0).innerText = idx + 1;                     // #
+      row.insertCell(1).innerText = obj.codice_sigla || '-';     // Codice / Sigla (per i kit è la sigla)
       row.insertCell(2).innerText = obj.descrizione || '-';
       row.insertCell(3).innerText = obj.lunghezza || '-';
       row.insertCell(4).innerText = obj.totale ?? '-';
       row.insertCell(5).innerText = obj.stato || (obj.isCarico ? 'In carico' : '-');
       row.insertCell(6).innerText = obj.destinatario || 'Magazzino';
-      // Data formattata DD-MM-YYYY
-      row.insertCell(7).innerText = obj.data ? formatDate(obj.data) : '-';
+      row.insertCell(7).innerText = obj.data ? formatDate(obj.data) : '-'; // Data da carico_sintesi
       const btn = document.createElement('button');
       btn.textContent = '✏️';
       btn.className = 'btn btn-secondary btn-sm';
