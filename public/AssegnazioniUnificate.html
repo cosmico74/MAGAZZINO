@@ -214,8 +214,13 @@
       th { position: static; }
       .logo img { height: 20px !important; }
       h2 { font-size: 1.8rem !important; }
+      /* Nasconde la colonna "Azioni" (ultima) */
       #tabellaOggetti th:last-child,
       #tabellaOggetti td:last-child { display: none; }
+      /* Nasconde il codice / sigla per i kit (seconda colonna dopo il #) */
+      .kit-row td:nth-child(2) {
+        visibility: hidden;
+      }
       .print-footer-right {
         display: block !important;
         position: fixed;
@@ -419,6 +424,7 @@
   <div class="table-wrapper" id="tableWrapper">
     <table id="tabellaOggetti">
       <thead id="tabellaHeader">
+         <th>#</th>
          <th id="colonnaPrimaria" data-sort="codice_sigla">Codice / Sigla <span class="sort-arrow"></span></th>
          <th data-sort="descrizione">Descrizione <span class="sort-arrow"></span></th>
          <th data-sort="lunghezza">Lunghezza <span class="sort-arrow"></span></th>
@@ -428,7 +434,7 @@
          <th data-sort="data">Data <span class="sort-arrow"></span></th>
          <th>Azioni</th>
       </thead>
-      <tbody id="tabellaBody"><td colspan="8" class="text-center">Caricamento...<\/td></tbody>
+      <tbody id="tabellaBody"><td colspan="9" class="text-center">Caricamento...<\/td></tbody>
     </table>
   </div>
 
@@ -537,6 +543,17 @@
   function chiudiAssignModal() { document.getElementById('assignModal').style.display = 'none'; currentAssignObj = null; }
   function chiudiEditModal() { document.getElementById('editAssignmentModal').style.display = 'none'; currentEditObj = null; }
   function chiudiConfirmModal() { document.getElementById('confirmRiassegnaModal').style.display = 'none'; pendingAction = null; }
+
+  // Formatta data come DD-MM-YYYY
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
 
   let currentUser = null;
   let magazzini = [], categorie = [];
@@ -751,26 +768,26 @@
   }
 
   // ========== OGGETTI ASSEGNATI (catena completa) ==========
-async function getOggettiAssegnati(tipo, id) {
-  const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
-  return res.map(row => {
-    let codiceSigla = row.codice || '';
-    if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
-    return {
-      id: row.oggetto_id,
-      tipo: row.tipo_oggetto,
-      codice_sigla: codiceSigla,
-      descrizione: row.descrizione || '',
-      lunghezza: row.lunghezza || '',
-      totale: row.quantita,
-      stato: 'Assegnato',
-      data: row.data_assegnazione,
-      destinatario: row.destinatarioNome || (row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome||'Magazzino')),
-      sigleDisponibili: [],
-      siglaId: row.sigla_id
-    };
-  });
-}
+  async function getOggettiAssegnati(tipo, id) {
+    const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
+    return res.map(row => {
+      let codiceSigla = row.codice || '';
+      if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
+      return {
+        id: row.oggetto_id,
+        tipo: row.tipo_oggetto,
+        codice_sigla: codiceSigla,
+        descrizione: row.descrizione || '',
+        lunghezza: row.lunghezza || '',
+        totale: row.quantita,
+        stato: 'Assegnato',
+        data: row.data_assegnazione,
+        destinatario: row.destinatarioNome || (row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome||'Magazzino')),
+        sigleDisponibili: [],
+        siglaId: row.sigla_id
+      };
+    });
+  }
 
   // ========== CARICA OGGETTI UNIFICATI ==========
   async function caricaOggettiInCarico() {
@@ -894,29 +911,36 @@ async function getOggettiAssegnati(tipo, id) {
     }
   }
 
-  // ========== POPOLA TABELLA (VELOCE CON DOCUMENTFRAGMENT) ==========
+  // ========== POPOLA TABELLA (con numero progressivo e classe kit-row) ==========
   function popolaTabella() {
     const tbody = document.getElementById('tabellaBody');
     if (!oggetti.length) {
-      tbody.innerHTML = '<td colspan="8" class="text-center">Nessun oggetto disponibile<\/td>';
+      tbody.innerHTML = '<td colspan="9" class="text-center">Nessun oggetto disponibile<\/td>';
       return;
     }
     const fragment = document.createDocumentFragment();
-    oggetti.forEach(obj => {
+    oggetti.forEach((obj, idx) => {
       const row = document.createElement('tr');
-      row.insertCell(0).innerText = obj.codice_sigla || '-';
-      row.insertCell(1).innerText = obj.descrizione || '-';
-      row.insertCell(2).innerText = obj.lunghezza || '-';
-      row.insertCell(3).innerText = obj.totale ?? '-';
-      row.insertCell(4).innerText = obj.stato || (obj.isCarico ? 'In carico' : '-');
-      row.insertCell(5).innerText = obj.destinatario || 'Magazzino';
-      row.insertCell(6).innerText = obj.data ? new Date(obj.data).toLocaleString() : '-';
+      // Aggiungi classe per i kit (utile per la stampa)
+      if (obj.tipo === 'KIT') row.classList.add('kit-row');
+      
+      // Colonna # (progressivo)
+      row.insertCell(0).innerText = idx + 1;
+      // Colonna Codice / Sigla
+      row.insertCell(1).innerText = obj.codice_sigla || '-';
+      row.insertCell(2).innerText = obj.descrizione || '-';
+      row.insertCell(3).innerText = obj.lunghezza || '-';
+      row.insertCell(4).innerText = obj.totale ?? '-';
+      row.insertCell(5).innerText = obj.stato || (obj.isCarico ? 'In carico' : '-');
+      row.insertCell(6).innerText = obj.destinatario || 'Magazzino';
+      // Data formattata DD-MM-YYYY
+      row.insertCell(7).innerText = obj.data ? formatDate(obj.data) : '-';
       const btn = document.createElement('button');
       btn.textContent = '✏️';
       btn.className = 'btn btn-secondary btn-sm';
       if (radioMagazzino.checked) btn.onclick = () => apriModalAssegnazione(obj);
       else btn.onclick = () => apriModificaSingola(obj);
-      row.insertCell(7).appendChild(btn);
+      row.insertCell(8).appendChild(btn);
       fragment.appendChild(row);
     });
     tbody.innerHTML = '';
