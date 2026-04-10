@@ -4,7 +4,7 @@
   <link rel="icon" type="image/png" href="/images/kastle-logo.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>📦 Trasferimento Massivo</title>
+  <title>📦 Trasferimento Massivo per Sigla</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -132,6 +132,19 @@
       border: 1px solid #cbd5e0;
       border-radius: 6px;
       font-size: 0.7rem;
+    }
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: normal;
+      text-transform: none;
+      font-size: 0.75rem;
     }
 
     .table-wrapper {
@@ -299,6 +312,11 @@
     <div class="form-group">
       <label><input type="checkbox" id="includeReferenced"> Includi referenti</label>
     </div>
+    <div class="radio-group">
+      <label><input type="radio" name="caricoMode" id="modeInCarico" value="incarico" checked> 📦 In carico</label>
+      <label><input type="radio" name="caricoMode" id="modeAssegnati" value="assegnati"> 📤 Assegnati (inviati ad altri)</label>
+      <label><input type="radio" name="caricoMode" id="modeEntrambi" value="entrambi"> 🔄 Entrambi</label>
+    </div>
   </div>
 
   <!-- Sezione "Dal magazzino" -->
@@ -411,9 +429,9 @@
 
   let currentUser = null;
   let magazzini = [];
-  let righeTabella = [];       // array di oggetti con i dati visualizzati
-  let checkboxStates = new Map(); // id riga -> checked
-  let quantityValues = new Map(); // id riga -> quantità da trasferire
+  let righeTabella = [];
+  let checkboxStates = new Map();
+  let quantityValues = new Map();
 
   const radioCarico = document.getElementById('sourceCarico');
   const radioMagazzino = document.getElementById('sourceMagazzino');
@@ -422,12 +440,14 @@
   const sourceTipo = document.getElementById('sourceTipo');
   const sourceId = document.getElementById('sourceId');
   const includeReferenced = document.getElementById('includeReferenced');
+  const modeInCarico = document.getElementById('modeInCarico');
+  const modeAssegnati = document.getElementById('modeAssegnati');
+  const modeEntrambi = document.getElementById('modeEntrambi');
   const magazzinoSelect = document.getElementById('magazzinoSelect');
   const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
   const selectAllCheckbox = document.getElementById('selectAll');
   const btnTrasferisci = document.getElementById('btnTrasferisci');
 
-  // Cache nomi soggetti
   const soggettoNomeCache = new Map();
   async function getNomeSoggetto(tipo, id) {
     const key = `${tipo}|${id}`;
@@ -440,13 +460,13 @@
     } catch(e) { return `${tipo} ${id}`; }
   }
 
-  // Recupera i dati da carico_sintesi per un soggetto (con referenti opzionali)
-  async function getDatiDaSoggetto(tipo, id, includeRef) {
+  // ----- OGGETTI IN CARICO (da carico_sintesi) -----
+  async function getOggettiInCarico(tipo, id, includeRef) {
     const body = { targetTipo: tipo, targetId: parseInt(id), includeReferenced: includeRef };
     const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
     if (!res.success) throw new Error(res.message);
     let oggetti = res.oggetti || [];
-    // arricchisci con dettagli kit
+    // Arricchisci kit con sigla sci
     for (let obj of oggetti) {
       if (obj.tipo === 'KIT') {
         try {
@@ -459,7 +479,6 @@
         } catch(e) {}
       }
     }
-    // Trasforma in righe: una riga per ogni record (già per sigla)
     return oggetti.map(obj => {
       let codiceSigla = '';
       let lunghezza = '';
@@ -480,17 +499,63 @@
         descrizione: obj.descrizione || '',
         lunghezza: lunghezza,
         quantita_totale: obj.quantita,
-        quantita_trasferire: obj.quantita,  // default tutto
+        quantita_trasferire: obj.quantita,
         stato: 'In carico',
         sorgenteNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
         data: obj.dataAssegnazione || null,
         destinazioneTipo: obj.destinazioneTipo,
-        destinazioneId: obj.destinazioneId
+        destinazioneId: obj.destinazioneId,
+        isCarico: true
       };
     });
   }
 
-  // Recupera dati dal magazzino (articoli/kit con sigle)
+  // ----- OGGETTI ASSEGNATI (inviati ad altri) -----
+  async function getOggettiAssegnati(tipo, id) {
+    const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
+    return res.map(row => {
+      let codiceSigla = '';
+      if (row.tipo_oggetto === 'KIT') {
+        codiceSigla = row.sigla || row.codice || '';
+      } else {
+        codiceSigla = row.codice || '';
+        if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
+      }
+      return {
+        id: `${row.tipo_oggetto}_${row.oggetto_id}_${row.sigla_id || 'null'}`,
+        tipo: row.tipo_oggetto,
+        oggettoId: row.oggetto_id,
+        siglaId: row.sigla_id,
+        codice_sigla: codiceSigla,
+        descrizione: row.descrizione || '',
+        lunghezza: row.lunghezza || '',
+        quantita_totale: row.quantita,
+        quantita_trasferire: row.quantita,
+        stato: 'Assegnato',
+        sorgenteNome: row.destinatarioNome || (row.destinazione_tipo === 'PROMOTER' ? `${row.destinatario_nome||''} ${row.destinatario_cognome||''}`.trim() : (row.destinatario_nome||'Magazzino')),
+        data: row.data_assegnazione,
+        destinazioneTipo: row.destinazione_tipo,
+        destinazioneId: row.destinazione_id,
+        isCarico: false
+      };
+    });
+  }
+
+  // ----- CARICA DATI DA SOGGETTO CON MODALITÀ -----
+  async function getDatiDaSoggetto(tipo, id, includeRef, mode) {
+    let incarico = [], assegnati = [];
+    if (mode === 'incarico' || mode === 'entrambi') {
+      incarico = await getOggettiInCarico(tipo, id, includeRef);
+    }
+    if (mode === 'assegnati' || mode === 'entrambi') {
+      assegnati = await getOggettiAssegnati(tipo, id);
+    }
+    if (mode === 'incarico') return incarico;
+    if (mode === 'assegnati') return assegnati;
+    return [...incarico, ...assegnati];
+  }
+
+  // ----- CARICA DATI DA MAGAZZINO (come prima) -----
   async function getDatiDaMagazzino(magId, tipoFiltro) {
     let lista = [];
     if (tipoFiltro === 'TUTTI' || tipoFiltro === 'ARTICOLO') {
@@ -501,7 +566,6 @@
         let sigle = [];
         try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
         if (sigle.length === 0) {
-          // nessuna sigla: una riga con sigla nulla
           lista.push({
             id: `ARTICOLO_${a.id}_null`,
             tipo: 'ARTICOLO',
@@ -514,7 +578,9 @@
             quantita_trasferire: a.quantita_totale,
             stato: 'In magazzino',
             sorgenteNome: `Magazzino ${magId}`,
-            data: null
+            data: null,
+            destinazioneTipo: null,
+            destinazioneId: null
           });
         } else {
           for (let s of sigle) {
@@ -531,7 +597,9 @@
               quantita_trasferire: a.quantita_totale,
               stato: 'In magazzino',
               sorgenteNome: `Magazzino ${magId}`,
-              data: null
+              data: null,
+              destinazioneTipo: null,
+              destinazioneId: null
             });
           }
         }
@@ -567,97 +635,16 @@
           quantita_trasferire: k.quantita,
           stato: 'In magazzino',
           sorgenteNome: `Magazzino ${magId}`,
-          data: null
+          data: null,
+          destinazioneTipo: null,
+          destinazioneId: null
         });
       }
     }
     return lista;
   }
 
-  // Popola tabella
-  function renderTabella(righe) {
-    const tbody = document.getElementById('tabellaBody');
-    if (!righe.length) {
-      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun elemento trovato.</td>';
-      btnTrasferisci.disabled = true;
-      return;
-    }
-    tbody.innerHTML = '';
-    righe.forEach((row, idx) => {
-      const tr = document.createElement('tr');
-      // checkbox
-      const tdCheck = document.createElement('td');
-      tdCheck.className = 'checkbox-col';
-      const chk = document.createElement('input');
-      chk.type = 'checkbox';
-      chk.checked = checkboxStates.get(row.id) || false;
-      chk.addEventListener('change', (e) => {
-        checkboxStates.set(row.id, e.target.checked);
-        aggiornaPulsanteTrasferisci();
-      });
-      tdCheck.appendChild(chk);
-      tr.appendChild(tdCheck);
-      // #
-      const tdNum = document.createElement('td');
-      tdNum.innerText = idx + 1;
-      tr.appendChild(tdNum);
-      // Codice/Sigla
-      const tdCod = document.createElement('td');
-      tdCod.innerText = row.codice_sigla;
-      tr.appendChild(tdCod);
-      // Descrizione
-      const tdDesc = document.createElement('td');
-      tdDesc.innerText = row.descrizione;
-      tr.appendChild(tdDesc);
-      // Lunghezza
-      const tdLung = document.createElement('td');
-      tdLung.innerText = row.lunghezza;
-      tr.appendChild(tdLung);
-      // Quantità disponibile
-      const tdQtaTot = document.createElement('td');
-      tdQtaTot.innerText = row.quantita_totale;
-      tr.appendChild(tdQtaTot);
-      // Quantità da trasferire (input)
-      const tdQtaTrasf = document.createElement('td');
-      const inputQta = document.createElement('input');
-      inputQta.type = 'number';
-      inputQta.min = 1;
-      inputQta.max = row.quantita_totale;
-      inputQta.value = quantityValues.has(row.id) ? quantityValues.get(row.id) : row.quantita_trasferire;
-      inputQta.className = 'quantity-input';
-      inputQta.addEventListener('change', (e) => {
-        let val = parseInt(e.target.value);
-        if (isNaN(val) || val < 1) val = 1;
-        if (val > row.quantita_totale) val = row.quantita_totale;
-        quantityValues.set(row.id, val);
-        // Aggiorna la quantità nell'oggetto row per riepilogo
-        row.quantita_trasferire = val;
-      });
-      tdQtaTrasf.appendChild(inputQta);
-      tr.appendChild(tdQtaTrasf);
-      // Stato
-      const tdStato = document.createElement('td');
-      tdStato.innerText = row.stato;
-      tr.appendChild(tdStato);
-      // Sorgente/Destinatario
-      const tdSorg = document.createElement('td');
-      tdSorg.innerText = row.sorgenteNome;
-      tr.appendChild(tdSorg);
-      // Data
-      const tdData = document.createElement('td');
-      tdData.innerText = row.data ? formatDate(row.data) : '-';
-      tr.appendChild(tdData);
-      tbody.appendChild(tr);
-    });
-    aggiornaPulsanteTrasferisci();
-  }
-
-  function aggiornaPulsanteTrasferisci() {
-    const qualcheSelezionato = Array.from(checkboxStates.values()).some(v => v === true);
-    btnTrasferisci.disabled = !qualcheSelezionato;
-  }
-
-  // Carica i dati in base alla sorgente selezionata
+  // ========== CARICA DATI PRINCIPALE ==========
   async function caricaDati() {
     const isMagazzino = radioMagazzino.checked;
     document.body.classList.add('loading');
@@ -673,10 +660,10 @@
         const id = sourceId.value;
         if (!tipo || !id) throw new Error('Seleziona un soggetto');
         const includeRef = includeReferenced.checked;
-        righe = await getDatiDaSoggetto(tipo, id, includeRef);
+        const mode = document.querySelector('input[name="caricoMode"]:checked').value;
+        righe = await getDatiDaSoggetto(tipo, id, includeRef, mode);
       }
       righeTabella = righe;
-      // resetta stati checkbox e quantità
       checkboxStates.clear();
       quantityValues.clear();
       righe.forEach(row => {
@@ -694,7 +681,78 @@
     }
   }
 
-  // Modale trasferimento
+  function renderTabella(righe) {
+    const tbody = document.getElementById('tabellaBody');
+    if (!righe.length) {
+      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun elemento trovato.</table>';
+      btnTrasferisci.disabled = true;
+      return;
+    }
+    tbody.innerHTML = '';
+    righe.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      const tdCheck = document.createElement('td');
+      tdCheck.className = 'checkbox-col';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = checkboxStates.get(row.id) || false;
+      chk.addEventListener('change', (e) => {
+        checkboxStates.set(row.id, e.target.checked);
+        aggiornaPulsanteTrasferisci();
+      });
+      tdCheck.appendChild(chk);
+      tr.appendChild(tdCheck);
+      const tdNum = document.createElement('td');
+      tdNum.innerText = idx + 1;
+      tr.appendChild(tdNum);
+      const tdCod = document.createElement('td');
+      tdCod.innerText = row.codice_sigla;
+      tr.appendChild(tdCod);
+      const tdDesc = document.createElement('td');
+      tdDesc.innerText = row.descrizione;
+      tr.appendChild(tdDesc);
+      const tdLung = document.createElement('td');
+      tdLung.innerText = row.lunghezza;
+      tr.appendChild(tdLung);
+      const tdQtaTot = document.createElement('td');
+      tdQtaTot.innerText = row.quantita_totale;
+      tr.appendChild(tdQtaTot);
+      const tdQtaTrasf = document.createElement('td');
+      const inputQta = document.createElement('input');
+      inputQta.type = 'number';
+      inputQta.min = 1;
+      inputQta.max = row.quantita_totale;
+      inputQta.value = quantityValues.get(row.id);
+      inputQta.className = 'quantity-input';
+      inputQta.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (isNaN(val) || val < 1) val = 1;
+        if (val > row.quantita_totale) val = row.quantita_totale;
+        quantityValues.set(row.id, val);
+        row.quantita_trasferire = val;
+      });
+      tdQtaTrasf.appendChild(inputQta);
+      tr.appendChild(tdQtaTrasf);
+      const tdStato = document.createElement('td');
+      tdStato.innerText = row.stato;
+      tr.appendChild(tdStato);
+      const tdSorg = document.createElement('td');
+      tdSorg.innerText = row.sorgenteNome;
+      tr.appendChild(tdSorg);
+      const tdData = document.createElement('td');
+      tdData.innerText = row.data ? formatDate(row.data) : '-';
+      tr.appendChild(tdData);
+      tbody.appendChild(tr);
+    });
+    aggiornaPulsanteTrasferisci();
+  }
+
+  function aggiornaPulsanteTrasferisci() {
+    const qualcheSelezionato = Array.from(checkboxStates.values()).some(v => v === true);
+    btnTrasferisci.disabled = !qualcheSelezionato;
+  }
+
+  // ========== MODALE TRASFERIMENTO ==========
   const trasferisciModal = document.getElementById('trasferisciModal');
   const destTipoSelect = document.getElementById('destTipo');
   const destinazioneContainer = document.getElementById('destinazioneContainer');
@@ -727,10 +785,8 @@
   }
 
   function apriTrasferisciModal() {
-    // Raccogli gli elementi selezionati
     const selezionati = [];
-    for (let i = 0; i < righeTabella.length; i++) {
-      const row = righeTabella[i];
+    for (let row of righeTabella) {
       if (checkboxStates.get(row.id)) {
         const qta = quantityValues.get(row.id);
         if (qta > 0) {
@@ -739,8 +795,8 @@
             oggettoId: row.oggettoId,
             siglaId: row.siglaId,
             quantita: qta,
-            daTipo: row.destinazioneTipo || null,
-            daId: row.destinazioneId || null,
+            daTipo: row.destinazioneTipo,
+            daId: row.destinazioneId,
             descrizione: row.descrizione,
             codice_sigla: row.codice_sigla
           });
@@ -752,14 +808,12 @@
       return;
     }
     pendingSelectedItems = selezionati;
-    // popola riepilogo
     let html = '<strong>📋 Elementi da trasferire:</strong><ul style="margin:5px 0 0 15px;">';
     for (let item of selezionati) {
       html += `<li>${item.codice_sigla} - ${item.descrizione} (q.${item.quantita})</li>`;
     }
     html += '</ul>';
     selectedSummaryDiv.innerHTML = html;
-    // resetta destinazione
     destTipoSelect.value = 'PROMOTER';
     aggiornaCampoDestinazione();
     trasferisciModal.style.display = 'flex';
@@ -780,30 +834,24 @@
       return;
     }
     const isMagazzino = radioMagazzino.checked;
-    const payload = {
-      note: note,
-      oggetti: pendingSelectedItems.map(item => ({
-        tipoOggetto: item.tipoOggetto,
-        oggettoId: item.oggettoId,
-        siglaId: item.siglaId,
-        quantita: item.quantita,
-        daTipo: isMagazzino ? null : item.daTipo,
-        daId: isMagazzino ? null : item.daId
-      }))
-    };
+    let payload = { note, oggetti: pendingSelectedItems.map(item => ({
+      tipoOggetto: item.tipoOggetto,
+      oggettoId: item.oggettoId,
+      siglaId: item.siglaId,
+      quantita: item.quantita,
+      daTipo: item.daTipo,
+      daId: item.daId
+    })) };
     let endpoint = '';
     if (isMagazzino) {
-      // uscita batch dal magazzino
       endpoint = '/api/assegnazioni/uscita/batch';
       payload.magazzinoId = parseInt(magazzinoSelect.value);
       payload.destinazioneTipo = destTipo;
       payload.destinazioneId = parseInt(destId);
     } else {
-      // trasferimento tra soggetti (o rientro se destinazione magazzino)
       if (destTipo === 'MAGAZZINO') {
         endpoint = '/api/assegnazioni/rientro/batch';
         payload.magazzinoId = parseInt(destId);
-        // i daTipo/daId sono già presenti in ogni oggetto
       } else {
         endpoint = '/api/assegnazioni/trasferimento';
         payload.magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
@@ -818,7 +866,7 @@
       if (res.success) {
         showMessage('Trasferimento completato con successo', 'success');
         chiudiTrasferisciModal();
-        await caricaDati(); // ricarica la tabella
+        await caricaDati();
       } else {
         showMessage(res.message || 'Errore nel trasferimento', 'error');
       }
@@ -827,7 +875,7 @@
     }
   }
 
-  // Gestione UI e init
+  // ========== GESTIONE UI ==========
   function toggleSource() {
     const isMagazzino = radioMagazzino.checked;
     caricoSection.style.display = isMagazzino ? 'none' : 'flex';
@@ -861,21 +909,16 @@
 
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
 
-  window.onload = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>'; return; }
-    try {
-      currentUser = JSON.parse(localStorage.getItem('user'));
-      if (!currentUser.riferimento_id && currentUser.RiferimentoID) currentUser.riferimento_id = parseInt(currentUser.RiferimentoID);
-    } catch(e) { logout(); return; }
-    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
-    await caricaMagazzini();
-    // Setup eventi
+  // ========== SETUP EVENTI ==========
+  function setup() {
     radioCarico.addEventListener('change', toggleSource);
     radioMagazzino.addEventListener('change', toggleSource);
     sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
     sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
     includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    modeInCarico.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    modeAssegnati.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    modeEntrambi.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
     magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
     tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
     selectAllCheckbox.addEventListener('change', (e) => {
@@ -886,7 +929,18 @@
     btnTrasferisci.addEventListener('click', () => apriTrasferisciModal());
     document.getElementById('confirmTrasferisciBtn').addEventListener('click', () => confermaTrasferimento());
     destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
-    // Carica soggetti se admin
+    toggleSource();
+  }
+
+  window.onload = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>'; return; }
+    try {
+      currentUser = JSON.parse(localStorage.getItem('user'));
+      if (!currentUser.riferimento_id && currentUser.RiferimentoID) currentUser.riferimento_id = parseInt(currentUser.RiferimentoID);
+    } catch(e) { logout(); return; }
+    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
+    await caricaMagazzini();
     if (currentUser.ruolo === 'admin') {
       await caricaSorgentiAdmin();
     } else if (currentUser.riferimento_id) {
@@ -896,7 +950,7 @@
     } else {
       showMessage('Utente senza soggetto associato', 'error');
     }
-    toggleSource();
+    setup();
   };
 </script>
 </body>
