@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <link rel="icon" type="image/png" href="/images/kastle-logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>📦 Trasferimento Massivo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      cursor: default;
+    }
+    body.loading, body.loading * { cursor: wait !important; }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      padding: 12px 20px 20px 20px;
+    }
+    .header-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.6rem;
+      border-left: 4px solid #1a73e8;
+      padding-left: 10px;
+      color: #1e2a3a;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-weight: 500;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn:hover { background: #0f5bb5; transform: translateY(-1px); }
+    .btn-success { background: #27ae60; }
+    .btn-secondary { background: #6c757d; }
+    .btn-danger { background: #dc3545; }
+    .btn-sm { padding: 2px 6px; font-size: 0.65rem; }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .logo img { height: 30px; }
+    .login-info {
+      background: #e8f0fe;
+      padding: 2px 8px;
+      border-radius: 16px;
+      font-size: 0.7rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sep {
+      margin: 6px 0 10px 0;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .source-selector, .source-selection {
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
+    .source-selector {
+      padding: 5px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .source-option {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+    }
+    .source-selection {
+      padding: 5px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .form-group {
+      margin-bottom: 0;
+      flex: 1;
+      min-width: 120px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.6rem;
+      margin-bottom: 2px;
+      color: #2c3e50;
+      text-transform: uppercase;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 0.7rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 70vh;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      position: relative;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    th, td {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #f8fafc;
+    }
+    tr:hover td { background: #fefce8; }
+    .quantity-input {
+      width: 70px;
+      padding: 2px 4px;
+      font-size: 0.7rem;
+      text-align: center;
+    }
+    .checkbox-col {
+      width: 30px;
+      text-align: center;
+    }
+    .message {
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 0.7rem;
+    }
+    .success { background: #d4edda; color: #155724; border-left: 3px solid #38a169; }
+    .error { background: #f8d7da; color: #721c24; border-left: 3px solid #e53e3e; }
+    .info { background: #e8f0fe; color: #1a73e8; border-left: 3px solid #1a73e8; }
+    .text-center { text-align: center; }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 550px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .modal-header {
+      padding: 10px 15px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.1rem; }
+    .close {
+      font-size: 1.3rem;
+      font-weight: bold;
+      cursor: pointer;
+      color: #aaa;
+    }
+    .close:hover { color: black; }
+    .modal-body { padding: 12px 15px; }
+    .modal-footer {
+      padding: 10px 15px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: #f8fafc;
+    }
+    .selected-summary {
+      background: #e8f0fe;
+      border-radius: 8px;
+      padding: 8px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.7rem;
+    }
+    @media (max-width: 768px) {
+      body { padding: 8px; }
+      .container { padding: 8px 12px; }
+      .source-selector, .source-selection { flex-direction: column; align-items: stretch; }
+      .source-selection { gap: 8px; }
+      .form-group { min-width: auto; }
+      .header-main { flex-direction: column; align-items: stretch; }
+      .toolbar { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header-bar">
+    <div class="logo"><img src="/images/kastle-logo.png" alt="Kastle"></div>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <span id="loginInfo" class="login-info"></span>
+      <button class="btn btn-secondary no-print" onclick="window.location.href='MenuPrincipale.html'">🏠 Menu</button>
+      <button class="btn btn-secondary no-print" onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+  <div class="sep"></div>
+
+  <div class="header-main">
+    <h2>📦 Trasferimento Massivo per Sigla</h2>
+    <div class="toolbar no-print">
+      <button class="btn btn-success" id="btnTrasferisci" disabled>➡️ Trasferisci selezionati</button>
+      <button class="btn btn-secondary" onclick="caricaDati()">🔄 Ricarica</button>
+    </div>
+  </div>
+
+  <div id="messageArea"></div>
+
+  <div class="source-selector no-print">
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceCarico" value="carico" checked>
+      <label for="sourceCarico">📦 In carico (da soggetto)</label>
+    </div>
+    <div class="source-option">
+      <input type="radio" name="source" id="sourceMagazzino" value="magazzino">
+      <label for="sourceMagazzino">🏭 Dal magazzino</label>
+    </div>
+  </div>
+
+  <!-- Sezione "In carico" -->
+  <div id="caricoSection" class="source-selection no-print">
+    <div class="form-group">
+      <label>Sorgente (soggetto)</label>
+      <select id="sourceTipo">
+        <option value="PROMOTER">👤 Promoter</option>
+        <option value="NEGOZIO">🏪 Negozio</option>
+        <option value="CLIENTE">👥 Cliente</option>
+        <option value="AGENTE">🤝 Agente</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Seleziona soggetto</label>
+      <select id="sourceId"><option value="">Seleziona...</option></select>
+    </div>
+    <div class="form-group">
+      <label><input type="checkbox" id="includeReferenced"> Includi referenti</label>
+    </div>
+  </div>
+
+  <!-- Sezione "Dal magazzino" -->
+  <div id="magazzinoSection" style="display: none;" class="no-print">
+    <div class="source-selection">
+      <div class="form-group">
+        <label>Magazzino</label>
+        <select id="magazzinoSelect"></select>
+      </div>
+      <div class="form-group">
+        <label>Tipo oggetto</label>
+        <select id="tipoOggettoMagazzino">
+          <option value="TUTTI">Tutti</option>
+          <option value="ARTICOLO">Articoli</option>
+          <option value="KIT">Kit</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabella -->
+  <div class="table-wrapper">
+    <table id="tabellaOggetti">
+      <thead>
+         <th class="checkbox-col"><input type="checkbox" id="selectAll"></th>
+         <th>#</th>
+         <th>Codice / Sigla</th>
+         <th>Descrizione</th>
+         <th>Lunghezza</th>
+         <th>Quantità disponibile</th>
+         <th>Quantità da trasferire</th>
+         <th>Stato</th>
+         <th>Destinatario / Sorgente</th>
+         <th>Data</th>
+      </thead>
+      <tbody id="tabellaBody"><td colspan="10" class="text-center">Seleziona una sorgente...</td></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODALE TRASFERIMENTO -->
+<div id="trasferisciModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>➡️ Trasferisci elementi selezionati</h3>
+      <span class="close" onclick="chiudiTrasferisciModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>🎯 Destinazione</label>
+        <select id="destTipo" class="form-control">
+          <option value="PROMOTER">Promoter</option>
+          <option value="NEGOZIO">Negozio</option>
+          <option value="CLIENTE">Cliente</option>
+          <option value="AGENTE">Agente</option>
+          <option value="MAGAZZINO">Magazzino</option>
+        </select>
+        <div id="destinazioneContainer" style="margin-top:8px;"></div>
+      </div>
+      <div class="form-group">
+        <label>📝 Note (opzionale)</label>
+        <input type="text" id="noteTrasferimento" class="form-control">
+      </div>
+      <div class="selected-summary" id="selectedSummary"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="confirmTrasferisciBtn">Conferma trasferimento</button>
+      <button class="btn btn-secondary" onclick="chiudiTrasferisciModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== UTILITY ==========
+  function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = 'Login.html'; return {}; }
+    return { 'Authorization': 'Bearer ' + token };
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...getAuthHeader(), ...options.headers };
+    const response = await fetch(endpoint, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'Login.html';
+      throw new Error('Sessione scaduta');
+    }
+    if (!response.ok) {
+      let errorMsg = `Errore ${response.status}`;
+      try { const err = await response.json(); errorMsg = err.message || errorMsg; } catch(e) {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  }
+
+  function showMessage(msg, type) {
+    const div = document.getElementById('messageArea');
+    div.innerHTML = `<div class="message ${type}">${msg}</div>`;
+    setTimeout(() => div.innerHTML = '', 5000);
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+  }
+
+  let currentUser = null;
+  let magazzini = [];
+  let righeTabella = [];       // array di oggetti con i dati visualizzati
+  let checkboxStates = new Map(); // id riga -> checked
+  let quantityValues = new Map(); // id riga -> quantità da trasferire
+
+  const radioCarico = document.getElementById('sourceCarico');
+  const radioMagazzino = document.getElementById('sourceMagazzino');
+  const caricoSection = document.getElementById('caricoSection');
+  const magazzinoSection = document.getElementById('magazzinoSection');
+  const sourceTipo = document.getElementById('sourceTipo');
+  const sourceId = document.getElementById('sourceId');
+  const includeReferenced = document.getElementById('includeReferenced');
+  const magazzinoSelect = document.getElementById('magazzinoSelect');
+  const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
+  const selectAllCheckbox = document.getElementById('selectAll');
+  const btnTrasferisci = document.getElementById('btnTrasferisci');
+
+  // Cache nomi soggetti
+  const soggettoNomeCache = new Map();
+  async function getNomeSoggetto(tipo, id) {
+    const key = `${tipo}|${id}`;
+    if (soggettoNomeCache.has(key)) return soggettoNomeCache.get(key);
+    try {
+      const res = await apiFetch(`/api/soggetti/${id}`);
+      const nome = tipo === 'PROMOTER' ? `${res.nome} ${res.cognome || ''}`.trim() : res.nome;
+      soggettoNomeCache.set(key, nome);
+      return nome;
+    } catch(e) { return `${tipo} ${id}`; }
+  }
+
+  // Recupera i dati da carico_sintesi per un soggetto (con referenti opzionali)
+  async function getDatiDaSoggetto(tipo, id, includeRef) {
+    const body = { targetTipo: tipo, targetId: parseInt(id), includeReferenced: includeRef };
+    const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
+    if (!res.success) throw new Error(res.message);
+    let oggetti = res.oggetti || [];
+    // arricchisci con dettagli kit
+    for (let obj of oggetti) {
+      if (obj.tipo === 'KIT') {
+        try {
+          const kit = await apiFetch(`/api/kit/${obj.ID}`);
+          const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+          if (sciDetail) {
+            obj.siglaSci = sciDetail.sigla || '';
+            obj.lunghezzaSci = sciDetail.lunghezza || '';
+          }
+        } catch(e) {}
+      }
+    }
+    // Trasforma in righe: una riga per ogni record (già per sigla)
+    return oggetti.map(obj => {
+      let codiceSigla = '';
+      let lunghezza = '';
+      if (obj.tipo === 'KIT') {
+        codiceSigla = obj.siglaSci || obj.codice || '';
+        lunghezza = obj.lunghezzaSci || '';
+      } else {
+        codiceSigla = obj.codice || '';
+        if (obj.SIGLA_CORRENTE && obj.SIGLA_CORRENTE !== codiceSigla) codiceSigla += ` / ${obj.SIGLA_CORRENTE}`;
+        lunghezza = obj.LUNGHEZZA || '';
+      }
+      return {
+        id: `${obj.tipo}_${obj.ID}_${obj.siglaId || 'null'}`,
+        tipo: obj.tipo,
+        oggettoId: obj.ID,
+        siglaId: obj.siglaId,
+        codice_sigla: codiceSigla,
+        descrizione: obj.descrizione || '',
+        lunghezza: lunghezza,
+        quantita_totale: obj.quantita,
+        quantita_trasferire: obj.quantita,  // default tutto
+        stato: 'In carico',
+        sorgenteNome: obj.destinatarioNome || (obj.destinazioneTipo === 'PROMOTER' ? `${obj.destinatario_nome||''} ${obj.destinatario_cognome||''}`.trim() : (obj.destinatario_nome||'Magazzino')),
+        data: obj.dataAssegnazione || null,
+        destinazioneTipo: obj.destinazioneTipo,
+        destinazioneId: obj.destinazioneId
+      };
+    });
+  }
+
+  // Recupera dati dal magazzino (articoli/kit con sigle)
+  async function getDatiDaMagazzino(magId, tipoFiltro) {
+    let lista = [];
+    if (tipoFiltro === 'TUTTI' || tipoFiltro === 'ARTICOLO') {
+      const params = new URLSearchParams({ magazzino: magId, min_giacenza: '1' });
+      const res = await apiFetch(`/api/articoli?${params}`);
+      let articoli = res.success ? res.data : [];
+      for (let a of articoli) {
+        let sigle = [];
+        try { sigle = await apiFetch(`/api/articoli/${a.id}/sigle`); } catch(e) {}
+        if (sigle.length === 0) {
+          // nessuna sigla: una riga con sigla nulla
+          lista.push({
+            id: `ARTICOLO_${a.id}_null`,
+            tipo: 'ARTICOLO',
+            oggettoId: a.id,
+            siglaId: null,
+            codice_sigla: a.codice_modello || a.codice,
+            descrizione: a.descrizione,
+            lunghezza: a.lunghezza || '',
+            quantita_totale: a.quantita_totale,
+            quantita_trasferire: a.quantita_totale,
+            stato: 'In magazzino',
+            sorgenteNome: `Magazzino ${magId}`,
+            data: null
+          });
+        } else {
+          for (let s of sigle) {
+            let codiceSigla = (a.codice_modello || a.codice) + (s.sigla ? ` / ${s.sigla}` : '');
+            lista.push({
+              id: `ARTICOLO_${a.id}_${s.id}`,
+              tipo: 'ARTICOLO',
+              oggettoId: a.id,
+              siglaId: s.id,
+              codice_sigla: codiceSigla,
+              descrizione: a.descrizione,
+              lunghezza: a.lunghezza || '',
+              quantita_totale: a.quantita_totale,
+              quantita_trasferire: a.quantita_totale,
+              stato: 'In magazzino',
+              sorgenteNome: `Magazzino ${magId}`,
+              data: null
+            });
+          }
+        }
+      }
+    }
+    if (tipoFiltro === 'TUTTI' || tipoFiltro === 'KIT') {
+      const res = await apiFetch('/api/kit');
+      let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
+      kits = kits.filter(k => k.magazzino == magId);
+      for (let k of kits) {
+        let sigla = '', lunghezza = '';
+        if (k.dettagli) {
+          const sci = k.dettagli.find(d => d.tipo_articolo === 'SCI');
+          if (sci) {
+            sigla = sci.sigla || '';
+            lunghezza = sci.lunghezza || '';
+            if (!lunghezza && sci.articolo_id) {
+              const art = await apiFetch(`/api/articoli/${sci.articolo_id}`);
+              lunghezza = art.lunghezza || '';
+            }
+          }
+        }
+        let codiceSigla = sigla || k.codice_kit;
+        lista.push({
+          id: `KIT_${k.id}_${sigla ? 'sigla' : 'null'}`,
+          tipo: 'KIT',
+          oggettoId: k.id,
+          siglaId: null,
+          codice_sigla: codiceSigla,
+          descrizione: k.descrizione,
+          lunghezza: lunghezza,
+          quantita_totale: k.quantita,
+          quantita_trasferire: k.quantita,
+          stato: 'In magazzino',
+          sorgenteNome: `Magazzino ${magId}`,
+          data: null
+        });
+      }
+    }
+    return lista;
+  }
+
+  // Popola tabella
+  function renderTabella(righe) {
+    const tbody = document.getElementById('tabellaBody');
+    if (!righe.length) {
+      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun elemento trovato.</td>';
+      btnTrasferisci.disabled = true;
+      return;
+    }
+    tbody.innerHTML = '';
+    righe.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      // checkbox
+      const tdCheck = document.createElement('td');
+      tdCheck.className = 'checkbox-col';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = checkboxStates.get(row.id) || false;
+      chk.addEventListener('change', (e) => {
+        checkboxStates.set(row.id, e.target.checked);
+        aggiornaPulsanteTrasferisci();
+      });
+      tdCheck.appendChild(chk);
+      tr.appendChild(tdCheck);
+      // #
+      const tdNum = document.createElement('td');
+      tdNum.innerText = idx + 1;
+      tr.appendChild(tdNum);
+      // Codice/Sigla
+      const tdCod = document.createElement('td');
+      tdCod.innerText = row.codice_sigla;
+      tr.appendChild(tdCod);
+      // Descrizione
+      const tdDesc = document.createElement('td');
+      tdDesc.innerText = row.descrizione;
+      tr.appendChild(tdDesc);
+      // Lunghezza
+      const tdLung = document.createElement('td');
+      tdLung.innerText = row.lunghezza;
+      tr.appendChild(tdLung);
+      // Quantità disponibile
+      const tdQtaTot = document.createElement('td');
+      tdQtaTot.innerText = row.quantita_totale;
+      tr.appendChild(tdQtaTot);
+      // Quantità da trasferire (input)
+      const tdQtaTrasf = document.createElement('td');
+      const inputQta = document.createElement('input');
+      inputQta.type = 'number';
+      inputQta.min = 1;
+      inputQta.max = row.quantita_totale;
+      inputQta.value = quantityValues.has(row.id) ? quantityValues.get(row.id) : row.quantita_trasferire;
+      inputQta.className = 'quantity-input';
+      inputQta.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (isNaN(val) || val < 1) val = 1;
+        if (val > row.quantita_totale) val = row.quantita_totale;
+        quantityValues.set(row.id, val);
+        // Aggiorna la quantità nell'oggetto row per riepilogo
+        row.quantita_trasferire = val;
+      });
+      tdQtaTrasf.appendChild(inputQta);
+      tr.appendChild(tdQtaTrasf);
+      // Stato
+      const tdStato = document.createElement('td');
+      tdStato.innerText = row.stato;
+      tr.appendChild(tdStato);
+      // Sorgente/Destinatario
+      const tdSorg = document.createElement('td');
+      tdSorg.innerText = row.sorgenteNome;
+      tr.appendChild(tdSorg);
+      // Data
+      const tdData = document.createElement('td');
+      tdData.innerText = row.data ? formatDate(row.data) : '-';
+      tr.appendChild(tdData);
+      tbody.appendChild(tr);
+    });
+    aggiornaPulsanteTrasferisci();
+  }
+
+  function aggiornaPulsanteTrasferisci() {
+    const qualcheSelezionato = Array.from(checkboxStates.values()).some(v => v === true);
+    btnTrasferisci.disabled = !qualcheSelezionato;
+  }
+
+  // Carica i dati in base alla sorgente selezionata
+  async function caricaDati() {
+    const isMagazzino = radioMagazzino.checked;
+    document.body.classList.add('loading');
+    try {
+      let righe = [];
+      if (isMagazzino) {
+        const magId = magazzinoSelect.value;
+        if (!magId) throw new Error('Seleziona un magazzino');
+        const tipo = tipoOggettoMagazzino.value;
+        righe = await getDatiDaMagazzino(magId, tipo);
+      } else {
+        const tipo = sourceTipo.value;
+        const id = sourceId.value;
+        if (!tipo || !id) throw new Error('Seleziona un soggetto');
+        const includeRef = includeReferenced.checked;
+        righe = await getDatiDaSoggetto(tipo, id, includeRef);
+      }
+      righeTabella = righe;
+      // resetta stati checkbox e quantità
+      checkboxStates.clear();
+      quantityValues.clear();
+      righe.forEach(row => {
+        checkboxStates.set(row.id, false);
+        quantityValues.set(row.id, row.quantita_totale);
+        row.quantita_trasferire = row.quantita_totale;
+      });
+      renderTabella(righeTabella);
+    } catch(err) {
+      showMessage(err.message, 'error');
+      righeTabella = [];
+      renderTabella([]);
+    } finally {
+      document.body.classList.remove('loading');
+    }
+  }
+
+  // Modale trasferimento
+  const trasferisciModal = document.getElementById('trasferisciModal');
+  const destTipoSelect = document.getElementById('destTipo');
+  const destinazioneContainer = document.getElementById('destinazioneContainer');
+  const selectedSummaryDiv = document.getElementById('selectedSummary');
+  let pendingSelectedItems = [];
+
+  function aggiornaCampoDestinazione() {
+    const tipo = destTipoSelect.value;
+    destinazioneContainer.innerHTML = '';
+    if (tipo === 'MAGAZZINO') {
+      const selectMagazzino = document.createElement('select');
+      selectMagazzino.id = 'destId';
+      selectMagazzino.className = 'form-control';
+      selectMagazzino.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => selectMagazzino.appendChild(new Option(m.nome, m.id)));
+      destinazioneContainer.appendChild(selectMagazzino);
+    } else if (tipo) {
+      const selectSoggetto = document.createElement('select');
+      selectSoggetto.id = 'destId';
+      selectSoggetto.className = 'form-control';
+      selectSoggetto.innerHTML = '<option value="">Seleziona...</option>';
+      destinazioneContainer.appendChild(selectSoggetto);
+      apiFetch(`/api/soggetti/tipo/${tipo}`).then(data => {
+        data.forEach(item => {
+          let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+          selectSoggetto.appendChild(new Option(testo, item.id));
+        });
+      }).catch(err => showMessage('Errore caricamento destinazioni', 'error'));
+    }
+  }
+
+  function apriTrasferisciModal() {
+    // Raccogli gli elementi selezionati
+    const selezionati = [];
+    for (let i = 0; i < righeTabella.length; i++) {
+      const row = righeTabella[i];
+      if (checkboxStates.get(row.id)) {
+        const qta = quantityValues.get(row.id);
+        if (qta > 0) {
+          selezionati.push({
+            tipoOggetto: row.tipo,
+            oggettoId: row.oggettoId,
+            siglaId: row.siglaId,
+            quantita: qta,
+            daTipo: row.destinazioneTipo || null,
+            daId: row.destinazioneId || null,
+            descrizione: row.descrizione,
+            codice_sigla: row.codice_sigla
+          });
+        }
+      }
+    }
+    if (selezionati.length === 0) {
+      showMessage('Nessun elemento selezionato', 'error');
+      return;
+    }
+    pendingSelectedItems = selezionati;
+    // popola riepilogo
+    let html = '<strong>📋 Elementi da trasferire:</strong><ul style="margin:5px 0 0 15px;">';
+    for (let item of selezionati) {
+      html += `<li>${item.codice_sigla} - ${item.descrizione} (q.${item.quantita})</li>`;
+    }
+    html += '</ul>';
+    selectedSummaryDiv.innerHTML = html;
+    // resetta destinazione
+    destTipoSelect.value = 'PROMOTER';
+    aggiornaCampoDestinazione();
+    trasferisciModal.style.display = 'flex';
+  }
+
+  function chiudiTrasferisciModal() {
+    trasferisciModal.style.display = 'none';
+    pendingSelectedItems = [];
+  }
+
+  async function confermaTrasferimento() {
+    const destTipo = destTipoSelect.value;
+    const destIdElem = document.getElementById('destId');
+    const destId = destIdElem ? destIdElem.value : null;
+    const note = document.getElementById('noteTrasferimento').value;
+    if (!destTipo || !destId) {
+      showMessage('Seleziona una destinazione valida', 'error');
+      return;
+    }
+    const isMagazzino = radioMagazzino.checked;
+    const payload = {
+      note: note,
+      oggetti: pendingSelectedItems.map(item => ({
+        tipoOggetto: item.tipoOggetto,
+        oggettoId: item.oggettoId,
+        siglaId: item.siglaId,
+        quantita: item.quantita,
+        daTipo: isMagazzino ? null : item.daTipo,
+        daId: isMagazzino ? null : item.daId
+      }))
+    };
+    let endpoint = '';
+    if (isMagazzino) {
+      // uscita batch dal magazzino
+      endpoint = '/api/assegnazioni/uscita/batch';
+      payload.magazzinoId = parseInt(magazzinoSelect.value);
+      payload.destinazioneTipo = destTipo;
+      payload.destinazioneId = parseInt(destId);
+    } else {
+      // trasferimento tra soggetti (o rientro se destinazione magazzino)
+      if (destTipo === 'MAGAZZINO') {
+        endpoint = '/api/assegnazioni/rientro/batch';
+        payload.magazzinoId = parseInt(destId);
+        // i daTipo/daId sono già presenti in ogni oggetto
+      } else {
+        endpoint = '/api/assegnazioni/trasferimento';
+        payload.magazzinoId = magazzini.find(m => m.nome.toLowerCase() === 'race')?.id || magazzini[0]?.id;
+        payload.daTipo = sourceTipo.value;
+        payload.daId = parseInt(sourceId.value);
+        payload.aTipo = destTipo;
+        payload.aId = parseInt(destId);
+      }
+    }
+    try {
+      const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) {
+        showMessage('Trasferimento completato con successo', 'success');
+        chiudiTrasferisciModal();
+        await caricaDati(); // ricarica la tabella
+      } else {
+        showMessage(res.message || 'Errore nel trasferimento', 'error');
+      }
+    } catch(err) {
+      showMessage(err.message, 'error');
+    }
+  }
+
+  // Gestione UI e init
+  function toggleSource() {
+    const isMagazzino = radioMagazzino.checked;
+    caricoSection.style.display = isMagazzino ? 'none' : 'flex';
+    magazzinoSection.style.display = isMagazzino ? 'flex' : 'none';
+    caricaDati();
+  }
+
+  async function caricaMagazzini() {
+    try {
+      magazzini = await apiFetch('/api/anagrafiche/magazzini');
+      magazzinoSelect.innerHTML = '<option value="">Seleziona magazzino</option>';
+      magazzini.forEach(m => magazzinoSelect.appendChild(new Option(m.nome, m.id)));
+      const defaultMag = magazzini.find(m => m.nome.toLowerCase() === 'race');
+      if (defaultMag) magazzinoSelect.value = defaultMag.id;
+    } catch(err) { showMessage('Errore magazzini', 'error'); }
+  }
+
+  async function caricaSorgentiAdmin() {
+    const tipo = sourceTipo.value;
+    try {
+      const data = await apiFetch(`/api/soggetti/tipo/${tipo}`);
+      sourceId.innerHTML = '<option value="">Seleziona...</option>';
+      data.forEach(item => {
+        let testo = tipo === 'PROMOTER' ? `${item.nome} ${item.cognome || ''}`.trim() : item.nome;
+        sourceId.appendChild(new Option(testo, item.id));
+      });
+      if (sourceId.options.length > 1 && !sourceId.value) sourceId.selectedIndex = 1;
+      if (radioCarico.checked) caricaDati();
+    } catch(err) { showMessage('Errore sorgenti', 'error'); }
+  }
+
+  function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = 'Login.html'; }
+
+  window.onload = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) { document.body.innerHTML = '<div class="container"><h2>Accesso negato</h2><a href="Login.html">Login</a></div>'; return; }
+    try {
+      currentUser = JSON.parse(localStorage.getItem('user'));
+      if (!currentUser.riferimento_id && currentUser.RiferimentoID) currentUser.riferimento_id = parseInt(currentUser.RiferimentoID);
+    } catch(e) { logout(); return; }
+    document.getElementById('loginInfo').innerHTML = `👤 ${currentUser.nome_visualizzato || currentUser.username} (${currentUser.ruolo})`;
+    await caricaMagazzini();
+    // Setup eventi
+    radioCarico.addEventListener('change', toggleSource);
+    radioMagazzino.addEventListener('change', toggleSource);
+    sourceTipo.addEventListener('change', () => caricaSorgentiAdmin());
+    sourceId.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    includeReferenced.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
+    tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
+    selectAllCheckbox.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      righeTabella.forEach(row => checkboxStates.set(row.id, checked));
+      renderTabella(righeTabella);
+    });
+    btnTrasferisci.addEventListener('click', () => apriTrasferisciModal());
+    document.getElementById('confirmTrasferisciBtn').addEventListener('click', () => confermaTrasferimento());
+    destTipoSelect.addEventListener('change', aggiornaCampoDestinazione);
+    // Carica soggetti se admin
+    if (currentUser.ruolo === 'admin') {
+      await caricaSorgentiAdmin();
+    } else if (currentUser.riferimento_id) {
+      sourceTipo.value = currentUser.ruolo.toUpperCase();
+      sourceId.value = currentUser.riferimento_id;
+      await caricaSorgentiAdmin();
+    } else {
+      showMessage('Utente senza soggetto associato', 'error');
+    }
+    toggleSource();
+  };
+</script>
+</body>
+</html>
