@@ -317,6 +317,13 @@
       <label><input type="radio" name="caricoMode" id="modeAssegnati" value="assegnati"> 📤 Assegnati (inviati ad altri)</label>
       <label><input type="radio" name="caricoMode" id="modeEntrambi" value="entrambi"> 🔄 Entrambi</label>
     </div>
+    <!-- Select per filtrare per destinatario (solo in modalità assegnati) -->
+    <div id="filtroDestinatarioContainer" class="form-group" style="display:none;">
+      <label>🎯 Filtra per destinatario</label>
+      <select id="filtroDestinatario">
+        <option value="">Tutti i destinatari</option>
+      </select>
+    </div>
   </div>
 
   <!-- Sezione "Dal magazzino" -->
@@ -430,8 +437,10 @@
   let currentUser = null;
   let magazzini = [];
   let righeTabella = [];
+  let righeFiltrate = []; // per il filtro destinatario in modalità assegnati
   let checkboxStates = new Map();
   let quantityValues = new Map();
+  let kitDetailsCache = new Map(); // cache per lunghezza kit
 
   const radioCarico = document.getElementById('sourceCarico');
   const radioMagazzino = document.getElementById('sourceMagazzino');
@@ -447,6 +456,8 @@
   const tipoOggettoMagazzino = document.getElementById('tipoOggettoMagazzino');
   const selectAllCheckbox = document.getElementById('selectAll');
   const btnTrasferisci = document.getElementById('btnTrasferisci');
+  const filtroDestinatarioContainer = document.getElementById('filtroDestinatarioContainer');
+  const filtroDestinatario = document.getElementById('filtroDestinatario');
 
   const soggettoNomeCache = new Map();
   async function getNomeSoggetto(tipo, id) {
@@ -460,23 +471,42 @@
     } catch(e) { return `${tipo} ${id}`; }
   }
 
+  // Recupera dettaglio kit (sigla e lunghezza sci) con cache
+  async function getKitDetails(kitId) {
+    if (kitDetailsCache.has(kitId)) return kitDetailsCache.get(kitId);
+    try {
+      const kit = await apiFetch(`/api/kit/${kitId}`);
+      let sigla = '', lunghezza = '';
+      const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
+      if (sciDetail) {
+        sigla = sciDetail.sigla || '';
+        lunghezza = sciDetail.lunghezza || '';
+        if (!lunghezza && sciDetail.articolo_id) {
+          const art = await apiFetch(`/api/articoli/${sciDetail.articolo_id}`);
+          lunghezza = art.lunghezza || '';
+        }
+      }
+      const result = { sigla, lunghezza };
+      kitDetailsCache.set(kitId, result);
+      return result;
+    } catch(e) {
+      console.warn(`Errore dettagli kit ${kitId}:`, e);
+      return { sigla: '', lunghezza: '' };
+    }
+  }
+
   // ----- OGGETTI IN CARICO (da carico_sintesi) -----
   async function getOggettiInCarico(tipo, id, includeRef) {
     const body = { targetTipo: tipo, targetId: parseInt(id), includeReferenced: includeRef };
     const res = await apiFetch('/api/assegnazioni/oggetti', { method: 'POST', body: JSON.stringify(body) });
     if (!res.success) throw new Error(res.message);
     let oggetti = res.oggetti || [];
-    // Arricchisci kit con sigla sci
+    // Arricchisci kit con sigla e lunghezza sci
     for (let obj of oggetti) {
       if (obj.tipo === 'KIT') {
-        try {
-          const kit = await apiFetch(`/api/kit/${obj.ID}`);
-          const sciDetail = kit.dettagli?.find(d => d.tipo_articolo === 'SCI');
-          if (sciDetail) {
-            obj.siglaSci = sciDetail.sigla || '';
-            obj.lunghezzaSci = sciDetail.lunghezza || '';
-          }
-        } catch(e) {}
+        const details = await getKitDetails(obj.ID);
+        obj.siglaSci = details.sigla;
+        obj.lunghezzaSci = details.lunghezza;
       }
     }
     return oggetti.map(obj => {
@@ -510,10 +540,17 @@
     });
   }
 
-  // ----- OGGETTI ASSEGNATI (inviati ad altri) -----
+  // ----- OGGETTI ASSEGNATI (inviati ad altri) con arricchimento lunghezza kit -----
   async function getOggettiAssegnati(tipo, id) {
     const res = await apiFetch(`/api/assegnazioni/inviati?provenienza_tipo=${tipo}&provenienza_id=${id}`);
-    return res.map(row => {
+    const oggetti = [];
+    for (const row of res) {
+      let lunghezza = row.lunghezza || '';
+      // Se è un kit e non ha lunghezza, la recupero
+      if (row.tipo_oggetto === 'KIT' && !lunghezza) {
+        const details = await getKitDetails(row.oggetto_id);
+        lunghezza = details.lunghezza;
+      }
       let codiceSigla = '';
       if (row.tipo_oggetto === 'KIT') {
         codiceSigla = row.sigla || row.codice || '';
@@ -521,14 +558,14 @@
         codiceSigla = row.codice || '';
         if (row.sigla && row.sigla !== codiceSigla) codiceSigla += ` / ${row.sigla}`;
       }
-      return {
+      oggetti.push({
         id: `${row.tipo_oggetto}_${row.oggetto_id}_${row.sigla_id || 'null'}`,
         tipo: row.tipo_oggetto,
         oggettoId: row.oggetto_id,
         siglaId: row.sigla_id,
         codice_sigla: codiceSigla,
         descrizione: row.descrizione || '',
-        lunghezza: row.lunghezza || '',
+        lunghezza: lunghezza,
         quantita_totale: row.quantita,
         quantita_trasferire: row.quantita,
         stato: 'Assegnato',
@@ -537,8 +574,9 @@
         destinazioneTipo: row.destinazione_tipo,
         destinazioneId: row.destinazione_id,
         isCarico: false
-      };
-    });
+      });
+    }
+    return oggetti;
   }
 
   // ----- CARICA DATI DA SOGGETTO CON MODALITÀ -----
@@ -550,9 +588,39 @@
     if (mode === 'assegnati' || mode === 'entrambi') {
       assegnati = await getOggettiAssegnati(tipo, id);
     }
-    if (mode === 'incarico') return incarico;
-    if (mode === 'assegnati') return assegnati;
-    return [...incarico, ...assegnati];
+    let result = [];
+    if (mode === 'incarico') result = incarico;
+    else if (mode === 'assegnati') result = assegnati;
+    else result = [...incarico, ...assegnati];
+    
+    // Se siamo in modalità assegnati, popola la select dei destinatari
+    if (mode === 'assegnati') {
+      const destinatariMap = new Map();
+      for (const item of result) {
+        if (item.destinazioneTipo && item.destinazioneId) {
+          const key = `${item.destinazioneTipo}|${item.destinazioneId}`;
+          if (!destinatariMap.has(key)) {
+            const nome = await getNomeSoggetto(item.destinazioneTipo, item.destinazioneId);
+            destinatariMap.set(key, { tipo: item.destinazioneTipo, id: item.destinazioneId, nome });
+          }
+        }
+      }
+      filtroDestinatario.innerHTML = '<option value="">Tutti i destinatari</option>';
+      for (const [key, dest] of destinatariMap.entries()) {
+        filtroDestinatario.appendChild(new Option(dest.nome, key));
+      }
+      filtroDestinatarioContainer.style.display = 'flex';
+      // Se c'è un filtro attivo, filtra
+      const filtroVal = filtroDestinatario.value;
+      if (filtroVal) {
+        const [fTipo, fId] = filtroVal.split('|');
+        result = result.filter(r => r.destinazioneTipo === fTipo && String(r.destinazioneId) === fId);
+      }
+    } else {
+      filtroDestinatarioContainer.style.display = 'none';
+      filtroDestinatario.value = '';
+    }
+    return result;
   }
 
   // ----- CARICA DATI DA MAGAZZINO (come prima) -----
@@ -610,27 +678,16 @@
       let kits = res.success ? res.data : (Array.isArray(res) ? res : []);
       kits = kits.filter(k => k.magazzino == magId);
       for (let k of kits) {
-        let sigla = '', lunghezza = '';
-        if (k.dettagli) {
-          const sci = k.dettagli.find(d => d.tipo_articolo === 'SCI');
-          if (sci) {
-            sigla = sci.sigla || '';
-            lunghezza = sci.lunghezza || '';
-            if (!lunghezza && sci.articolo_id) {
-              const art = await apiFetch(`/api/articoli/${sci.articolo_id}`);
-              lunghezza = art.lunghezza || '';
-            }
-          }
-        }
-        let codiceSigla = sigla || k.codice_kit;
+        const details = await getKitDetails(k.id);
+        let codiceSigla = details.sigla || k.codice_kit;
         lista.push({
-          id: `KIT_${k.id}_${sigla ? 'sigla' : 'null'}`,
+          id: `KIT_${k.id}_${details.sigla ? 'sigla' : 'null'}`,
           tipo: 'KIT',
           oggettoId: k.id,
           siglaId: null,
           codice_sigla: codiceSigla,
           descrizione: k.descrizione,
-          lunghezza: lunghezza,
+          lunghezza: details.lunghezza,
           quantita_totale: k.quantita,
           quantita_trasferire: k.quantita,
           stato: 'In magazzino',
@@ -655,6 +712,7 @@
         if (!magId) throw new Error('Seleziona un magazzino');
         const tipo = tipoOggettoMagazzino.value;
         righe = await getDatiDaMagazzino(magId, tipo);
+        righeFiltrate = righe;
       } else {
         const tipo = sourceTipo.value;
         const id = sourceId.value;
@@ -662,11 +720,12 @@
         const includeRef = includeReferenced.checked;
         const mode = document.querySelector('input[name="caricoMode"]:checked').value;
         righe = await getDatiDaSoggetto(tipo, id, includeRef, mode);
+        righeFiltrate = righe;
       }
-      righeTabella = righe;
+      righeTabella = righeFiltrate;
       checkboxStates.clear();
       quantityValues.clear();
-      righe.forEach(row => {
+      righeTabella.forEach(row => {
         checkboxStates.set(row.id, false);
         quantityValues.set(row.id, row.quantita_totale);
         row.quantita_trasferire = row.quantita_totale;
@@ -675,16 +734,42 @@
     } catch(err) {
       showMessage(err.message, 'error');
       righeTabella = [];
+      righeFiltrate = [];
       renderTabella([]);
     } finally {
       document.body.classList.remove('loading');
     }
   }
 
+  // Filtro destinatario in modalità assegnati
+  async function onFiltroDestinatarioChange() {
+    const filtroVal = filtroDestinatario.value;
+    const tipo = sourceTipo.value;
+    const id = sourceId.value;
+    if (!tipo || !id) return;
+    const includeRef = includeReferenced.checked;
+    const mode = document.querySelector('input[name="caricoMode"]:checked').value;
+    if (mode !== 'assegnati') return;
+    let tutteRighe = await getDatiDaSoggetto(tipo, id, includeRef, mode);
+    if (filtroVal) {
+      const [fTipo, fId] = filtroVal.split('|');
+      tutteRighe = tutteRighe.filter(r => r.destinazioneTipo === fTipo && String(r.destinazioneId) === fId);
+    }
+    righeTabella = tutteRighe;
+    checkboxStates.clear();
+    quantityValues.clear();
+    righeTabella.forEach(row => {
+      checkboxStates.set(row.id, false);
+      quantityValues.set(row.id, row.quantita_totale);
+      row.quantita_trasferire = row.quantita_totale;
+    });
+    renderTabella(righeTabella);
+  }
+
   function renderTabella(righe) {
     const tbody = document.getElementById('tabellaBody');
     if (!righe.length) {
-      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun elemento trovato.</table>';
+      tbody.innerHTML = '<td colspan="10" class="text-center">Nessun elemento trovato.</tr>';
       btnTrasferisci.disabled = true;
       return;
     }
@@ -712,7 +797,7 @@
       tdDesc.innerText = row.descrizione;
       tr.appendChild(tdDesc);
       const tdLung = document.createElement('td');
-      tdLung.innerText = row.lunghezza;
+      tdLung.innerText = row.lunghezza || '-';
       tr.appendChild(tdLung);
       const tdQtaTot = document.createElement('td');
       tdQtaTot.innerText = row.quantita_totale;
@@ -919,6 +1004,7 @@
     modeInCarico.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
     modeAssegnati.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
     modeEntrambi.addEventListener('change', () => { if (radioCarico.checked) caricaDati(); });
+    filtroDestinatario.addEventListener('change', onFiltroDestinatarioChange);
     magazzinoSelect.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
     tipoOggettoMagazzino.addEventListener('change', () => { if (radioMagazzino.checked) caricaDati(); });
     selectAllCheckbox.addEventListener('change', (e) => {
